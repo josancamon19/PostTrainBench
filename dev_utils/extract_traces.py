@@ -21,6 +21,14 @@ API_KEY_ENV_VARS = [
     "MY_HF_TOKEN"
 ]
 
+API_KEY_PATTERNS = [
+    "sk-proj",
+    "sk-ant",
+    "AIzaSy",
+    "sk-",
+    "hf_",
+]
+
 
 def get_api_keys() -> list[str]:
     """Get API key values from environment variables (non-empty only)."""
@@ -33,7 +41,7 @@ def get_api_keys() -> list[str]:
 
     return keys
 
-def print_warning_if_api_key_in_content(content: str, prefix: str) -> None:
+def raise_error_if_api_key_in_content(content: str, prefix: str) -> None:
     if prefix in content:
         message = f"Found potential API key pattern in content that was not redacted."
         idx = content.index(prefix)
@@ -46,11 +54,8 @@ def sanitize_content(content: str, api_keys: list[str]) -> str:
     """Replace any API keys found in content with a placeholder."""
     for key in api_keys:
         content = content.replace(key, "<omitted-api-key>")
-    print_warning_if_api_key_in_content(content, "sk-proj")
-    print_warning_if_api_key_in_content(content, "sk-ant")
-    print_warning_if_api_key_in_content(content, "AIzaSy")
-    print_warning_if_api_key_in_content(content, "sk-")
-    print_warning_if_api_key_in_content(content, "hf_")
+    for pattern in API_KEY_PATTERNS:
+        raise_error_if_api_key_in_content(content, pattern)
 
     return content
 
