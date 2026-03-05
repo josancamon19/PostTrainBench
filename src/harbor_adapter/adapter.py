@@ -185,9 +185,9 @@ class PostTrainBenchAdapter:
         """Generate timer.sh script that tracks remaining time.
 
         Uses a sentinel file (.timer_start) to record the start time.
-        When run via run_job.py, the AGENT_START hook (see hooks.py)
-        pre-creates .timer_start with the exact agent-start timestamp
-        before this script is ever called.
+        The BASH_ENV overlay script (setup-overlay.sh) pre-creates
+        .timer_start with the exact agent-start timestamp before this
+        script is ever called.
         """
         timer_script = f"""#!/bin/bash
 
@@ -235,6 +235,12 @@ fi
         dockerignore_src = TEMPLATE_DIR / "environment" / ".dockerignore"
         if dockerignore_src.exists():
             shutil.copy(dockerignore_src, env_dir / ".dockerignore")
+
+        # Copy BASH_ENV overlay setup script
+        shutil.copy(
+            TEMPLATE_DIR / "environment" / "setup-overlay.sh",
+            env_dir / "setup-overlay.sh"
+        )
 
         # Copy evaluate.py from the benchmark
         eval_src = self.posttrainbench_root / "src" / "eval" / "tasks" / benchmark_id / "evaluate.py"

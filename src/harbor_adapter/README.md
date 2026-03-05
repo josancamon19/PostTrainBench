@@ -25,6 +25,19 @@ This adapter generates [Harbor](https://harborframework.com)-compatible tasks fo
 
 Total: **28 tasks** (7 benchmarks x 4 models).
 
+## File Layout
+
+```
+src/harbor_adapter/
+├── adapter.py         # Task generation logic (benchmarks, models, templates)
+├── run_adapter.py     # CLI: generate Harbor tasks from PostTrainBench config
+├── run_job.py         # CLI: run trials on Modal (convenience wrapper for cache + volume)
+├── modal_volume.py    # Modal volume creation and HF cache population
+├── __init__.py        # Public API exports
+├── template/          # Task templates (Dockerfile, instruction.md, tests, etc.)
+└── tasks/             # Generated task directories (created by run_adapter.py)
+```
+
 ## Installation
 
 ```bash
@@ -57,15 +70,107 @@ export ANTHROPIC_API_KEY=<your-key>  # For Claude agent
 export OPENAI_API_KEY=<your-key>     # For contamination judge (codex CLI) + arenahardwriting/healthbench eval
 ```
 
-### 3. Run with Harbor
+### 3. Run trials
+
+Use `harbor run` to run trials on Modal. The overlay setup and timer initialization are handled automatically inside the Docker image via `BASH_ENV` (no external hooks needed).
 
 ```bash
+cd src/harbor_adapter
+
+# With HF cache volume (mount the pre-populated Modal volume)
+harbor run \
+    --path ./tasks/posttrainbench-gsm8k-qwen3-1.7b \
+    --agent claude-code \
+    --model anthropic/claude-sonnet-4 \
+    --env modal \
+    --ek 'volumes={"/hf-cache-volume":"posttrainbench-hf-cache"}'
+
+# Without HF cache volume (models downloaded at runtime)
 harbor run \
     --path ./tasks/posttrainbench-gsm8k-qwen3-1.7b \
     --agent claude-code \
     --model anthropic/claude-sonnet-4 \
     --env modal
 ```
+
+Alternatively, use `run_job.py` as a convenience wrapper that handles cache population and volume mounting automatically:
+
+```bash
+# Single trial (HF cache volume is set up automatically on first run)
+python run_job.py \
+    --task-dir ./tasks/posttrainbench-gsm8k-qwen3-1.7b \
+    --agent claude-code \
+    --model anthropic/claude-sonnet-4 \
+    --modal-secret my-api-keys
+
+# Multiple trials with concurrency
+python run_job.py \
+    --tasks-root ./tasks \
+    --agent claude-code \
+    --model anthropic/claude-sonnet-4 \
+    --n-concurrent 4
+
+# Skip cache population (volume already populated from a previous run)
+python run_job.py \
+    --task-dir ./tasks/posttrainbench-gsm8k-qwen3-1.7b \
+    --agent claude-code \
+    --model anthropic/claude-sonnet-4 \
+    --no-ensure-cache
+
+# Without HF cache volume (models downloaded at runtime)
+python run_job.py \
+    --task-dir ./tasks/posttrainbench-gsm8k-qwen3-1.7b \
+    --agent claude-code \
+    --model anthropic/claude-sonnet-4 \
+    --no-hf-cache
+```
+
+## HF Cache Volume
+
+PostTrainBench tasks fine-tune large models that benefit from a pre-populated HuggingFace cache. The adapter uses a **Modal volume** (`posttrainbench-hf-cache`) shared across all trials, containing pre-downloaded models and datasets from `containers/download_hf_cache/resources.json`.
+
+### How it works
+
+1. **Volume creation**: `modal_volume.py` creates the Modal volume with `create_if_missing=True` and downloads all models (via `huggingface_hub.snapshot_download`) and datasets (via `datasets.load_dataset`) into it.
+
+2. **Copy-on-write isolation**: Each trial sandbox mounts the volume at `/hf-cache-volume` (read-only base layer). The `BASH_ENV` script (`setup-overlay.sh`) runs automatically on the first `bash -c` command and sets up a `fuse-overlayfs` overlay:
+   - **Lower layer**: `/hf-cache-volume` (shared Modal volume, read-only)
+   - **Upper layer**: `/tmp/hf-overlay/upper` (local to the sandbox)
+   - **Merged at**: `/hf-home` (what the agent sees as `HF_HOME`)
+
+   This means all trials can read from the shared ~500GB cache, but writes (new model checkpoints, additional downloads) are isolated per-trial and don't pollute the shared cache.
+
+3. **Fallback**: If `fuse-overlayfs` is unavailable, the script falls back to `cp -as` (symlink tree).
+
+### Populating the volume
+
+The cache is populated automatically when you run `run_job.py` (unless `--no-ensure-cache` or `--no-hf-cache` is passed). The population is idempotent -- already-cached resources are skipped, so repeated runs are fast.
+
+To populate the volume separately (recommended for the first time, since it can take hours):
+
+```bash
+# Download everything (14 models + 400+ datasets)
+modal run src/harbor_adapter/modal_volume.py
+
+# Models only (faster, ~50GB)
+modal run src/harbor_adapter/modal_volume.py --models-only
+
+# Datasets only
+modal run src/harbor_adapter/modal_volume.py --datasets-only
+```
+
+### Volume name
+
+The default volume name is `posttrainbench-hf-cache` (defined as `DEFAULT_VOLUME_NAME` in `modal_volume.py`). You can override it in `run_job.py` with `--hf-cache-volume <name>`, but you are responsible for populating a non-default volume yourself.
+
+## Overlay Setup
+
+The Docker image includes a `BASH_ENV` script (`setup-overlay.sh`) that runs automatically on the first `bash -c` command inside the container. It is idempotent (guarded by a flag file `/tmp/.overlay_done`) and performs two tasks:
+
+1. **HF cache overlay** -- Mounts the fuse-overlayfs as described above (or falls back to symlinks). This runs before the agent's first command so its setup time doesn't count against the agent's timer.
+2. **Timer sentinel** -- Creates `.timer_start` with the current Unix timestamp. This ensures `timer.sh` starts counting from the moment the agent begins, not from when the task was generated.
+
+This approach works natively with `harbor run` and the Harbor registry -- no custom hooks or wrapper scripts are needed.
 
 ## API Key Requirements
 
@@ -77,6 +182,24 @@ harbor run \
 - The verifier receives `OPENAI_API_KEY` as both `OPENAI_API_KEY` and `CODEX_API_KEY` (codex CLI reads `CODEX_API_KEY`).
 - For arenahardwriting and healthbench, `OPENAI_API_KEY` is also passed to the agent environment since their `evaluate.py` scripts call the OpenAI API for judging.
 
+## `run_job.py` Reference
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--task-dir, -t` | (required\*) | Path to a single task directory |
+| `--tasks-root` | (required\*) | Path to directory containing multiple tasks |
+| `--agent, -a` | (required) | Agent name (e.g. `claude-code`, `codex`, `aider`) |
+| `--model, -m` | (required) | Model name (e.g. `anthropic/claude-sonnet-4`) |
+| `--hf-cache-volume` | `posttrainbench-hf-cache` | Modal volume name for the HF cache |
+| `--no-hf-cache` | `false` | Don't mount a HF cache volume |
+| `--no-ensure-cache` | `false` | Skip automatic cache population |
+| `--modal-secret` | `[]` | Modal secret name (repeatable) |
+| `--ae, --agent-env` | `[]` | Agent env var as `KEY=VALUE` (repeatable, supports `${VAR}`) |
+| `--trials-dir` | `./trials` | Directory for trial results |
+| `--n-concurrent` | `1` | Concurrent trials (with `--tasks-root`) |
+
+\* `--task-dir` and `--tasks-root` are mutually exclusive; one is required.
+
 ## Task Structure
 
 Each generated task follows Harbor's standard format:
@@ -87,7 +210,8 @@ posttrainbench-gsm8k-qwen3-1.7b/
 ├── instruction.md         # Instructions for the agent
 ├── environment/
 │   ├── Dockerfile         # Container definition (CUDA + vLLM + ML packages)
-│   ├── .dockerignore      # Excludes Dockerfile from COPY
+│   ├── .dockerignore      # Excludes Dockerfile and setup-overlay.sh from COPY
+│   ├── setup-overlay.sh   # BASH_ENV script: overlay setup + timer sentinel
 │   ├── evaluate.py        # Benchmark evaluation script
 │   ├── contamination_judge.py  # Generates judge prompt for codex CLI
 │   ├── timer.sh           # Countdown timer (sentinel-file based)

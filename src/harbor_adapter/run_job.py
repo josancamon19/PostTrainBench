@@ -1,12 +1,9 @@
-"""Run PostTrainBench trials on Modal with pre-agent hooks.
+"""Run PostTrainBench trials on Modal.
 
-This script uses Harbor's Trial API directly (rather than `harbor run`) so that
-it can register AGENT_START hooks for:
-  - Pre-creating the .timer_start sentinel with the actual agent-start timestamp
-  - Mounting a fuse-overlayfs over a shared HuggingFace cache Modal volume
-
-By default, the HF cache volume is automatically created and populated from
-containers/download_hf_cache/resources.json before trials start (idempotent).
+Convenience wrapper around Harbor's Trial API that handles:
+  - Automatic HF cache volume creation and population (idempotent)
+  - Volume mounting for the shared HuggingFace cache
+  - Batch execution with bounded concurrency
 
 Usage:
     # Single trial (HF cache volume is set up automatically)
@@ -40,7 +37,6 @@ Usage:
 
 import argparse
 import asyncio
-import json
 import os
 from pathlib import Path
 from typing import Any
@@ -54,19 +50,10 @@ from harbor.models.trial.config import (
 )
 from harbor.trial.trial import Trial
 
-from hooks import (
-    HF_CACHE_VOLUME_MOUNT,
-    HF_HOME_PATH,
-    register_agent_start_hook,
-)
 from modal_volume import DEFAULT_VOLUME_NAME, ensure_hf_cache
 
-
-def _read_num_hours(task_dir: Path) -> int:
-    """Read num_hours from the task's metadata.json."""
-    metadata_path = task_dir / "environment" / "metadata.json"
-    metadata = json.loads(metadata_path.read_text())
-    return metadata["num_hours"]
+# Path inside the container where the Modal volume is mounted
+HF_CACHE_VOLUME_MOUNT = "/hf-cache-volume"
 
 
 def _build_trial_config(
@@ -109,9 +96,7 @@ async def _run_single_trial(
     agent_env: dict[str, str],
     trials_dir: Path,
 ) -> None:
-    """Create a Trial with hooks and run it."""
-    num_hours = _read_num_hours(task_dir)
-
+    """Create a Trial and run it."""
     config = _build_trial_config(
         task_dir=task_dir,
         agent_name=agent_name,
@@ -124,17 +109,9 @@ async def _run_single_trial(
 
     trial = Trial(config)
 
-    register_agent_start_hook(
-        trial,
-        num_hours=num_hours,
-        hf_cache_volume_mount=HF_CACHE_VOLUME_MOUNT if hf_cache_volume else "",
-        hf_home_path=HF_HOME_PATH,
-    )
-
     print(f"Running trial: {config.trial_name}")
     print(f"  Task: {task_dir}")
     print(f"  Agent: {agent_name} ({model_name})")
-    print(f"  Timer: {num_hours}h")
     if hf_cache_volume:
         print(f"  HF cache volume: {hf_cache_volume} -> {HF_CACHE_VOLUME_MOUNT}")
 
@@ -200,7 +177,7 @@ def _parse_agent_env(env_args: list[str] | None) -> dict[str, str]:
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Run PostTrainBench trials on Modal with pre-agent hooks",
+        description="Run PostTrainBench trials on Modal",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )

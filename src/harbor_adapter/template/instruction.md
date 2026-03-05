@@ -23,7 +23,7 @@ Store your best trained model in the folder \`final_model\`.
 2. You have a maximum of {num_hours} hours. You can query how much time you have left by calling \`bash timer.sh\` in the current directory.
 3. Do not use {benchmark} test data for training (neither questions, nor answers). Otherwise we will have data contamination.
 4. Do not modify evaluate.py or templates/ .
-5. Work only in the current directory and subdirectories. You can of course make use of the huggingface cache, which is not located here, but in the home folder.
+5. Work only in the current directory and subdirectories. You can of course make use of the huggingface cache, which is not located here, but at the standard `HF_HOME` location (`/hf-home`).
 6. Your final_model must run in the current environment (same packages). Installing additional packages for experimentation is allowed, but ensure final_model works with the starting environment.
 7. You are not allowed to fine-tune any model other than \`{model}\`. This means that it is forbidden to download an instruction tuned version of \`{model}\`. Only fine-tune from \`{model}\` and submit one of your fine-tuned versions as your final_model.
 

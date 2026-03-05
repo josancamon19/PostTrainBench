@@ -71,11 +71,17 @@ RUN mkdir -p /opt && \
     cd /opt/inspect_evals && \
     uv pip install --system --no-cache .
 
-# HuggingFace cache: the AGENT_START hook mounts a fuse-overlayfs over the
-# Modal volume at /hf-cache-volume, providing copy-on-write isolation.
-# HF_HOME points to the overlay merged directory.
+# HuggingFace cache: setup-overlay.sh (sourced via BASH_ENV) mounts a
+# fuse-overlayfs over the Modal volume at /hf-cache-volume on first command,
+# providing copy-on-write isolation. HF_HOME points to the overlay merged dir.
 ENV HF_HOME=/hf-home
 RUN mkdir -p /hf-home /hf-cache-volume
+
+# Install the BASH_ENV overlay setup script (idempotent, runs once on first command)
+COPY setup-overlay.sh /usr/local/bin/setup-overlay.sh
+RUN chmod +x /usr/local/bin/setup-overlay.sh
+ENV BASH_ENV=/usr/local/bin/setup-overlay.sh
+# bash -c "..."
 
 # Setup workspace
 RUN mkdir -p /home/agent/workspace
