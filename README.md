@@ -68,49 +68,7 @@ export GEMINI_API_KEY="your-key"
 bash src/commit_utils/commit.sh
 ```
 
-Currently, we only support the HTCondor job scheduler. Slurm support is planned.
-
-## Code Structure
-
-| Directory | Description |
-|-----------|-------------|
-| `agents/` | Agent implementations |
-| `containers/` | Container definition, cache downloads |
-| `dev_utils/` | Development utility scripts |
-| `src/` | Main codebase |
-| `src/commit_utils/` | Job submission utilities (e.g., `bash src/commit_utils/commit.sh`) |
-| `src/baselines/` | Scripts to compute baseline scores |
-| `src/eval/` | Evaluation tasks |
-| `results/` | Evaluation results (baseline runs prefixed with `baseline_`) |
-
-Each evaluation folder in `src/eval/tasks/` contains:
-- `benchmark.txt`: Official benchmark name
-- `evaluate.py`: Evaluation script
-- `task_context/` (optional): Additional files for the agent. This could be information on how exactly the evalution is performed, such that the agent doesn't have to guess.
-
-## Contributing
-
-We welcome contributions! Get in touch through a pull request, by opening an issue, or via [email](#contact).
-
-We are especially interested in:
-- New evaluation tasks
-- New agent scaffolds
-
-### Adding Tasks
-
-Add your code to `src/eval/tasks/<task_name>/` with:
-1. `evaluate.py` - Evaluation script (see existing tasks for examples)
-2. `benchmark.txt` - Official benchmark name
-
-Requirements for new tasks:
-- The task should be achievable by instruction-tuned versions of our test models ([Qwen3-1.7B](https://huggingface.co/Qwen/Qwen3-1.7B), [Qwen3-4B](https://huggingface.co/Qwen/Qwen3-4B), [SmolLM3-3B](https://huggingface.co/HuggingFaceTB/SmolLM3-3B), [Gemma-3-4B](https://huggingface.co/google/gemma-3-4b-it)) - significantly above random chance
-- Evaluation should run in ~15 minutes on an H100 (use vLLM for inference, subsample if needed during development) For the final evaluation, please use the full benchmark
-
-### Adding Agents
-
-Add your code to `agents/<agent_name>/` with `solve.sh` (script that calls the agent).
-
-See `agents/codex/` and `agents/claude/` for examples. Agents should have web access (e.g., via a web-search tool).
+Currently, we only support the HTCondor job scheduler. [Harbor](https://github.com/harbor-framework/harbor) support is planned.
 
 #### API-based agents
 
@@ -156,6 +114,42 @@ The `solve.sh` script unsets API keys and sets `forced_login_method = "chatgpt"`
 The `solve.sh` script reads the token from the file, exports it as `CLAUDE_CODE_OAUTH_TOKEN`, and unsets `ANTHROPIC_API_KEY` to avoid auth conflicts.
 
 **Important:** Auth credential files (`auth.json`, `oauth_token`) are gitignored. They are copied into the job directory only for agents that need them (see the conditional copy in `run_task.sh`).
+
+
+## Code Structure
+
+| Directory | Description |
+|-----------|-------------|
+| `agents/` | Agent implementations |
+| `containers/` | Container definition, cache downloads |
+| `dev_utils/` | Development utility scripts |
+| `src/` | Main codebase |
+| `src/commit_utils/` | Job submission utilities (e.g., `bash src/commit_utils/commit.sh`) |
+| `src/baselines/` | Scripts to compute baseline scores |
+| `src/eval/` | Evaluation tasks |
+| `results/` | Evaluation results (baseline runs prefixed with `baseline_`) |
+
+Each evaluation folder in `src/eval/tasks/` contains:
+- `benchmark.txt`: Official benchmark name
+- `evaluate.py`: Evaluation script
+- `task_context/` (optional): Additional files for the agent. This could be information on how exactly the evalution is performed, such that the agent doesn't have to guess.
+
+## Contributing
+
+We welcome contributions! Get in touch through a pull request, by opening an issue, or via [email](#contact).
+
+We are especially interested in new evaluation tasks.
+
+### Adding Tasks
+
+Add your code to `src/eval/tasks/<task_name>/` with:
+1. `evaluate.py` - Evaluation script (see existing tasks for examples)
+2. `benchmark.txt` - Official benchmark name
+
+Requirements for new tasks:
+- The task should be achievable by instruction-tuned versions of our test models ([Qwen3-1.7B](https://huggingface.co/Qwen/Qwen3-1.7B), [Qwen3-4B](https://huggingface.co/Qwen/Qwen3-4B), [SmolLM3-3B](https://huggingface.co/HuggingFaceTB/SmolLM3-3B), [Gemma-3-4B](https://huggingface.co/google/gemma-3-4b-it)) - significantly above random chance
+- Evaluation should run in ~15 minutes on an H100 (use vLLM for inference, subsample if needed during development) For the final evaluation, please use the full benchmark
+
 
 ## On Reward Hacking
 
