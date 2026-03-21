@@ -1,0 +1,37 @@
+# PostTrainBench Job Configuration for Harbor
+# Benchmark for measuring CLI agents' ability to post-train LLMs
+
+name: posttrainbench
+description: |
+  PostTrainBench measures the ability of CLI agents to post-train pre-trained
+  LLMs. The agent is given a base model, an H100 GPU, and 10 hours to improve
+  the model's performance on a given benchmark.
+
+datasets:
+  - path: datasets/posttrainbench
+
+agents:
+  - name: claude-code
+    model_name: anthropic/claude-sonnet-4
+
+environment:
+  type: modal
+  force_build: true
+  delete: true
+  env:
+    - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+    - OPENAI_API_KEY=${OPENAI_API_KEY}
+    - GEMINI_API_KEY=${GEMINI_API_KEY}
+
+orchestrator:
+  type: local
+  n_concurrent_trials: 1
+  quiet: false
+
+jobs_dir: jobs/posttrainbench
+
+# Collect agent workspace (code, logs, training scripts) after each run.
+# Model weights (*.safetensors, *.bin) are large — collect config only.
+artifacts:
+  - source: /app
+    destination: workspace
