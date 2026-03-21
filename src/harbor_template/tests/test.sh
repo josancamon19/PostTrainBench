@@ -5,7 +5,7 @@ set -e
 # Runs contamination judge (codex CLI) and 3-phase evaluation with retry logic.
 # Matches the original run_task.sh evaluation pipeline.
 
-WORKSPACE="/home/agent/workspace"
+WORKSPACE="/app"
 TESTS_DIR="/tests"
 LOGS_DIR="/logs/verifier"
 

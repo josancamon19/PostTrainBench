@@ -25,6 +25,3 @@ CODEX_API_KEY = "${OPENAI_API_KEY}"
 
 [agent]
 timeout_sec = 36000.0
-
-[artifacts]
-paths = ["/home/agent/workspace/"]

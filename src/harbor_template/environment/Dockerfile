@@ -70,12 +70,12 @@ RUN mkdir -p /opt && \
     uv pip install --system --no-cache .
 
 # Setup workspace
-RUN mkdir -p /home/agent/workspace
-WORKDIR /home/agent/workspace
+RUN mkdir -p /app
+WORKDIR /app
 
 # Copy all task files (populated by adapter; .dockerignore excludes Dockerfile)
-COPY . /home/agent/workspace/
+COPY . /app/
 
 # Set permissions
-RUN chmod -R a+rw /home/agent/workspace/ && \
-    chmod +x /home/agent/workspace/timer.sh
+RUN chmod -R a+rw /app/ && \
+    chmod +x /app/timer.sh
