@@ -6,6 +6,7 @@ set -e
 # Matches the original run_task.sh evaluation pipeline.
 
 WORKSPACE="/home/agent/workspace"
+TESTS_DIR="/tests"
 LOGS_DIR="/logs/verifier"
 
 mkdir -p "$LOGS_DIR"
@@ -123,7 +124,8 @@ fi
 echo ""
 echo "=== Running evaluation on final_model ==="
 
-cd "$WORKSPACE"
+# Run from /tests/ so evaluate.py's relative imports (evaluation_code/) resolve
+cd "$TESTS_DIR"
 
 EVAL_COUNTER=0
 
@@ -149,11 +151,13 @@ run_evaluation() {
 
     kill_gpu_processes
 
+    # Use pristine eval files from /tests/ to prevent agent tampering.
+    # Harbor uploads tests/ only after the agent finishes.
     set +e
-    python3 evaluate.py \
-        --model-path final_model \
+    python3 "$TESTS_DIR/evaluate.py" \
+        --model-path "$WORKSPACE/final_model" \
         --json-output-file "$LOGS_DIR/metrics.json" \
-        --templates-dir templates/ \
+        --templates-dir "$TESTS_DIR/templates/" \
         --limit -1 \
         ${max_tokens_arg} \
         2>&1 | tee "$LOGS_DIR/final_eval_${eval_num}.txt"

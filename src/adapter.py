@@ -283,8 +283,13 @@ fi
         metadata_path = env_dir / "metadata.json"
         metadata_path.write_text(json.dumps(metadata, indent=2))
 
-    def generate_tests(self, task_dir: Path) -> None:
-        """Generate the tests directory with verification script."""
+    def generate_tests(self, task_dir: Path, benchmark_id: str) -> None:
+        """Generate the tests directory with verification script.
+
+        Copies pristine evaluation files (evaluate.py, templates/, evaluation_code/)
+        into tests/ so the verifier uses untampered copies. Harbor uploads tests/
+        only after the agent finishes, preventing the agent from modifying them.
+        """
         tests_dir = task_dir / "tests"
         tests_dir.mkdir(parents=True, exist_ok=True)
 
@@ -293,6 +298,21 @@ fi
         test_sh_dst = tests_dir / "test.sh"
         shutil.copy(test_sh_src, test_sh_dst)
         test_sh_dst.chmod(0o755)
+
+        # Copy pristine evaluate.py into tests/ for verifier integrity
+        eval_src = SRC_DIR / "tasks" / benchmark_id / "evaluate.py"
+        if eval_src.exists():
+            shutil.copy(eval_src, tests_dir / "evaluate.py")
+
+        # Copy pristine templates/ into tests/
+        templates_src = SRC_DIR / "templates"
+        if templates_src.exists():
+            shutil.copytree(templates_src, tests_dir / "templates", dirs_exist_ok=True)
+
+        # Copy pristine evaluation_code/ if it exists (arenahardwriting, healthbench)
+        eval_code_src = SRC_DIR / "tasks" / benchmark_id / "evaluation_code"
+        if eval_code_src.is_dir():
+            shutil.copytree(eval_code_src, tests_dir / "evaluation_code", dirs_exist_ok=True)
 
     def generate_task(
         self,
@@ -328,7 +348,7 @@ fi
             pass  # Use default from dataclass
 
         # Create task directory
-        task_id = f"posttrainbench-{benchmark_id}-{model_info.short_name}"
+        task_id = f"{benchmark_id}-{model_info.short_name}"
         task_dir = self.output_dir / task_id
         task_dir.mkdir(parents=True, exist_ok=True)
 
@@ -338,7 +358,7 @@ fi
         self.generate_task_toml(task_dir, benchmark_id)
         self.generate_instruction(task_dir, model_info, benchmark_info, benchmark_id)
         self.generate_environment(task_dir, benchmark_id, model_info, benchmark_info)
-        self.generate_tests(task_dir)
+        self.generate_tests(task_dir, benchmark_id)
 
         print(f"Task generated at: {task_dir}")
         return task_dir
@@ -358,6 +378,6 @@ def list_available_tasks() -> list[str]:
     tasks = []
     for benchmark_id in BENCHMARKS:
         for model_key in MODELS:
-            task_id = f"posttrainbench-{benchmark_id}-{MODELS[model_key].short_name}"
+            task_id = f"{benchmark_id}-{MODELS[model_key].short_name}"
             tasks.append(task_id)
     return tasks

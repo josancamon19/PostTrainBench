@@ -3,10 +3,10 @@ Generate Harbor-compatible tasks for running PostTrainBench evaluations.
 
 Usage:
     # Generate a single task (gsm8k + qwen3-1.7b)
-    python src/run_adapter.py --benchmark gsm8k --model qwen3-1.7b --output ./tasks
+    python src/run_adapter.py --benchmark gsm8k --model qwen3-1.7b
 
     # Generate all tasks
-    python src/run_adapter.py --all --output ./tasks
+    python src/run_adapter.py --all
 
     # List available benchmarks and models
     python src/run_adapter.py --list
@@ -48,8 +48,8 @@ def main():
     parser.add_argument(
         "--output", "-o",
         type=Path,
-        default=Path("./harbor_tasks"),
-        help="Output directory for generated tasks (default: ./harbor_tasks)",
+        default=Path("./datasets/posttrainbench"),
+        help="Output directory for generated tasks (default: ./datasets/posttrainbench)",
     )
     parser.add_argument(
         "--num-hours",
