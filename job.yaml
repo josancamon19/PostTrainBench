@@ -12,16 +12,7 @@ datasets:
 
 agents:
   - name: claude-code
-    model_name: anthropic/claude-sonnet-4
-
-environment:
-  type: modal
-  force_build: true
-  delete: true
-  env:
-    - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
-    - OPENAI_API_KEY=${OPENAI_API_KEY}
-    - GEMINI_API_KEY=${GEMINI_API_KEY}
+    model_name: anthropic/claude-sonnet-4-6
 
 orchestrator:
   type: local
