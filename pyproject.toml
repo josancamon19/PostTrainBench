@@ -3,7 +3,7 @@ name = "posttrainbench"
 version = "0.1.0"
 description = "Benchmark for measuring CLI agents' ability to post-train LLMs"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.13"
 dependencies = [
     "modal>=1.3.0.post1",
     "datasets>=2.0.0",
@@ -13,11 +13,11 @@ dependencies = [
 ]
 
 [tool.ruff]
-target-version = "py310"
+target-version = "py313"
 line-length = 120
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W", "UP", "B", "SIM", "RUF"]
 
-[tool.ty]
-python-version = "3.10"
+[tool.ty.environment]
+python-version = "3.13"

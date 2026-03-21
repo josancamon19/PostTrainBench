@@ -1,5 +1,6 @@
 """Generate Harbor-compatible tasks for running PostTrainBench evaluations."""
 
+import contextlib
 import json
 import shutil
 from dataclasses import dataclass
@@ -10,9 +11,10 @@ import chz
 TEMPLATE_DIR = Path(__file__).parent / "harbor_template"
 SRC_DIR = Path(__file__).parent
 
-CLAUDE_CLAUSE = """
-You are running in a non-interactive mode. So make sure every process you are running finishes before you write your last message.
-"""
+CLAUDE_CLAUSE = (
+    "\nYou are running in a non-interactive mode. "
+    "So make sure every process you are running finishes before you write your last message.\n"
+)
 
 
 @dataclass
@@ -33,34 +35,34 @@ BENCHMARKS = {
         task_id="gsm8k",
         benchmark_name="GSM8K (Grade School Math 8K)",
         setup_note="- A final note: the evaluate.py script sometimes outputs ERROR warnings. "
-                   "Do not be alarmed by this, this is normal behavior for inspect-ai. "
-                   "Also if you run into issues with the evaluate.py script, this is likely "
-                   "due to memory constraints on the GPU. In this case please decrease "
-                   "--max-connections or --max-tokens.\n"
+        "Do not be alarmed by this, this is normal behavior for inspect-ai. "
+        "Also if you run into issues with the evaluate.py script, this is likely "
+        "due to memory constraints on the GPU. In this case please decrease "
+        "--max-connections or --max-tokens.\n",
     ),
     "humaneval": BenchmarkInfo(
         task_id="humaneval",
         benchmark_name="HumanEval",
         setup_note="- A final note: the evaluate.py script sometimes outputs ERROR warnings. "
-                   "Do not be alarmed by this, this is normal behavior for inspect-ai.\n"
+        "Do not be alarmed by this, this is normal behavior for inspect-ai.\n",
     ),
     "aime2025": BenchmarkInfo(
         task_id="aime2025",
         benchmark_name="AIME 2025",
         setup_note="- A final note: the evaluate.py script sometimes outputs ERROR warnings. "
-                   "Do not be alarmed by this, this is normal behavior for inspect-ai.\n"
+        "Do not be alarmed by this, this is normal behavior for inspect-ai.\n",
     ),
     "gpqamain": BenchmarkInfo(
         task_id="gpqamain",
         benchmark_name="GPQA",
         setup_note="- A final note: the evaluate.py script sometimes outputs ERROR warnings. "
-                   "Do not be alarmed by this, this is normal behavior for inspect-ai.\n"
+        "Do not be alarmed by this, this is normal behavior for inspect-ai.\n",
     ),
     "bfcl": BenchmarkInfo(
         task_id="bfcl",
         benchmark_name="Berkeley Function Calling Leaderboard",
         setup_note="- A final note: the evaluate.py script sometimes outputs ERROR warnings. "
-                   "Do not be alarmed by this, this is normal behavior for inspect-ai.\n"
+        "Do not be alarmed by this, this is normal behavior for inspect-ai.\n",
     ),
     "arenahardwriting": BenchmarkInfo(
         task_id="arenahardwriting",
@@ -106,14 +108,19 @@ class PostTrainBenchAdapter:
             content += '\n[agent.env]\nOPENAI_API_KEY = "${OPENAI_API_KEY}"\n'
         (task_dir / "task.toml").write_text(content)
 
-    def generate_instruction(self, task_dir: Path, model_info: ModelInfo, benchmark_info: BenchmarkInfo, benchmark_id: str = "") -> None:
+    def generate_instruction(
+        self, task_dir: Path, model_info: ModelInfo, benchmark_info: BenchmarkInfo, benchmark_id: str = ""
+    ) -> None:
         content = (TEMPLATE_DIR / "instruction.md").read_text()
         content = content.replace("{model}", model_info.model_id)
         content = content.replace("{benchmark}", benchmark_info.benchmark_name)
         content = content.replace("{num_hours}", str(self.num_hours))
         content = content.replace("{setup_other}", benchmark_info.setup_note)
         if benchmark_id in ("arenahardwriting", "healthbench"):
-            content = content.replace("{openai_restriction}", "- IMPORTANT: You are NOT allowed to use the OpenAI API for anything but the evaluation script.\n")
+            content = content.replace(
+                "{openai_restriction}",
+                "- IMPORTANT: You are NOT allowed to use the OpenAI API for anything but the evaluation script.\n",
+            )
         else:
             content = content.replace("{openai_restriction}", "")
         if self.include_claude_clause:
@@ -148,7 +155,9 @@ fi
         timer_path.write_text(timer_script)
         timer_path.chmod(0o755)
 
-    def generate_environment(self, task_dir: Path, benchmark_id: str, model_info: ModelInfo, benchmark_info: BenchmarkInfo) -> None:
+    def generate_environment(
+        self, task_dir: Path, benchmark_id: str, model_info: ModelInfo, benchmark_info: BenchmarkInfo
+    ) -> None:
         env_dir = task_dir / "environment"
         env_dir.mkdir(parents=True, exist_ok=True)
 
@@ -227,14 +236,12 @@ fi
         benchmark_info = BENCHMARKS[benchmark_id]
         model_info = MODELS[model_key]
 
-        try:
+        with contextlib.suppress(FileNotFoundError):
             benchmark_info = BenchmarkInfo(
                 task_id=benchmark_info.task_id,
                 benchmark_name=self._read_benchmark_name(benchmark_id),
                 setup_note=benchmark_info.setup_note,
             )
-        except FileNotFoundError:
-            pass
 
         task_id = f"{benchmark_id}-{model_info.short_name}"
         task_dir = self.output_dir / task_id
@@ -263,6 +270,7 @@ def list_available_tasks() -> list[str]:
 
 
 # --- CLI ---
+
 
 def generate(
     benchmark: str | None = None,
@@ -300,7 +308,7 @@ def generate(
         print(f"Generating all tasks to {output}/...")
         tasks = adapter.generate_all_tasks()
         print(f"\nGenerated {len(tasks)} tasks.")
-        print(f"\nTo run a task with Harbor:")
+        print("\nTo run a task with Harbor:")
         print(f"  harbor run --path {tasks[0]} --agent claude-code --model anthropic/claude-sonnet-4 --env modal")
         return
 
@@ -309,7 +317,7 @@ def generate(
         return
 
     task_dir = adapter.generate_task(benchmark, model)
-    print(f"\nTo run this task with Harbor:")
+    print("\nTo run this task with Harbor:")
     print(f"  harbor run --path {task_dir} --agent claude-code --model anthropic/claude-sonnet-4 --env modal")
 
 
