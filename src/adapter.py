@@ -4,10 +4,10 @@ from dataclasses import dataclass
 from pathlib import Path
 
 ADAPTER_NAME = "POSTTRAINBENCH"
-TEMPLATE_DIR = Path(__file__).parent / "template"
+TEMPLATE_DIR = Path(__file__).parent / "harbor_template"
 
-# PostTrainBench source directory (relative to repo root)
-POSTTRAINBENCH_ROOT = Path(__file__).parent.parent.parent
+# src/ directory
+SRC_DIR = Path(__file__).parent
 
 # Claude-specific instruction clause (from original get_prompt.py)
 CLAUDE_CLAUSE = """
@@ -114,11 +114,10 @@ class PostTrainBenchAdapter:
         self.output_dir = Path(output_dir)
         self.num_hours = num_hours
         self.include_claude_clause = include_claude_clause
-        self.posttrainbench_root = POSTTRAINBENCH_ROOT
 
     def _read_benchmark_name(self, benchmark_id: str) -> str:
         """Read the human-readable benchmark name from benchmark.txt."""
-        bench_file = self.posttrainbench_root / "src" / "eval" / "tasks" / benchmark_id / "benchmark.txt"
+        bench_file = SRC_DIR / "tasks" / benchmark_id / "benchmark.txt"
         if bench_file.is_file():
             return bench_file.read_text(encoding="utf-8").strip()
         # Fallback to the dataclass info
@@ -236,14 +235,14 @@ fi
             shutil.copy(dockerignore_src, env_dir / ".dockerignore")
 
         # Copy evaluate.py from the benchmark
-        eval_src = self.posttrainbench_root / "src" / "eval" / "tasks" / benchmark_id / "evaluate.py"
+        eval_src = SRC_DIR / "tasks" / benchmark_id / "evaluate.py"
         if eval_src.exists():
             shutil.copy(eval_src, env_dir / "evaluate.py")
         else:
             raise FileNotFoundError(f"evaluate.py not found: {eval_src}")
 
         # Copy templates directory
-        templates_src = self.posttrainbench_root / "src" / "eval" / "templates"
+        templates_src = SRC_DIR / "templates"
         templates_dst = env_dir / "templates"
         if templates_src.exists():
             shutil.copytree(templates_src, templates_dst, dirs_exist_ok=True)
@@ -251,12 +250,12 @@ fi
             raise FileNotFoundError(f"templates directory not found: {templates_src}")
 
         # Copy evaluation_code/ if it exists (arenahardwriting, healthbench)
-        eval_code_src = self.posttrainbench_root / "src" / "eval" / "tasks" / benchmark_id / "evaluation_code"
+        eval_code_src = SRC_DIR / "tasks" / benchmark_id / "evaluation_code"
         if eval_code_src.is_dir():
             shutil.copytree(eval_code_src, env_dir / "evaluation_code", dirs_exist_ok=True)
 
         # Copy task_context/* contents if they exist (bfcl has bfcl_evaluation_code.py)
-        task_context_src = self.posttrainbench_root / "src" / "eval" / "tasks" / benchmark_id / "task_context"
+        task_context_src = SRC_DIR / "tasks" / benchmark_id / "task_context"
         if task_context_src.is_dir():
             for item in task_context_src.iterdir():
                 dst = env_dir / item.name

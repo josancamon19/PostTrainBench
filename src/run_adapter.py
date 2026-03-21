@@ -3,13 +3,13 @@ Generate Harbor-compatible tasks for running PostTrainBench evaluations.
 
 Usage:
     # Generate a single task (gsm8k + qwen3-1.7b)
-    python run_adapter.py --benchmark gsm8k --model qwen3-1.7b --output ./tasks
+    python src/run_adapter.py --benchmark gsm8k --model qwen3-1.7b --output ./tasks
 
     # Generate all tasks
-    python run_adapter.py --all --output ./tasks
+    python src/run_adapter.py --all --output ./tasks
 
     # List available benchmarks and models
-    python run_adapter.py --list
+    python src/run_adapter.py --list
 
 After generating tasks, run them with Harbor:
     harbor run --path ./tasks/posttrainbench-gsm8k-qwen3-1.7b --agent claude-code --model anthropic/claude-sonnet-4 --env modal
