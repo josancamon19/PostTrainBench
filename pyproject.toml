@@ -11,3 +11,13 @@ dependencies = [
     "daytona>=0.1.0",
     "chz",
 ]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP", "B", "SIM", "RUF"]
+
+[tool.ty]
+python-version = "3.10"
