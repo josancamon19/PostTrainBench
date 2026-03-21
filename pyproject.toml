@@ -9,4 +9,5 @@ dependencies = [
     "datasets>=2.0.0",
     "harbor>=0.1.0",
     "daytona>=0.1.0",
+    "chz",
 ]

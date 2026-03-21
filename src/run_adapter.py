@@ -1,22 +1,8 @@
-"""
-Generate Harbor-compatible tasks for running PostTrainBench evaluations.
+"""Generate Harbor-compatible tasks for running PostTrainBench evaluations."""
 
-Usage:
-    # Generate a single task (gsm8k + qwen3-1.7b)
-    python src/run_adapter.py --benchmark gsm8k --model qwen3-1.7b
-
-    # Generate all tasks
-    python src/run_adapter.py --all
-
-    # List available benchmarks and models
-    python src/run_adapter.py --list
-
-After generating tasks, run them with Harbor:
-    harbor run --path ./tasks/posttrainbench-gsm8k-qwen3-1.7b --agent claude-code --model anthropic/claude-sonnet-4 --env modal
-"""
-
-import argparse
 from pathlib import Path
+
+import chz
 
 from adapter import (
     PostTrainBenchAdapter,
@@ -26,51 +12,25 @@ from adapter import (
 )
 
 
-def main():
-    parser = argparse.ArgumentParser(
-        description="Generate Harbor tasks for PostTrainBench",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog=__doc__,
-    )
+def generate(
+    benchmark: str | None = None,
+    model: str | None = None,
+    output: Path = Path("./datasets/posttrainbench"),
+    num_hours: int = 10,
+    all: bool = False,
+    list: bool = False,
+) -> None:
+    """Generate Harbor tasks for PostTrainBench.
 
-    parser.add_argument(
-        "--benchmark", "-b",
-        type=str,
-        choices=list(BENCHMARKS.keys()),
-        help="Benchmark to generate task for",
-    )
-    parser.add_argument(
-        "--model", "-m",
-        type=str,
-        choices=list(MODELS.keys()),
-        help="Base model to generate task for",
-    )
-    parser.add_argument(
-        "--output", "-o",
-        type=Path,
-        default=Path("./datasets/posttrainbench"),
-        help="Output directory for generated tasks (default: ./datasets/posttrainbench)",
-    )
-    parser.add_argument(
-        "--num-hours",
-        type=int,
-        default=10,
-        help="Number of hours for the training task (default: 10)",
-    )
-    parser.add_argument(
-        "--all", "-a",
-        action="store_true",
-        help="Generate tasks for all benchmark + model combinations",
-    )
-    parser.add_argument(
-        "--list", "-l",
-        action="store_true",
-        help="List available benchmarks and models",
-    )
-
-    args = parser.parse_args()
-
-    if args.list:
+    Args:
+        benchmark: Benchmark to generate (e.g. gsm8k, humaneval, aime2025).
+        model: Base model to generate (e.g. qwen3-1.7b, smollm3-3b).
+        output: Output directory for generated tasks.
+        num_hours: Number of hours for the training task.
+        all: Generate tasks for all benchmark + model combinations.
+        list: List available benchmarks and models.
+    """
+    if list:
         print("Available benchmarks:")
         for bm_id, bm_info in BENCHMARKS.items():
             print(f"  {bm_id}: {bm_info.benchmark_name}")
@@ -82,26 +42,24 @@ def main():
             print(f"  {task_id}")
         return
 
-    adapter = PostTrainBenchAdapter(
-        output_dir=args.output,
-        num_hours=args.num_hours,
-    )
+    adapter = PostTrainBenchAdapter(output_dir=output, num_hours=num_hours)
 
-    if args.all:
-        print(f"Generating all tasks to {args.output}/...")
+    if all:
+        print(f"Generating all tasks to {output}/...")
         tasks = adapter.generate_all_tasks()
         print(f"\nGenerated {len(tasks)} tasks.")
-        print("\nTo run a task with Harbor:")
+        print(f"\nTo run a task with Harbor:")
         print(f"  harbor run --path {tasks[0]} --agent claude-code --model anthropic/claude-sonnet-4 --env modal")
         return
 
-    if not args.benchmark or not args.model:
-        parser.error("Either --all or both --benchmark and --model are required")
+    if not benchmark or not model:
+        print("Either --all or both --benchmark and --model are required")
+        return
 
-    task_dir = adapter.generate_task(args.benchmark, args.model)
+    task_dir = adapter.generate_task(benchmark, model)
     print(f"\nTo run this task with Harbor:")
     print(f"  harbor run --path {task_dir} --agent claude-code --model anthropic/claude-sonnet-4 --env modal")
 
 
 if __name__ == "__main__":
-    main()
+    chz.entrypoint(generate)
