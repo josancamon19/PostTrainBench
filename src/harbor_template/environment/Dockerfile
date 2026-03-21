@@ -28,7 +28,7 @@ RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 
 # Install vllm
-RUN uv pip install --system --no-cache vllm==0.11.0 --torch-backend=auto
+RUN uv pip install --system --no-cache vllm --torch-backend=auto
 
 # Install AI CLI tools via npm (agents can use these)
 RUN npm install -g \
@@ -63,11 +63,7 @@ RUN uv pip install --system --no-cache \
 # pip install flash_attn --no-build-isolation
 
 # Install inspect evals
-RUN mkdir -p /opt && \
-    cd /opt && \
-    git clone --depth=1 https://github.com/UKGovernmentBEIS/inspect_evals.git && \
-    cd /opt/inspect_evals && \
-    uv pip install --system --no-cache .
+RUN uv pip install --system --no-cache inspect-evals
 
 # Setup workspace
 RUN mkdir -p /app
