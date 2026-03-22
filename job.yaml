@@ -14,6 +14,14 @@ agents:
   - name: claude-code
     model_name: anthropic/claude-sonnet-4-6
 
+environment:
+  type: modal
+  delete: true
+  env:
+    - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+    - OPENAI_API_KEY=${OPENAI_API_KEY}
+    - GEMINI_API_KEY=${GEMINI_API_KEY}
+
 orchestrator:
   type: local
   n_concurrent_trials: 1
@@ -22,7 +30,6 @@ orchestrator:
 jobs_dir: jobs/posttrainbench
 
 # Collect agent workspace (code, logs, training scripts) after each run.
-# Model weights (*.safetensors, *.bin) are large — collect config only.
 artifacts:
   - source: /app
     destination: workspace
