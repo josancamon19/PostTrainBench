@@ -30,12 +30,6 @@ RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 # Install vllm
 RUN uv pip install --system --no-cache vllm --torch-backend=auto
 
-# Install AI CLI tools via npm (agents can use these)
-RUN npm install -g \
-    @anthropic-ai/claude-code \
-    @openai/codex \
-    @google/gemini-cli
-
 RUN uv pip install --system --no-cache ninja packaging
 
 # Install the required ML packages
