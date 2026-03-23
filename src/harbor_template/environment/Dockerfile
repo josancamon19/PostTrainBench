@@ -20,32 +20,24 @@ RUN ln -sf /usr/bin/python3.10 /usr/bin/python3 && \
 
 # uv
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
-
-# Install torch with CUDA support first, then vllm on top
+RUN uv pip install --system --no-cache vllm==0.18.0 --torch-backend=auto
 RUN uv pip install --system --no-cache \
-    torch torchvision torchaudio \
-    --index-url https://download.pytorch.org/whl/cu124
-
-RUN uv pip install --system --no-cache vllm
-
-# ML packages
-RUN uv pip install --system --no-cache \
-    accelerate \
-    bitsandbytes \
-    datasets \
-    evaluate \
-    inspect-ai \
-    inspect-evals \
-    lm-eval \
-    matplotlib \
+    accelerate==1.13.0 \
+    bitsandbytes==0.49.2 \
+    datasets==4.8.3 \
+    evaluate==0.4.6 \
+    inspect-ai==0.3.200 \
+    inspect-evals==0.5.2 \
+    lm-eval==0.4.11 \
+    matplotlib==3.10.8 \
     ninja \
-    openai \
+    openai==2.29.0 \
     packaging \
-    pandas \
-    peft \
-    scikit-learn \
-    transformers \
-    trl
+    pandas==3.0.1 \
+    peft==0.18.1 \
+    scikit-learn==1.8.0 \
+    transformers==5.3.0 \
+    trl==0.29.1
 
 # Setup workspace
 RUN mkdir -p /app
