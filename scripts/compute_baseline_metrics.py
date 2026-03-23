@@ -4,6 +4,7 @@ Compute metrics for baseline models (base and instruct-tuned) using factors from
 
 Reads aggregated_baseline.csv and computes weighted metrics per model.
 """
+
 import os
 import csv
 import json
@@ -71,9 +72,7 @@ def compute_metric(model_data: dict, factors: dict, benchmarks: list) -> float:
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Compute baseline metrics using per-model factors."
-    )
+    parser = argparse.ArgumentParser(description="Compute baseline metrics using per-model factors.")
     parser.add_argument(
         "--output",
         default=None,

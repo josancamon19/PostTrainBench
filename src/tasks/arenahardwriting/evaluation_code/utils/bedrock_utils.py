@@ -2,6 +2,7 @@ import json
 import sys
 import re
 
+
 def create_llama3_body(messages, max_gen_len=2048, temperature=0.0, top_p=0.9, top_k=1):
     """
     Create a request body for Llama 3 models.
@@ -27,12 +28,14 @@ def create_llama3_body(messages, max_gen_len=2048, temperature=0.0, top_p=0.9, t
     <|eot_id|>
     <|start_header_id|>assistant<|end_header_id|>
     """
-    return json.dumps({
-        "prompt": formatted_prompt,
-        "max_gen_len": max_gen_len,
-        "temperature": temperature,
-        "top_p": top_p,
-    })
+    return json.dumps(
+        {
+            "prompt": formatted_prompt,
+            "max_gen_len": max_gen_len,
+            "temperature": temperature,
+            "top_p": top_p,
+        }
+    )
 
 
 def extract_innermost_text(content):
@@ -45,6 +48,7 @@ def extract_innermost_text(content):
         return content
     return ""  # Fallback in case the structure is invalid
 
+
 def create_nova_messages(messages):
     """
     Create messages array for Nova models from conversation
@@ -55,41 +59,31 @@ def create_nova_messages(messages):
     Returns:
     list: List of formatted messages for Nova model
     """
-    messages_formatted = []    
+    messages_formatted = []
     # Format the first message with template
-    for mesg in messages:        
+    for mesg in messages:
         # Transform the message
-        transformed_message = {
-            "role": mesg["role"],
-            "content": extract_innermost_text(mesg["content"])
-        }
-        messages_formatted.append({
-            "role": "user",
-            "content": [
-                { 
-                    "text": transformed_message['content']
-                }
-            ]
-        })    
+        transformed_message = {"role": mesg["role"], "content": extract_innermost_text(mesg["content"])}
+        messages_formatted.append({"role": "user", "content": [{"text": transformed_message["content"]}]})
     return messages_formatted
+
 
 def extract_answer(text):
     """
     Extract the content after the </think> tag.
-    
+
     Args:
         text (str): Input text that may contain a </think> tag
-        
+
     Returns:
         str: Text after the </think> tag, or the original text if tag not found
     """
     # Look for the </think> tag
-    match = re.search(r'</think>(.*)', text, re.DOTALL)
-    
+    match = re.search(r"</think>(.*)", text, re.DOTALL)
+
     if match:
         # Return only the content after the tag
         return match.group(1).strip()
     else:
         # If tag not found, return empty string
         return ""
-

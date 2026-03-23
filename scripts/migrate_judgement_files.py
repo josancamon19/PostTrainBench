@@ -21,7 +21,7 @@ from pathlib import Path
 
 def get_results_dir() -> Path:
     """Get the results directory from environment variable."""
-    results_dir = os.environ.get('POST_TRAIN_BENCH_RESULTS_DIR')
+    results_dir = os.environ.get("POST_TRAIN_BENCH_RESULTS_DIR")
     if not results_dir:
         raise RuntimeError("POST_TRAIN_BENCH_RESULTS_DIR is not set")
     return Path(results_dir)
@@ -65,25 +65,25 @@ def migrate_result_dir(result_dir: Path, suffix: str, execute: bool, delete_old:
     output_file = result_dir / f"judge_result{suffix}.json"
 
     status = {
-        'result_dir': str(result_dir),
-        'suffix': suffix,
-        'has_contamination': contamination_file.exists(),
-        'has_disallowed': disallowed_file.exists(),
-        'has_output': output_file.exists(),
-        'action': 'none',
-        'contamination_value': None,
-        'disallowed_value': None,
-        'error': None,
+        "result_dir": str(result_dir),
+        "suffix": suffix,
+        "has_contamination": contamination_file.exists(),
+        "has_disallowed": disallowed_file.exists(),
+        "has_output": output_file.exists(),
+        "action": "none",
+        "contamination_value": None,
+        "disallowed_value": None,
+        "error": None,
     }
 
     # Skip if output already exists
     if output_file.exists():
-        status['action'] = 'skip_exists'
+        status["action"] = "skip_exists"
         return status
 
     # Skip if neither input file exists
     if not contamination_file.exists() and not disallowed_file.exists():
-        status['action'] = 'skip_no_input'
+        status["action"] = "skip_no_input"
         return status
 
     # Parse contamination file
@@ -92,10 +92,10 @@ def migrate_result_dir(result_dir: Path, suffix: str, execute: bool, delete_old:
         content = contamination_file.read_text()
         contamination_detected = parse_contamination_file(content)
         if contamination_detected is None:
-            status['error'] = f"Invalid contamination file content: {content.strip()!r}"
-            status['action'] = 'error'
+            status["error"] = f"Invalid contamination file content: {content.strip()!r}"
+            status["action"] = "error"
             return status
-        status['contamination_value'] = contamination_detected
+        status["contamination_value"] = contamination_detected
 
     # Parse disallowed model file
     disallowed_detected = None
@@ -103,31 +103,31 @@ def migrate_result_dir(result_dir: Path, suffix: str, execute: bool, delete_old:
         content = disallowed_file.read_text()
         disallowed_detected = parse_disallowed_model_file(content)
         if disallowed_detected is None:
-            status['error'] = f"Invalid disallowed model file content: {content.strip()!r}"
-            status['action'] = 'error'
+            status["error"] = f"Invalid disallowed model file content: {content.strip()!r}"
+            status["action"] = "error"
             return status
-        status['disallowed_value'] = disallowed_detected
+        status["disallowed_value"] = disallowed_detected
 
     # Create the JSON output
     judge_result = {}
     if contamination_detected is not None:
-        judge_result['contamination_detected'] = contamination_detected
+        judge_result["contamination_detected"] = contamination_detected
     if disallowed_detected is not None:
-        judge_result['disallowed_model_detected'] = disallowed_detected
+        judge_result["disallowed_model_detected"] = disallowed_detected
 
     if execute:
-        with open(output_file, 'w', encoding='utf-8') as f:
+        with open(output_file, "w", encoding="utf-8") as f:
             json.dump(judge_result, f, indent=2)
-        status['action'] = 'migrated'
+        status["action"] = "migrated"
 
         if delete_old:
             if contamination_file.exists():
                 contamination_file.unlink()
             if disallowed_file.exists():
                 disallowed_file.unlink()
-            status['action'] = 'migrated_deleted'
+            status["action"] = "migrated_deleted"
     else:
-        status['action'] = 'would_migrate'
+        status["action"] = "would_migrate"
 
     return status
 
@@ -142,7 +142,7 @@ def get_all_result_dirs(method_pattern: str = None) -> list[Path]:
             continue
 
         method_name = method_dir.name
-        if method_name.startswith('.') or method_name == 'baseline':
+        if method_name.startswith(".") or method_name == "baseline":
             continue
 
         if method_pattern and method_pattern.lower() not in method_name.lower():
@@ -157,29 +157,23 @@ def get_all_result_dirs(method_pattern: str = None) -> list[Path]:
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Migrate old judgement files to new JSON format"
-    )
-    parser.add_argument("--execute", action="store_true",
-                        help="Actually perform the migration (default is dry run)")
-    parser.add_argument("--delete-old", action="store_true",
-                        help="Delete old txt files after successful migration")
-    parser.add_argument("--method", type=str,
-                        help="Filter by method pattern")
-    parser.add_argument("--verbose", "-v", action="store_true",
-                        help="Show all results, not just actions")
+    parser = argparse.ArgumentParser(description="Migrate old judgement files to new JSON format")
+    parser.add_argument("--execute", action="store_true", help="Actually perform the migration (default is dry run)")
+    parser.add_argument("--delete-old", action="store_true", help="Delete old txt files after successful migration")
+    parser.add_argument("--method", type=str, help="Filter by method pattern")
+    parser.add_argument("--verbose", "-v", action="store_true", help="Show all results, not just actions")
     args = parser.parse_args()
 
     result_dirs = get_all_result_dirs(method_pattern=args.method)
 
     stats = {
-        'total_dirs': 0,
-        'migrated': 0,
-        'migrated_deleted': 0,
-        'would_migrate': 0,
-        'skip_exists': 0,
-        'skip_no_input': 0,
-        'error': 0,
+        "total_dirs": 0,
+        "migrated": 0,
+        "migrated_deleted": 0,
+        "would_migrate": 0,
+        "skip_exists": 0,
+        "skip_no_input": 0,
+        "error": 0,
     }
 
     print("=" * 70)
@@ -193,35 +187,35 @@ def main():
     print()
 
     for result_dir in result_dirs:
-        stats['total_dirs'] += 1
+        stats["total_dirs"] += 1
 
         # Process normal judgement files
         status = migrate_result_dir(result_dir, "", args.execute, args.delete_old)
-        stats[status['action']] = stats.get(status['action'], 0) + 1
+        stats[status["action"]] = stats.get(status["action"], 0) + 1
 
-        if status['action'] not in ('skip_exists', 'skip_no_input') or args.verbose:
+        if status["action"] not in ("skip_exists", "skip_no_input") or args.verbose:
             print(f"{result_dir}")
             print(f"  Normal: {status['action']}")
-            if status['contamination_value'] is not None:
+            if status["contamination_value"] is not None:
                 print(f"    contamination_detected: {status['contamination_value']}")
-            if status['disallowed_value'] is not None:
+            if status["disallowed_value"] is not None:
                 print(f"    disallowed_model_detected: {status['disallowed_value']}")
-            if status['error']:
+            if status["error"]:
                 print(f"    ERROR: {status['error']}")
 
         # Process rerun judgement files
         status_rerun = migrate_result_dir(result_dir, "_rerun", args.execute, args.delete_old)
-        stats[status_rerun['action']] = stats.get(status_rerun['action'], 0) + 1
+        stats[status_rerun["action"]] = stats.get(status_rerun["action"], 0) + 1
 
-        if status_rerun['action'] not in ('skip_exists', 'skip_no_input') or args.verbose:
-            if status['action'] in ('skip_exists', 'skip_no_input'):
+        if status_rerun["action"] not in ("skip_exists", "skip_no_input") or args.verbose:
+            if status["action"] in ("skip_exists", "skip_no_input"):
                 print(f"{result_dir}")
             print(f"  Rerun: {status_rerun['action']}")
-            if status_rerun['contamination_value'] is not None:
+            if status_rerun["contamination_value"] is not None:
                 print(f"    contamination_detected: {status_rerun['contamination_value']}")
-            if status_rerun['disallowed_value'] is not None:
+            if status_rerun["disallowed_value"] is not None:
                 print(f"    disallowed_model_detected: {status_rerun['disallowed_value']}")
-            if status_rerun['error']:
+            if status_rerun["error"]:
                 print(f"    ERROR: {status_rerun['error']}")
 
     print()
@@ -236,7 +230,7 @@ def main():
     print(f"Skipped (no input files): {stats.get('skip_no_input', 0)}")
     print(f"Errors: {stats.get('error', 0)}")
 
-    if not args.execute and stats.get('would_migrate', 0) > 0:
+    if not args.execute and stats.get("would_migrate", 0) > 0:
         print()
         print("Run with --execute to perform the migration")
 

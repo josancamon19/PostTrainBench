@@ -9,6 +9,7 @@ by the factor. Sums these to produce a single metric per method.
 Then, for each agent group defined in HARDCODED_AGENT_MAP, computes the average
 and standard deviation of the metrics across runs.
 """
+
 import os
 import csv
 import json
@@ -26,6 +27,7 @@ EXPECTED_MODELS = {
     "SmolLM3-3B-Base",
     "gemma-3-4b-pt",
 }
+
 
 def get_results_dir():
     return os.environ.get("POST_TRAIN_BENCH_RESULTS_DIR", "results")

@@ -23,6 +23,7 @@ except ImportError:
 def _sglang_server_init(tx, server_args):
     def _post_init():
         tx.send(None)
+
     sglang.srt.entrypoints.http_server.launch_server(
         server_args,
         launch_callback=_post_init,
@@ -104,7 +105,7 @@ class SGLangServerExecutor:
         backend: str = "spawn",
         # NB(peter): upgrade sglang here.
         subprocess_venv_path: str = None,
-        **kwargs
+        **kwargs,
     ):
         if server_host is not None:
             assert kwargs.get("host", None) is None
@@ -117,14 +118,15 @@ class SGLangServerExecutor:
         # NB(peter): fa3 backend requires sglang >= 0.4.5.
         kwargs.setdefault("attention_backend", "fa3")
         if backend == "spawn":
-            server_args = sglang.srt.server_args.ServerArgs(
-                **kwargs
-            )
+            server_args = sglang.srt.server_args.ServerArgs(**kwargs)
             mpctx = mp.get_context("spawn")
             rx, tx = mpctx.Pipe(False)
             proc = mpctx.Process(
                 target=_sglang_server_init,
-                args=(tx, server_args,),
+                args=(
+                    tx,
+                    server_args,
+                ),
             )
             proc.start()
             self._server_host = server_host
@@ -146,17 +148,11 @@ class SGLangServerExecutor:
             for key, arg in kwargs.items():
                 if isinstance(arg, bool):
                     if arg:
-                        cmd.append(
-                            f"--{key.replace('_', '-')}"
-                        )
+                        cmd.append(f"--{key.replace('_', '-')}")
                     else:
-                        cmd.append(
-                            f"--no-{key.replace('_', '-')}"
-                        )
+                        cmd.append(f"--no-{key.replace('_', '-')}")
                 else:
-                    cmd.append(
-                        f"--{key.replace('_', '-')}"
-                    )
+                    cmd.append(f"--{key.replace('_', '-')}")
                     if isinstance(arg, float):
                         cmd.append(str(arg))
                     elif isinstance(arg, int):
@@ -178,9 +174,7 @@ class SGLangServerExecutor:
         self._pool_ctr = 0
         self._pool_dict = dict()
         self._pool_work = set()
-        self._pool_exec = concurrent.futures.ThreadPoolExecutor(
-            max_workers=max_workers
-        )
+        self._pool_exec = concurrent.futures.ThreadPoolExecutor(max_workers=max_workers)
         print(f"DEBUG: SGLangServerExecutor: post init...")
         if backend == "spawn":
             _ = rx.recv()
@@ -191,14 +185,11 @@ class SGLangServerExecutor:
             }
             while True:
                 try:
-                    w = self._pool_exec.submit(
-                        _sglang_server_heartbeat,
-                        **heartbeat_args
-                    )
+                    w = self._pool_exec.submit(_sglang_server_heartbeat, **heartbeat_args)
                     work = [w]
                     for w in concurrent.futures.as_completed(work):
                         output = w.result()
-                        #print(f"DEBUG: SGLangServerExecutor: post init: heartbeat output = {output}")
+                        # print(f"DEBUG: SGLangServerExecutor: post init: heartbeat output = {output}")
                         print(f"DEBUG: SGLangServerExecutor: post init: heartbeat: ok")
                 except Exception as e:
                     print(f"DEBUG: SGLangServerExecutor: post init: retry heartbeat: exception = {e}")
@@ -227,24 +218,13 @@ class SGLangServerExecutor:
         sampling_params: Union[None, dict[str, Any], list[dict[str, Any]]] = None,
         keys: Optional[list[Any]] = None,
     ):
-        if (
-            input_ids is not None and
-            prompt_token_ids is not None
-        ):
-            assert False, (
-                "SGLangServerExecutor.submit supports either `input_ids` or `prompt_token_ids` but not both"
-            )
-        elif (
-            input_ids is None and
-            prompt_token_ids is not None
-        ):
+        if input_ids is not None and prompt_token_ids is not None:
+            assert False, "SGLangServerExecutor.submit supports either `input_ids` or `prompt_token_ids` but not both"
+        elif input_ids is None and prompt_token_ids is not None:
             input_ids = prompt_token_ids
         assert input_ids is not None
 
-        if (
-            isinstance(input_ids, list) and
-            len(input_ids) > 0
-        ):
+        if isinstance(input_ids, list) and len(input_ids) > 0:
             if isinstance(input_ids[0], int):
                 input_ids = [input_ids]
 
@@ -273,10 +253,7 @@ class SGLangServerExecutor:
                 "_host": self._server_host,
                 "_port": self._server_port,
             }
-            w = self._pool_exec.submit(
-                _sglang_server_submit,
-                **submit_args
-            )
+            w = self._pool_exec.submit(_sglang_server_submit, **submit_args)
             self._pool_dict[w] = (self._pool_ctr, keys[batch_idx])
             self._pool_work.add(w)
             self._pool_ctr += 1
@@ -288,10 +265,7 @@ class SGLangServerExecutor:
         # NB(peter): the `wait` version _should be_ re-entrant-safe.
         # for w in concurrent.futures.as_completed(self._pool_work):
         while self._pool_work:
-            done, work = concurrent.futures.wait(
-                self._pool_work,
-                return_when=concurrent.futures.FIRST_COMPLETED
-            )
+            done, work = concurrent.futures.wait(self._pool_work, return_when=concurrent.futures.FIRST_COMPLETED)
             self._pool_work = work
             for w in done:
                 ctr, key = self._pool_dict.pop(w)

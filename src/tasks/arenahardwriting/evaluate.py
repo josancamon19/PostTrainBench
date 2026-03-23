@@ -65,7 +65,7 @@ def limit_repetitions(text: str, max_reps: int = MAX_REPETITIONS) -> str:
 
     def _limit_consecutive_lines(txt: str) -> tuple:
         """Find consecutive identical lines and limit them."""
-        lines = txt.split('\n')
+        lines = txt.split("\n")
         result = []
         i = 0
         modified = False
@@ -85,11 +85,11 @@ def limit_repetitions(text: str, max_reps: int = MAX_REPETITIONS) -> str:
                 result.extend([line] * count)
             i = j
 
-        return '\n'.join(result), modified
+        return "\n".join(result), modified
 
     def _limit_block_patterns(txt: str) -> tuple:
         """Find repeating blocks of lines and limit them."""
-        lines = txt.split('\n')
+        lines = txt.split("\n")
         modified = False
 
         for block_size in range(2, min(30, len(lines) // 5 + 1)):
@@ -98,12 +98,12 @@ def limit_repetitions(text: str, max_reps: int = MAX_REPETITIONS) -> str:
             last_end = 0
 
             while i <= len(lines) - block_size:
-                block = lines[i:i + block_size]
+                block = lines[i : i + block_size]
 
                 count = 1
                 j = i + block_size
                 while j + block_size <= len(lines):
-                    next_block = lines[j:j + block_size]
+                    next_block = lines[j : j + block_size]
                     if next_block == block:
                         count += 1
                         j += block_size
@@ -143,7 +143,7 @@ def limit_repetitions(text: str, max_reps: int = MAX_REPETITIONS) -> str:
 
             if modified:
                 new_lines.extend(lines[last_end:])
-                return '\n'.join(new_lines), True
+                return "\n".join(new_lines), True
 
         return txt, False
 
@@ -155,7 +155,7 @@ def limit_repetitions(text: str, max_reps: int = MAX_REPETITIONS) -> str:
             changed_this_round = False
 
             for min_len, max_len in [(3, 30), (30, 60), (60, 120), (120, 250), (250, 500)]:
-                pattern = rf'(.{{{min_len},{max_len}}}?)\1{{{max_reps},}}'
+                pattern = rf"(.{{{min_len},{max_len}}}?)\1{{{max_reps},}}"
 
                 def replace_func(match):
                     nonlocal changed_this_round, modified
@@ -195,7 +195,7 @@ def limit_repetitions(text: str, max_reps: int = MAX_REPETITIONS) -> str:
 
 
 def get_questions(args):
-    data_dir = DATA_PATH 
+    data_dir = DATA_PATH
     questions = load_questions(str(data_dir / "question.jsonl"))
     if args.limit is not None and args.limit != -1:
         random.Random(42).shuffle(questions)
@@ -365,7 +365,7 @@ def generate_answers(args) -> tuple:
                         raise RuntimeError(
                             f"Failed to generate answer for uid {question['uid']} after {VLLM_GENERATION_RETRY} attempts"
                         ) from err
-                    backoff = 2 ** attempt
+                    backoff = 2**attempt
                     print(
                         f"[generate] Error from vLLM (attempt {attempt}/{VLLM_GENERATION_RETRY}): {err}. Retrying in {backoff}s."
                     )
@@ -446,9 +446,7 @@ def call_openai(messages: List[Dict]):
 def get_score(judgment: str, patterns: Iterable[str]) -> Optional[str]:
     for pattern in patterns:
         compiled = re.compile(pattern)
-        matches = [
-            m for m in compiled.findall(judgment.upper()) if isinstance(m, str) and m
-        ]
+        matches = [m for m in compiled.findall(judgment.upper()) if isinstance(m, str) and m]
         if matches:
             return matches[-1].strip("\n")
         if matches and isinstance(matches[-1], tuple):
@@ -478,9 +476,7 @@ def judge_answers(args, candidate_answers: Optional[Dict[str, Dict]] = None) -> 
     output_path = judgment_dir / f"{args.model_alias}.jsonl"
 
     if "OPENAI_API_KEY" not in os.environ:
-        raise EnvironmentError(
-            "OPENAI_API_KEY is not set. Please export your OpenAI API key before judging."
-        )
+        raise EnvironmentError("OPENAI_API_KEY is not set. Please export your OpenAI API key before judging.")
 
     questions = get_questions(args)
 
@@ -490,9 +486,7 @@ def judge_answers(args, candidate_answers: Optional[Dict[str, Dict]] = None) -> 
         model_answers[args.model_alias] = candidate_answers
 
     if args.model_alias not in model_answers:
-        raise FileNotFoundError(
-            f"Cannot find answers for model '{args.model_alias}' in {answer_dir}."
-        )
+        raise FileNotFoundError(f"Cannot find answers for model '{args.model_alias}' in {answer_dir}.")
 
     results: List[Optional[Dict]] = [None] * len(questions)
 
@@ -543,9 +537,7 @@ def _judge_single_question(
 
     baseline_model = JUDGE_SETTINGS[category]["baseline"]
     if baseline_model not in model_answers:
-        raise FileNotFoundError(
-            f"Baseline model '{baseline_model}' answers not found in data/model_answer"
-        )
+        raise FileNotFoundError(f"Baseline model '{baseline_model}' answers not found in data/model_answer")
 
     candidate_answer = model_answers[args.model_alias].get(uid)
     baseline_answer = model_answers[baseline_model].get(uid)
@@ -663,16 +655,18 @@ def _judgments_to_battles(judgments: List[Optional[Dict]], weight: int = 3):
         scores_ba = score_map[score_ba.upper()]
         scores = [1 - s for s in scores_ab] + scores_ba
 
-        battles_data.append({
-            "uid": record["uid"],
-            "category": record["category"],
-            "model": record["model"],
-            "baseline": record["baseline"],
-            "scores": scores,
-        })
+        battles_data.append(
+            {
+                "uid": record["uid"],
+                "category": record["category"],
+                "model": record["model"],
+                "baseline": record["baseline"],
+                "scores": scores,
+            }
+        )
 
     battles = pd.DataFrame(battles_data)
-    battles = battles.explode('scores').reset_index(drop=True)
+    battles = battles.explode("scores").reset_index(drop=True)
     return battles
 
 
@@ -698,6 +692,7 @@ def summarize_results(model_alias: str, judgments: Optional[List[Optional[Dict]]
 
     return _compute_metrics(battles)
 
+
 def main():
     parser = argparse.ArgumentParser(description="Run Arena-Hard evaluation for local or Hugging Face models.")
     parser.add_argument("--model-path", required=True, help="Hugging Face model ID or local path.")
@@ -711,24 +706,24 @@ def main():
         help="Number of concurrent judge jobs to run in parallel.",
     )
     parser.add_argument(
-        '--templates-dir',
+        "--templates-dir",
         type=str,
-        default='templates/',
+        default="templates/",
     )
     parser.add_argument(
-        '--json-output-file',
+        "--json-output-file",
         type=str,
         default=None,
         help="Optional path to output the metrics as a seperate JSON file.",
     )
     parser.add_argument(
-        '--skip-generation',
-        action='store_true',
+        "--skip-generation",
+        action="store_true",
         help="Skip answer generation and use existing answers from model_answer/.",
     )
     parser.add_argument(
-        '--store-outputs',
-        action='store_true',
+        "--store-outputs",
+        action="store_true",
         help="Store model answers and judgments to disk (default: off).",
     )
     args = parser.parse_args()
@@ -775,48 +770,48 @@ def main():
         print(f"[done] Metrics saved to {args.json_output_file}")
     if metrics is None:
         print("Failed to compute metrics.")
-    
-    print("Score (winrate) is:", metrics['accuracy'])
+
+    print("Score (winrate) is:", metrics["accuracy"])
+
 
 def model_type(args) -> str:
-    if 'qwen' in args.model_path.lower():
-        return 'qwen'
-    if 'llama' in args.model_path.lower():
-        return 'llama'
-    if 'gemma' in args.model_path.lower():
-        return 'gemma'
-    if 'smollm' in args.model_path.lower():
-        return 'smollm'
+    if "qwen" in args.model_path.lower():
+        return "qwen"
+    if "llama" in args.model_path.lower():
+        return "llama"
+    if "gemma" in args.model_path.lower():
+        return "gemma"
+    if "smollm" in args.model_path.lower():
+        return "smollm"
 
-    with open(os.path.join(args.model_path, "config.json"), 'r') as f:
+    with open(os.path.join(args.model_path, "config.json"), "r") as f:
         config = json.load(f)
-    architecture = config['architectures'][0].lower()
-    if 'gemma' in architecture:
-        return 'gemma'
-    if 'llama' in architecture:
-        return 'llama'
-    if 'qwen' in architecture:
-        return 'qwen'
-    if 'smollm' in architecture:
-        return 'smollm'
+    architecture = config["architectures"][0].lower()
+    if "gemma" in architecture:
+        return "gemma"
+    if "llama" in architecture:
+        return "llama"
+    if "qwen" in architecture:
+        return "qwen"
+    if "smollm" in architecture:
+        return "smollm"
     raise ValueError(architecture)
+
 
 def template_args(args) -> list:
     model_type_str = model_type(args)
-    if model_type_str == 'qwen':
-        template = 'qwen3.jinja'
-    elif model_type_str == 'llama':
-        template = 'llama3.jinja'
-    elif model_type_str == 'gemma':
-        template = 'gemma3.jinja'
-    elif model_type_str == 'smollm':
-        template = 'smollm.jinja'
+    if model_type_str == "qwen":
+        template = "qwen3.jinja"
+    elif model_type_str == "llama":
+        template = "llama3.jinja"
+    elif model_type_str == "gemma":
+        template = "gemma3.jinja"
+    elif model_type_str == "smollm":
+        template = "smollm.jinja"
     else:
         raise ValueError(model_type_str)
-    return [
-        '--chat-template', os.path.join(args.templates_dir, template)
-    ]
-    
+    return ["--chat-template", os.path.join(args.templates_dir, template)]
+
 
 if __name__ == "__main__":
     main()

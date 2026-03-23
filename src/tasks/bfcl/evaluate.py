@@ -12,7 +12,7 @@ from inspect_ai.log._log import EvalLog, EvalMetric, EvalSample
 from inspect_ai import eval as inspect_eval  # type: ignore  # noqa: E402
 from inspect_ai.util._display import init_display_type  # noqa: E402
 
-import inspect_evals.bfcl # noqa: F401, E402  (registers task definitions)
+import inspect_evals.bfcl  # noqa: F401, E402  (registers task definitions)
 
 
 def parse_args() -> argparse.Namespace:
@@ -31,7 +31,7 @@ def parse_args() -> argparse.Namespace:
         help="Optional limit for number of samples to evaluate.",
     )
     parser.add_argument(
-        '--json-output-file',
+        "--json-output-file",
         type=str,
         default=None,
         help="Optional path to output the metrics as a seperate JSON file.",
@@ -53,19 +53,21 @@ def parse_args() -> argparse.Namespace:
         default=0.8,
     )
     parser.add_argument(
-        '--templates-dir',
+        "--templates-dir",
         type=str,
         default="templates/",
     )
     return parser.parse_args()
 
+
 def tool_call_parser_name(args) -> str:
     model_type_str = model_type(args)
-    if model_type_str in ['gemma', 'qwen', 'smollm']:
-        return 'hermes'
-    if model_type_str == 'llama':
-        return 'llama3_json'
+    if model_type_str in ["gemma", "qwen", "smollm"]:
+        return "hermes"
+    if model_type_str == "llama":
+        return "llama3_json"
     raise ValueError(model_type_str)
+
 
 def main() -> None:
     args = parse_args()
@@ -83,7 +85,7 @@ def main() -> None:
     model_args = {
         "enable_auto_tool_choice": None,
         "tool_call_parser": tool_call_parser_name(args),
-        'gpu_memory_utilization': args.gpu_memory_utilization,
+        "gpu_memory_utilization": args.gpu_memory_utilization,
     }
     model_args.update(template_kwargs(args))
 
@@ -94,12 +96,12 @@ def main() -> None:
         score_display=False,
         timeout=18000000,
         attempt_timeout=18000000,
-        log_format='json',
+        log_format="json",
         max_tokens=args.max_tokens,
         max_connections=args.max_connections,
         **other_kwargs,
     )
-    
+
     if args.json_output_file is not None:
         assert len(eval_out) == 1, eval_out
         assert len(eval_out[0].results.scores) == 1, eval_out[0].results.scores
@@ -107,47 +109,48 @@ def main() -> None:
         for k, v in eval_out[0].results.scores[0].metrics.items():
             metrics[k] = v.value
 
-        with open(args.json_output_file, 'w') as f:
+        with open(args.json_output_file, "w") as f:
             json.dump(metrics, f, indent=2)
 
-def model_type(args) -> str:
-    if 'qwen' in args.model_path.lower():
-        return 'qwen'
-    if 'llama' in args.model_path.lower():
-        return 'llama'
-    if 'gemma' in args.model_path.lower():
-        return 'gemma'
-    if 'smollm' in args.model_path.lower():
-        return 'smollm'
 
-    with open(os.path.join(args.model_path, "config.json"), 'r') as f:
+def model_type(args) -> str:
+    if "qwen" in args.model_path.lower():
+        return "qwen"
+    if "llama" in args.model_path.lower():
+        return "llama"
+    if "gemma" in args.model_path.lower():
+        return "gemma"
+    if "smollm" in args.model_path.lower():
+        return "smollm"
+
+    with open(os.path.join(args.model_path, "config.json"), "r") as f:
         config = json.load(f)
-    architecture = config['architectures'][0].lower()
-    if 'gemma' in architecture:
-        return 'gemma'
-    if 'llama' in architecture:
-        return 'llama'
-    if 'qwen' in architecture:
-        return 'qwen'
-    if 'smollm' in architecture:
-        return 'smollm'
+    architecture = config["architectures"][0].lower()
+    if "gemma" in architecture:
+        return "gemma"
+    if "llama" in architecture:
+        return "llama"
+    if "qwen" in architecture:
+        return "qwen"
+    if "smollm" in architecture:
+        return "smollm"
     raise ValueError(architecture)
+
 
 def template_kwargs(args) -> dict:
     model_type_str = model_type(args)
-    if model_type_str == 'qwen':
-        template = 'qwen3.jinja'
-    elif model_type_str == 'llama':
-        template = 'llama3.jinja'
-    elif model_type_str == 'gemma':
-        template = 'gemma3_tool_calling.jinja'
-    elif model_type_str == 'smollm':
-        template = 'smollm.jinja'
+    if model_type_str == "qwen":
+        template = "qwen3.jinja"
+    elif model_type_str == "llama":
+        template = "llama3.jinja"
+    elif model_type_str == "gemma":
+        template = "gemma3_tool_calling.jinja"
+    elif model_type_str == "smollm":
+        template = "smollm.jinja"
     else:
         raise ValueError(model_type_str)
-    return {
-        'chat_template': os.path.join(args.templates_dir, template)
-    }
+    return {"chat_template": os.path.join(args.templates_dir, template)}
+
 
 if __name__ == "__main__":
     main()

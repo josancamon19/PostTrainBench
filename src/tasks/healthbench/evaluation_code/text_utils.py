@@ -24,7 +24,7 @@ def limit_repetitions(text: str, max_reps: int = MAX_REPETITIONS) -> str:
 
     def _limit_consecutive_lines(txt: str) -> tuple:
         """Find consecutive identical lines and limit them."""
-        lines = txt.split('\n')
+        lines = txt.split("\n")
         result = []
         i = 0
         modified = False
@@ -44,11 +44,11 @@ def limit_repetitions(text: str, max_reps: int = MAX_REPETITIONS) -> str:
                 result.extend([line] * count)
             i = j
 
-        return '\n'.join(result), modified
+        return "\n".join(result), modified
 
     def _limit_block_patterns(txt: str) -> tuple:
         """Find repeating blocks of lines and limit them."""
-        lines = txt.split('\n')
+        lines = txt.split("\n")
         modified = False
 
         for block_size in range(2, min(30, len(lines) // 5 + 1)):
@@ -57,12 +57,12 @@ def limit_repetitions(text: str, max_reps: int = MAX_REPETITIONS) -> str:
             last_end = 0
 
             while i <= len(lines) - block_size:
-                block = lines[i:i + block_size]
+                block = lines[i : i + block_size]
 
                 count = 1
                 j = i + block_size
                 while j + block_size <= len(lines):
-                    next_block = lines[j:j + block_size]
+                    next_block = lines[j : j + block_size]
                     if next_block == block:
                         count += 1
                         j += block_size
@@ -102,7 +102,7 @@ def limit_repetitions(text: str, max_reps: int = MAX_REPETITIONS) -> str:
 
             if modified:
                 new_lines.extend(lines[last_end:])
-                return '\n'.join(new_lines), True
+                return "\n".join(new_lines), True
 
         return txt, False
 
@@ -114,7 +114,7 @@ def limit_repetitions(text: str, max_reps: int = MAX_REPETITIONS) -> str:
             changed_this_round = False
 
             for min_len, max_len in [(3, 30), (30, 60), (60, 120), (120, 250), (250, 500)]:
-                pattern = rf'(.{{{min_len},{max_len}}}?)\1{{{max_reps},}}'
+                pattern = rf"(.{{{min_len},{max_len}}}?)\1{{{max_reps},}}"
 
                 def replace_func(match):
                     nonlocal changed_this_round, modified

@@ -86,7 +86,7 @@ def _wait_for_vllm_server(port: int, process: subprocess.Popen) -> None:
 
 class VLLMServer:
     """Manage vLLM server lifecycle."""
-    
+
     def __init__(self, args, model_path: str):
         self.args = args
         self.model_path = model_path
@@ -142,54 +142,51 @@ class VLLMServer:
 
 def model_type(args) -> str:
     """Detect model type from path."""
-    if 'qwen' in args.model_path.lower():
-        return 'qwen'
-    if 'llama' in args.model_path.lower():
-        return 'llama'
-    if 'gemma' in args.model_path.lower():
-        return 'gemma'
-    if 'smollm' in args.model_path.lower():
-        return 'smollm'
+    if "qwen" in args.model_path.lower():
+        return "qwen"
+    if "llama" in args.model_path.lower():
+        return "llama"
+    if "gemma" in args.model_path.lower():
+        return "gemma"
+    if "smollm" in args.model_path.lower():
+        return "smollm"
 
     # Try to read from config.json
     config_path = os.path.join(args.model_path, "config.json")
     if os.path.exists(config_path):
-        with open(config_path, 'r') as f:
+        with open(config_path, "r") as f:
             config = json.load(f)
-        architecture = config.get('architectures', [''])[0].lower()
-        if 'gemma' in architecture:
-            return 'gemma'
-        if 'llama' in architecture:
-            return 'llama'
-        if 'qwen' in architecture:
-            return 'qwen'
-        if 'smollm' in architecture:
-            return 'smollm'
-    
+        architecture = config.get("architectures", [""])[0].lower()
+        if "gemma" in architecture:
+            return "gemma"
+        if "llama" in architecture:
+            return "llama"
+        if "qwen" in architecture:
+            return "qwen"
+        if "smollm" in architecture:
+            return "smollm"
+
     raise ValueError(architecture)
 
 
 def template_args(args) -> list:
     """Get vLLM template arguments based on model type."""
     model_type_str = model_type(args)
-    if model_type_str == 'qwen':
-        template = 'qwen3.jinja'
-    elif model_type_str == 'llama':
-        template = 'llama3.jinja'
-    elif model_type_str == 'gemma':
-        template = 'gemma3.jinja'
-    elif model_type_str == 'smollm':
-        template = 'smollm.jinja'
+    if model_type_str == "qwen":
+        template = "qwen3.jinja"
+    elif model_type_str == "llama":
+        template = "llama3.jinja"
+    elif model_type_str == "gemma":
+        template = "gemma3.jinja"
+    elif model_type_str == "smollm":
+        template = "smollm.jinja"
     else:
         raise ValueError(model_type_str)
-    
-    return ['--chat-template', os.path.join(args.templates_dir, template)]
+
+    return ["--chat-template", os.path.join(args.templates_dir, template)]
 
 
-def generate_answers(
-    args,
-    examples: List[HealthBenchExample]
-) -> List[str]:
+def generate_answers(args, examples: List[HealthBenchExample]) -> List[str]:
     """Generate model responses for all examples."""
     server = VLLMServer(args, args.model_path)
     print(f"[generate] Starting vLLM server for model {args.model_path}")
@@ -204,11 +201,11 @@ def generate_answers(
 
         responses = []
         print(f"[generate] Generating answers for {len(examples)} examples")
-        
+
         for example in tqdm(examples, desc="Generating answers"):
             # Build messages from conversation
             messages = example.conversation.copy()
-            
+
             payload = {
                 "model": args.model_path,
                 "messages": messages,
@@ -238,7 +235,7 @@ def generate_answers(
                         raise RuntimeError(
                             f"Failed to generate answer for {example.example_id} after {VLLM_GENERATION_RETRY} attempts"
                         ) from err
-                    backoff = 2 ** attempt
+                    backoff = 2**attempt
                     print(f"[generate] Error (attempt {attempt}): {err}. Retrying in {backoff}s.")
                     time.sleep(backoff)
 
@@ -262,7 +259,7 @@ def generate_answers(
 def _compute_metrics(results: List[ExampleResult], examples: List[HealthBenchExample]) -> Dict:
     """Compute final metrics."""
     benchmark_result = aggregate_scores(results, examples)
-    
+
     return {
         "accuracy": benchmark_result.accuracy,
         "stderr": benchmark_result.stderr,
@@ -272,52 +269,35 @@ def _compute_metrics(results: List[ExampleResult], examples: List[HealthBenchExa
         "by_axis": benchmark_result.by_axis,
     }
 
+
 def main():
     parser = argparse.ArgumentParser(description="Run HealthBench evaluation.")
-    parser.add_argument(
-        "--model-path",
-        default="final_model",
-        help="Hugging Face model ID or local path."
-    )
+    parser.add_argument("--model-path", default="final_model", help="Hugging Face model ID or local path.")
     parser.add_argument("--max-new-tokens", type=int, default=16384)
     # this is a good limit for this task, you can keep it like that (or use less in case you want faster tests)
-    parser.add_argument(
-        "--limit",
-        type=int,
-        default=32,
-        help="Limit number of examples for quicker runs."
-    )
+    parser.add_argument("--limit", type=int, default=32, help="Limit number of examples for quicker runs.")
     parser.add_argument(
         "--judge-workers",
         type=int,
         default=DEFAULT_JUDGE_WORKERS,
-        help="Number of concurrent judge jobs to run in parallel."
+        help="Number of concurrent judge jobs to run in parallel.",
     )
     # final evaluation will be done using the templates/ templates dir. You are not allowed to edit this directory.
     parser.add_argument(
-        '--templates-dir',
+        "--templates-dir",
         type=str,
-        default='templates/',
+        default="templates/",
     )
     parser.add_argument(
-        '--json-output-file',
-        type=str,
-        default=None,
-        help="Optional path to output the metrics as a JSON file."
+        "--json-output-file", type=str, default=None, help="Optional path to output the metrics as a JSON file."
     )
-    parser.add_argument(
-        '--store-outputs',
-        action='store_true',
-        help="Store model answers to disk (default: off)."
-    )
+    parser.add_argument("--store-outputs", action="store_true", help="Store model answers to disk (default: off).")
     args = parser.parse_args()
 
     model_alias = _model_alias(args.model_path)
 
     if "OPENAI_API_KEY" not in os.environ:
-        raise EnvironmentError(
-            "OPENAI_API_KEY is not set. Please export your OpenAI API key before running."
-        )
+        raise EnvironmentError("OPENAI_API_KEY is not set. Please export your OpenAI API key before running.")
 
     # Load data
     print(f"[data] Loading HealthBench dataset...")
@@ -350,11 +330,11 @@ def main():
     # Grade responses
     print(f"[judge] Grading responses...")
     pbar = tqdm(total=len(examples), desc="Judging answers")
-    
+
     def update_progress(completed, total):
         pbar.n = completed
         pbar.refresh()
-    
+
     results = grade_examples_parallel(
         examples=examples,
         responses=responses,
@@ -362,7 +342,7 @@ def main():
         example_workers=min(4, len(examples)),
         criteria_workers=8,
         max_concurrent_requests=args.judge_workers,
-        progress_callback=update_progress
+        progress_callback=update_progress,
     )
     pbar.close()
 
@@ -375,15 +355,15 @@ def main():
     print(f"  Examples: {metrics['n_examples']}")
     print(f"  Accuracy: {metrics['accuracy']:.4f} (±{metrics['stderr']:.4f})")
     print(f"  Grader calls: {metrics['total_grader_calls']}")
-    
-    if metrics['by_theme']:
+
+    if metrics["by_theme"]:
         print(f"\n  By Theme:")
-        for theme, score in sorted(metrics['by_theme'].items()):
+        for theme, score in sorted(metrics["by_theme"].items()):
             print(f"    {theme}: {score:.4f}")
-    
-    if metrics['by_axis']:
+
+    if metrics["by_axis"]:
         print(f"\n  By Axis:")
-        for axis, score in sorted(metrics['by_axis'].items()):
+        for axis, score in sorted(metrics["by_axis"].items()):
             print(f"    {axis}: {score:.4f}")
 
     # Save metrics

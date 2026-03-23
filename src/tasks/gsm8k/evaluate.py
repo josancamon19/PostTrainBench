@@ -9,7 +9,7 @@ from inspect_ai.log._log import EvalLog, EvalMetric, EvalSample
 from inspect_ai import eval as inspect_eval  # type: ignore  # noqa: E402
 from inspect_ai.util._display import init_display_type  # noqa: E402
 
-import inspect_evals.gsm8k # noqa: F401, E402  (registers task definitions)
+import inspect_evals.gsm8k  # noqa: F401, E402  (registers task definitions)
 
 
 def parse_args() -> argparse.Namespace:
@@ -28,13 +28,13 @@ def parse_args() -> argparse.Namespace:
         help="Optional limit for number of samples to evaluate.",
     )
     parser.add_argument(
-        '--json-output-file',
+        "--json-output-file",
         type=str,
         default=None,
         help="Optional path to output the metrics as a seperate JSON file.",
     )
     parser.add_argument(
-        '--templates-dir',
+        "--templates-dir",
         type=str,
         default="templates/",
     )
@@ -56,6 +56,7 @@ def parse_args() -> argparse.Namespace:
     )
     return parser.parse_args()
 
+
 def main() -> None:
     args = parse_args()
 
@@ -67,7 +68,7 @@ def main() -> None:
 
     task = "inspect_evals/gsm8k"
     model_args = {
-        'gpu_memory_utilization': args.gpu_memory_utilization,
+        "gpu_memory_utilization": args.gpu_memory_utilization,
     }
     model_args.update(template_kwargs(args))
 
@@ -77,7 +78,7 @@ def main() -> None:
         model_args=model_args,
         score_display=False,
         log_realtime=False,
-        log_format='json',
+        log_format="json",
         timeout=18000000,
         attempt_timeout=18000000,
         max_tokens=args.max_tokens,
@@ -92,47 +93,48 @@ def main() -> None:
         for k, v in eval_out[0].results.scores[0].metrics.items():
             metrics[k] = v.value
 
-        with open(args.json_output_file, 'w') as f:
+        with open(args.json_output_file, "w") as f:
             json.dump(metrics, f, indent=2)
 
-def model_type(args) -> str:
-    if 'qwen' in args.model_path.lower():
-        return 'qwen'
-    if 'llama' in args.model_path.lower():
-        return 'llama'
-    if 'gemma' in args.model_path.lower():
-        return 'gemma'
-    if 'smollm' in args.model_path.lower():
-        return 'smollm'
 
-    with open(os.path.join(args.model_path, "config.json"), 'r') as f:
+def model_type(args) -> str:
+    if "qwen" in args.model_path.lower():
+        return "qwen"
+    if "llama" in args.model_path.lower():
+        return "llama"
+    if "gemma" in args.model_path.lower():
+        return "gemma"
+    if "smollm" in args.model_path.lower():
+        return "smollm"
+
+    with open(os.path.join(args.model_path, "config.json"), "r") as f:
         config = json.load(f)
-    architecture = config['architectures'][0].lower()
-    if 'gemma' in architecture:
-        return 'gemma'
-    if 'llama' in architecture:
-        return 'llama'
-    if 'qwen' in architecture:
-        return 'qwen'
-    if 'smollm' in architecture:
-        return 'smollm'
+    architecture = config["architectures"][0].lower()
+    if "gemma" in architecture:
+        return "gemma"
+    if "llama" in architecture:
+        return "llama"
+    if "qwen" in architecture:
+        return "qwen"
+    if "smollm" in architecture:
+        return "smollm"
     raise ValueError(architecture)
+
 
 def template_kwargs(args) -> dict:
     model_type_str = model_type(args)
-    if model_type_str == 'qwen':
-        template = 'qwen3.jinja'
-    elif model_type_str == 'llama':
-        template = 'llama3.jinja'
-    elif model_type_str == 'gemma':
-        template = 'gemma3.jinja'
-    elif model_type_str == 'smollm':
-        template = 'smollm.jinja'
+    if model_type_str == "qwen":
+        template = "qwen3.jinja"
+    elif model_type_str == "llama":
+        template = "llama3.jinja"
+    elif model_type_str == "gemma":
+        template = "gemma3.jinja"
+    elif model_type_str == "smollm":
+        template = "smollm.jinja"
     else:
         raise ValueError(model_type_str)
-    return {
-        'chat_template': os.path.join(args.templates_dir, template)
-    }
+    return {"chat_template": os.path.join(args.templates_dir, template)}
+
 
 if __name__ == "__main__":
     main()

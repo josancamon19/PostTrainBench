@@ -39,9 +39,7 @@ def remove_pattern(answer, pattern):
 
 def get_element_counts(df, column):
     pattern = re.compile("```([^`]*)```")
-    answers = df[column].map(
-        lambda messages: messages[-1]["content"]["answer"]
-    )
+    answers = df[column].map(lambda messages: messages[-1]["content"]["answer"])
     results = answers.map(
         lambda answer: count_markdown_elements(
             remove_pattern(answer, pattern),
@@ -62,9 +60,9 @@ if __name__ == "__main__":
     parser.add_argument("--dir", type=str, required=True)
     parser.add_argument("--output-dir", type=str, required=True)
     args = parser.parse_args()
-    
+
     encoder = tiktoken.encoding_for_model("gpt-4o")
-    
+
     print("loading file...")
     for file in tqdm(glob(f"{args.dir}/*.jsonl")):
         data = pd.read_json(file, lines=True)
@@ -73,8 +71,7 @@ if __name__ == "__main__":
         temp["markdown_meta"] = get_element_counts(data, column="messages")
 
         data["metadata"] = temp.apply(lambda row: add_markdown_meta(row, encoder), axis=1)
-        
+
         output_file = file.replace(args.dir, args.output_dir)
         os.makedirs(os.path.dirname(output_file), exist_ok=True)
         data.to_json(output_file, orient="records", lines=True)
-        

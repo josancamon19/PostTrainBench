@@ -8,6 +8,7 @@ https://arxiv.org/abs/2311.12022
 
 Based on: https://github.com/UKGovernmentBEIS/inspect_evals/blob/main/src/inspect_evals/gpqa/gpqa.py
 """
+
 from __future__ import annotations
 import os
 
@@ -26,6 +27,7 @@ from inspect_ai.util._display import init_display_type  # noqa: E402
 
 DEFAULT_EPOCHS = 1
 
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run Inspect AI eval without banners.")
     parser.add_argument(
@@ -42,7 +44,7 @@ def parse_args() -> argparse.Namespace:
         help="Optional limit for number of samples to evaluate.",
     )
     parser.add_argument(
-        '--json-output-file',
+        "--json-output-file",
         type=str,
         default=None,
         help="Optional path to output the metrics as a seperate JSON file.",
@@ -53,7 +55,7 @@ def parse_args() -> argparse.Namespace:
         default=16000,
     )
     parser.add_argument(
-        '--templates-dir',
+        "--templates-dir",
         type=str,
         default="templates/",
     )
@@ -82,7 +84,7 @@ def main() -> None:
 
     task = gpqa_main()
     model_args = {
-        'gpu_memory_utilization': args.gpu_memory_utilization,
+        "gpu_memory_utilization": args.gpu_memory_utilization,
     }
     model_args.update(template_kwargs(args))
 
@@ -94,7 +96,7 @@ def main() -> None:
         log_realtime=False,
         timeout=18000000,
         attempt_timeout=18000000,
-        log_format='json',
+        log_format="json",
         max_tokens=args.max_tokens,
         max_connections=args.max_connections,
         **other_kwargs,
@@ -107,16 +109,17 @@ def main() -> None:
         for k, v in eval_out[0].results.scores[0].metrics.items():
             metrics[k] = v.value
 
-        with open(args.json_output_file, 'w') as f:
+        with open(args.json_output_file, "w") as f:
             json.dump(metrics, f, indent=2)
+
 
 @task
 def gpqa_main() -> Task:
     return Task(
         dataset=hf_dataset(
-            path='Idavidrein/gpqa',
-            name='gpqa_main',
-            split='train',
+            path="Idavidrein/gpqa",
+            name="gpqa_main",
+            split="train",
             sample_fields=record_to_sample,
             shuffle_choices=True,
         ),
@@ -143,44 +146,45 @@ def record_to_sample(record: dict[str, Any]) -> Sample:
         id=record["Record ID"],
     )
 
-def model_type(args) -> str:
-    if 'qwen' in args.model_path.lower():
-        return 'qwen'
-    if 'llama' in args.model_path.lower():
-        return 'llama'
-    if 'gemma' in args.model_path.lower():
-        return 'gemma'
-    if 'smollm' in args.model_path.lower():
-        return 'smollm'
 
-    with open(os.path.join(args.model_path, "config.json"), 'r') as f:
+def model_type(args) -> str:
+    if "qwen" in args.model_path.lower():
+        return "qwen"
+    if "llama" in args.model_path.lower():
+        return "llama"
+    if "gemma" in args.model_path.lower():
+        return "gemma"
+    if "smollm" in args.model_path.lower():
+        return "smollm"
+
+    with open(os.path.join(args.model_path, "config.json"), "r") as f:
         config = json.load(f)
-    architecture = config['architectures'][0].lower()
-    if 'gemma' in architecture:
-        return 'gemma'
-    if 'llama' in architecture:
-        return 'llama'
-    if 'qwen' in architecture:
-        return 'qwen'
-    if 'smollm' in architecture:
-        return 'smollm'
+    architecture = config["architectures"][0].lower()
+    if "gemma" in architecture:
+        return "gemma"
+    if "llama" in architecture:
+        return "llama"
+    if "qwen" in architecture:
+        return "qwen"
+    if "smollm" in architecture:
+        return "smollm"
     raise ValueError(architecture)
+
 
 def template_kwargs(args) -> dict:
     model_type_str = model_type(args)
-    if model_type_str == 'qwen':
-        template = 'qwen3.jinja'
-    elif model_type_str == 'llama':
-        template = 'llama3.jinja'
-    elif model_type_str == 'gemma':
-        template = 'gemma3.jinja'
-    elif model_type_str == 'smollm':
-        template = 'smollm.jinja'
+    if model_type_str == "qwen":
+        template = "qwen3.jinja"
+    elif model_type_str == "llama":
+        template = "llama3.jinja"
+    elif model_type_str == "gemma":
+        template = "gemma3.jinja"
+    elif model_type_str == "smollm":
+        template = "smollm.jinja"
     else:
         raise ValueError(model_type_str)
-    return {
-        'chat_template': os.path.join(args.templates_dir, template)
-    }
+    return {"chat_template": os.path.join(args.templates_dir, template)}
+
 
 if __name__ == "__main__":
     main()

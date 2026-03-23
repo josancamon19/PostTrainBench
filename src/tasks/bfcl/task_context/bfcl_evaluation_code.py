@@ -57,9 +57,7 @@ def bfcl(solver: Solver | list[Solver] = bfcl_solver()) -> Task:
 @scorer([accuracy()])
 def bfcl_scorer() -> Scorer:
     async def score(state: TaskState, target: Target) -> Score:
-        assistant_messages = [
-            m for m in state.messages if isinstance(m, ChatMessageAssistant)
-        ]
+        assistant_messages = [m for m in state.messages if isinstance(m, ChatMessageAssistant)]
 
         if len(assistant_messages) == 0:
             return Score(value="I", answer="No assistant message")
@@ -86,9 +84,7 @@ def bfcl_scorer() -> Scorer:
         is_identical = args_identical and function_identical
         value = "C" if is_identical else "I"
 
-        tool_call_string = tool_call_to_string(
-            tool_calls[0].function, tool_calls[0].arguments
-        )
+        tool_call_string = tool_call_to_string(tool_calls[0].function, tool_calls[0].arguments)
         return Score(value=value, answer=repr(tool_call_string))
 
     return score
@@ -100,9 +96,7 @@ def record_to_sample(record: dict[str, Any]) -> Sample:
     target = record["ground_truth"][0]
 
     parsed_target = parse_target(target)
-    formatted_target = tool_call_to_string(
-        parsed_target["function"], parsed_target["arguments"]
-    )
+    formatted_target = tool_call_to_string(parsed_target["function"], parsed_target["arguments"])
 
     # the dataset contains tuples and lists, to simplify comparing these we convert them to lists by running them through json serialization
     jsoned_target = json.loads(json.dumps(parsed_target))
@@ -139,9 +133,7 @@ def create_tool_param(param_dict: Dict[str, Any] | None) -> ToolParam | None:
     properties = None
     if param_dict.get("properties"):
         properties = {
-            key: create_tool_param(value)
-            for key, value in param_dict["properties"].items()
-            if value is not None
+            key: create_tool_param(value) for key, value in param_dict["properties"].items() if value is not None
         }
 
     # Handle array items

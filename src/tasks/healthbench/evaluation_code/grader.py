@@ -26,6 +26,7 @@ _api_semaphore_lock = threading.Lock()
 @dataclass
 class GradingResult:
     """Result of grading one criterion."""
+
     criterion_id: str
     criteria_met: bool
     explanation: str
@@ -35,6 +36,7 @@ class GradingResult:
 @dataclass
 class ExampleResult:
     """Complete result for one example."""
+
     example_id: str
     model_response: str
     grading_results: List[GradingResult]
@@ -104,9 +106,7 @@ def get_client() -> OpenAI:
     """Get OpenAI client."""
     api_key = os.environ.get("OPENAI_API_KEY")
     if not api_key:
-        raise EnvironmentError(
-            "OPENAI_API_KEY is not set. Please export your OpenAI API key."
-        )
+        raise EnvironmentError("OPENAI_API_KEY is not set. Please export your OpenAI API key.")
     return OpenAI(api_key=api_key)
 
 
@@ -135,7 +135,7 @@ def parse_json_to_dict(json_string: str) -> dict:
     """Parse JSON from grader response, handling markdown code blocks."""
     # Remove markdown-style ```json``` markers if present
     json_cleaned = re.sub(r"^```json\s*|\s*```$", "", json_string.strip())
-    
+
     try:
         return json.loads(json_cleaned)
     except json.JSONDecodeError as e:
@@ -146,10 +146,7 @@ def parse_json_to_dict(json_string: str) -> dict:
 def format_conversation_for_grader(conversation: List[dict], model_response: str) -> str:
     """Format conversation with model response for the grader."""
     convo_with_response = conversation + [{"role": "assistant", "content": model_response}]
-    return "\n\n".join([
-        f"{turn['role']}: {turn['content']}"
-        for turn in convo_with_response
-    ])
+    return "\n\n".join([f"{turn['role']}: {turn['content']}" for turn in convo_with_response])
 
 
 def format_rubric_item(criterion_text: str, points: int) -> str:
@@ -163,23 +160,21 @@ def grade_criterion(
     criterion: "RubricCriterion",
     grader_model: str = "gpt-5-mini",
     client: Optional[OpenAI] = None,
-    max_retries: int = API_MAX_RETRY
+    max_retries: int = API_MAX_RETRY,
 ) -> GradingResult:
     """Grade a single criterion using LLM-as-judge."""
     if client is None:
         client = get_client()
-    
+
     # Format conversation with model response
     conv_formatted = format_conversation_for_grader(conversation, model_response)
-    
+
     # Format rubric item
     rubric_str = format_rubric_item(criterion.criterion, criterion.points)
-    
+
     # Build grader prompt
-    grader_prompt = GRADER_TEMPLATE.replace(
-        "<<conversation>>", conv_formatted
-    ).replace("<<rubric_item>>", rubric_str)
-    
+    grader_prompt = GRADER_TEMPLATE.replace("<<conversation>>", conv_formatted).replace("<<rubric_item>>", rubric_str)
+
     # Call grader with retry logic and rate limiting
     last_error: Optional[Exception] = None
     for attempt in range(max_retries):
@@ -192,21 +187,21 @@ def grade_criterion(
                     response = client.chat.completions.create(
                         model=grader_model,
                         messages=[{"role": "user", "content": grader_prompt}],
-                        max_completion_tokens=49152
+                        max_completion_tokens=49152,
                     )
                 else:
                     response = client.chat.completions.create(
                         model=grader_model,
                         messages=[{"role": "user", "content": grader_prompt}],
                         temperature=0,
-                        max_tokens=512
+                        max_tokens=512,
                     )
             finally:
                 _release_api_slot()
-            
+
             grading_response = response.choices[0].message.content
             grading_dict = parse_json_to_dict(grading_response)
-            
+
             # Validate response has required fields
             if "criteria_met" in grading_dict:
                 label = grading_dict["criteria_met"]
@@ -214,22 +209,22 @@ def grade_criterion(
                     criteria_met = bool(label)
                     explanation = grading_dict.get("explanation", "No explanation provided")
                     weighted_score = criterion.points if criteria_met else 0
-                    
+
                     return GradingResult(
                         criterion_id=criterion.criterion_id,
                         criteria_met=criteria_met,
                         explanation=explanation,
-                        weighted_score=weighted_score
+                        weighted_score=weighted_score,
                     )
-            
+
             logger.warning(f"Grading failed due to bad JSON output (attempt {attempt + 1})")
-            
+
         except Exception as e:
             logger.error(f"API error on attempt {attempt + 1}: {e}")
             last_error = e
             if attempt < max_retries - 1:
                 time.sleep(API_RETRY_SLEEP * (attempt + 1))
-    
+
     # If all retries fail, raise an error to surface grading failures.
     msg = f"All retries failed for criterion: {criterion.criterion[:50]}..."
     logger.error(msg)
@@ -244,7 +239,7 @@ def _grade_criterion_with_index(
     model_response: str,
     criterion: "RubricCriterion",
     grader_model: str,
-    client: OpenAI
+    client: OpenAI,
 ) -> tuple:
     """Wrapper for grade_criterion that returns the index along with result."""
     result = grade_criterion(
@@ -252,7 +247,7 @@ def _grade_criterion_with_index(
         model_response=model_response,
         criterion=criterion,
         grader_model=grader_model,
-        client=client
+        client=client,
     )
     return idx, result
 
@@ -264,14 +259,14 @@ def grade_example(
     rubric_criteria: List["RubricCriterion"],
     grader_model: str = "gpt-5-mini",
     client: Optional[OpenAI] = None,
-    max_workers: int = 1
+    max_workers: int = 1,
 ) -> ExampleResult:
     """Grade a single example against all rubric criteria."""
     if client is None:
         client = get_client()
-    
+
     grading_results = [None] * len(rubric_criteria)
-    
+
     if max_workers <= 1:
         # Sequential grading
         for idx, criterion in enumerate(rubric_criteria):
@@ -280,27 +275,21 @@ def grade_example(
                 model_response=model_response,
                 criterion=criterion,
                 grader_model=grader_model,
-                client=client
+                client=client,
             )
             grading_results[idx] = result
     else:
         # Parallel grading with ThreadPoolExecutor
         effective_workers = min(max_workers, len(rubric_criteria), 50)
-        
+
         with ThreadPoolExecutor(max_workers=effective_workers) as executor:
             futures = {
                 executor.submit(
-                    _grade_criterion_with_index,
-                    idx,
-                    conversation,
-                    model_response,
-                    criterion,
-                    grader_model,
-                    client
+                    _grade_criterion_with_index, idx, conversation, model_response, criterion, grader_model, client
                 ): idx
                 for idx, criterion in enumerate(rubric_criteria)
             }
-            
+
             for future in as_completed(futures):
                 try:
                     idx, result = future.result()
@@ -312,35 +301,30 @@ def grade_example(
                         criterion_id=rubric_criteria[idx].criterion_id,
                         criteria_met=False,
                         explanation=f"Grading failed: {str(e)}",
-                        weighted_score=0
+                        weighted_score=0,
                     )
-    
+
     # Aggregate scores
     total_score = sum(r.weighted_score for r in grading_results)
     max_possible_score = sum(c.points for c in rubric_criteria if c.points > 0)
-    
+
     if max_possible_score > 0:
         normalized_score = total_score / max_possible_score
     else:
         normalized_score = 0.0
-    
+
     return ExampleResult(
         example_id=example_id,
         model_response=model_response,
         grading_results=grading_results,
         total_score=total_score,
         max_possible_score=max_possible_score,
-        normalized_score=normalized_score
+        normalized_score=normalized_score,
     )
 
 
 def _grade_example_with_index(
-    idx: int,
-    example: "HealthBenchExample",
-    response: str,
-    grader_model: str,
-    criteria_workers: int,
-    client: OpenAI
+    idx: int, example: "HealthBenchExample", response: str, grader_model: str, criteria_workers: int, client: OpenAI
 ) -> tuple:
     """Wrapper for grade_example that returns the index along with result."""
     result = grade_example(
@@ -350,7 +334,7 @@ def _grade_example_with_index(
         rubric_criteria=example.rubric_criteria,
         grader_model=grader_model,
         client=client,
-        max_workers=criteria_workers
+        max_workers=criteria_workers,
     )
     return idx, result
 
@@ -362,21 +346,21 @@ def grade_examples_parallel(
     example_workers: int = 4,
     criteria_workers: int = 8,
     max_concurrent_requests: int = 50,
-    progress_callback=None
+    progress_callback=None,
 ) -> List[ExampleResult]:
     """Grade multiple examples in parallel with nested parallelism."""
     if len(examples) != len(responses):
         raise ValueError(f"Mismatch: {len(examples)} examples but {len(responses)} responses")
-    
+
     # Set up rate limiting
     set_rate_limit(max_concurrent_requests)
-    
+
     # Create shared client
     client = get_client()
-    
+
     results = [None] * len(examples)
     completed = 0
-    
+
     if example_workers <= 1:
         # Sequential example grading
         for idx, (example, response) in enumerate(zip(examples, responses)):
@@ -387,7 +371,7 @@ def grade_examples_parallel(
                 rubric_criteria=example.rubric_criteria,
                 grader_model=grader_model,
                 client=client,
-                max_workers=criteria_workers
+                max_workers=criteria_workers,
             )
             results[idx] = result
             completed += 1
@@ -396,21 +380,15 @@ def grade_examples_parallel(
     else:
         # Parallel example grading
         effective_workers = min(example_workers, len(examples))
-        
+
         with ThreadPoolExecutor(max_workers=effective_workers) as executor:
             futures = {
                 executor.submit(
-                    _grade_example_with_index,
-                    idx,
-                    example,
-                    response,
-                    grader_model,
-                    criteria_workers,
-                    client
+                    _grade_example_with_index, idx, example, response, grader_model, criteria_workers, client
                 ): idx
                 for idx, (example, response) in enumerate(zip(examples, responses))
             }
-            
+
             for future in as_completed(futures):
                 try:
                     idx, result = future.result()
@@ -427,10 +405,10 @@ def grade_examples_parallel(
                         grading_results=[],
                         total_score=0,
                         max_possible_score=sum(c.points for c in examples[idx].rubric_criteria if c.points > 0),
-                        normalized_score=0
+                        normalized_score=0,
                     )
                     completed += 1
                     if progress_callback:
                         progress_callback(completed, len(examples))
-    
+
     return results

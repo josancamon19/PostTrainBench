@@ -20,12 +20,13 @@ from .utils.judge_utils import JUDGE_SETTINGS
 
 def get_score(judgment, patterns):
     import re
+
     for pattern in patterns:
         pattern = re.compile(pattern)
-        
+
         matches = pattern.findall(judgment.upper())
         matches = [m for m in matches if m != ""]
-        
+
         if len(set(matches)) > 0:
             return matches[-1].strip("\n")
     return None
@@ -33,24 +34,24 @@ def get_score(judgment, patterns):
 
 def pairwise_judgment(question, baseline, answer, reference, configs, settings):
     prompt_args = {
-        "QUESTION": question['prompt'],
-        "ANSWER_A": baseline["messages"][-1]["content"]['answer'],
-        "ANSWER_B": answer["messages"][-1]["content"]['answer'],
+        "QUESTION": question["prompt"],
+        "ANSWER_A": baseline["messages"][-1]["content"]["answer"],
+        "ANSWER_B": answer["messages"][-1]["content"]["answer"],
     }
-    
+
     if reference:
-        prompt_args[f"REFERENCE"] = reference["messages"][-1]["content"]['answer']
-        
+        prompt_args[f"REFERENCE"] = reference["messages"][-1]["content"]["answer"]
+
     user_prompt = configs["prompt_template"].format(**prompt_args)
     messages = [
         {
-            "role": "system", 
+            "role": "system",
             "content": JUDGE_SETTINGS[question["category"]]["system_prompt"],
         },
         {
-            "role": "user", 
+            "role": "user",
             "content": user_prompt,
-        }
+        },
     ]
 
     # build arguments for api completions
@@ -58,16 +59,16 @@ def pairwise_judgment(question, baseline, answer, reference, configs, settings):
         "api_dict": get_endpoint(settings["endpoints"]),
         "messages": messages,
     }
-    kwargs['temperature'] = configs['temperature']
-    kwargs['max_tokens'] = configs['max_tokens']
-    
+    kwargs["temperature"] = configs["temperature"]
+    kwargs["max_tokens"] = configs["max_tokens"]
+
     api_completion_func = registered_api_completion[settings["api_type"]]
     output = api_completion_func(**kwargs)
-    
+
     if output is None:
         return None
 
-    score = get_score(output['answer'], configs["regex_patterns"])
+    score = get_score(output["answer"], configs["regex_patterns"])
 
     result = {
         "score": score,
@@ -78,41 +79,41 @@ def pairwise_judgment(question, baseline, answer, reference, configs, settings):
 
 
 def judgment(args):
-    answer = args['answer']
-    baseline = args['baseline']
-    
+    answer = args["answer"]
+    baseline = args["baseline"]
+
     output = {
-        "uid": args['question']["uid"],
-        "category": args['question']["category"],
-        "judge": args['configs']['judge_model'],
+        "uid": args["question"]["uid"],
+        "category": args["question"]["category"],
+        "judge": args["configs"]["judge_model"],
         "model": answer["model"],
         "baseline": baseline["model"],
-        "games": []
+        "games": [],
     }
 
     # round 1
     result = pairwise_judgment(
-        question=args['question'],
+        question=args["question"],
         baseline=baseline,
         answer=answer,
-        reference=args['reference'],
-        configs=args['configs'],
-        settings=args['settings'],
-    )
-    output["games"].append(result)
-        
-    # round 2
-    result = pairwise_judgment(
-        question=args['question'],
-        baseline=answer,
-        answer=baseline,
-        reference=args['reference'],
-        configs=args['configs'],
-        settings=args['settings'],
+        reference=args["reference"],
+        configs=args["configs"],
+        settings=args["settings"],
     )
     output["games"].append(result)
 
-    with open(args['output_file'], "a", encoding="utf-8") as f:
+    # round 2
+    result = pairwise_judgment(
+        question=args["question"],
+        baseline=answer,
+        answer=baseline,
+        reference=args["reference"],
+        configs=args["configs"],
+        settings=args["settings"],
+    )
+    output["games"].append(result)
+
+    with open(args["output_file"], "a", encoding="utf-8") as f:
         f.write(json.dumps(output, ensure_ascii=False) + "\n")
 
 
@@ -126,23 +127,25 @@ if __name__ == "__main__":
     configs = make_config(args.setting_file)
     endpoint_list = make_config(args.endpoint_file)
 
-    print(f'judge model: {configs["judge_model"]}, reference: {configs["reference"]}, temperature: {configs["temperature"]}, max tokens: {configs["max_tokens"]}')
+    print(
+        f"judge model: {configs['judge_model']}, reference: {configs['reference']}, temperature: {configs['temperature']}, max tokens: {configs['max_tokens']}"
+    )
 
     question_file = os.path.join("data", configs["bench_name"], "question.jsonl")
     answer_dir = os.path.join("data", configs["bench_name"], "model_answer")
 
     questions = load_questions(question_file)
     model_answers = load_model_answers(answer_dir)
-    
+
     # if user choose a set of models, only judge those models
     models = [model for model in configs["model_list"]]
-        
+
     if configs["reference"]:
         assert not configs["reference"] in models, "ERROR: one of the models being evaluated is used as reference."
         ref_answers = [answer_dir[model] for model in configs["reference"]]
     else:
         ref_answers = None
-    
+
     output_files = {}
     output_dir = f"data/{configs['bench_name']}/model_judgment/{configs['judge_model']}"
     for model in models:
@@ -176,26 +179,22 @@ if __name__ == "__main__":
                     continue
 
                 kwargs["answer"] = model_answers[model][uid]
-                kwargs["baseline"] = model_answers[
-                    JUDGE_SETTINGS[question["category"]]["baseline"]
-                ][uid]
-                
+                kwargs["baseline"] = model_answers[JUDGE_SETTINGS[question["category"]]["baseline"]][uid]
+
                 if ref_answers:
                     kwargs["reference"] = [ref_answer[uid] for ref_answer in ref_answers]
                 else:
                     kwargs["reference"] = None
-                    
+
                 kwargs["configs"] = configs
                 kwargs["settings"] = endpoint_settings
                 kwargs["output_file"] = output_files[model]
-                                
+
                 future = executor.submit(judgment, kwargs)
                 futures.append(future)
 
             if count > 0:
                 print(f"{count} number of existing judgments")
 
-        for future in tqdm(
-            concurrent.futures.as_completed(futures), total=len(futures)
-        ):
+        for future in tqdm(concurrent.futures.as_completed(futures), total=len(futures)):
             future.result()

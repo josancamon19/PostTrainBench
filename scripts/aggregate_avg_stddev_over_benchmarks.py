@@ -9,6 +9,7 @@ across runs for each agent.
 Produces two CSV files: one for averages, one for standard deviations.
 Rows are benchmarks, columns are agents.
 """
+
 import os
 import csv
 import math
@@ -138,7 +139,9 @@ def main():
 
     for agent_name, method_names in HARDCODED_AGENT_MAP.items():
         print(f"Processing agent: {agent_name}")
-        avg_per_benchmark, std_per_benchmark, avg_per_model, std_per_model, models = aggregate_agent(method_names, results_dir)
+        avg_per_benchmark, std_per_benchmark, avg_per_model, std_per_model, models = aggregate_agent(
+            method_names, results_dir
+        )
 
         if all_models is None:
             all_models = models

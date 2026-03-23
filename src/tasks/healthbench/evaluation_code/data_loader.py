@@ -7,10 +7,11 @@ from typing import Optional, List
 @dataclass
 class RubricCriterion:
     """Single rubric criterion for grading."""
-    criterion: str          # The criterion text
-    points: int             # Weight/points for this criterion
-    tags: List[str]         # Tags like ["level:example", "axis:accuracy"]
-    
+
+    criterion: str  # The criterion text
+    points: int  # Weight/points for this criterion
+    tags: List[str]  # Tags like ["level:example", "axis:accuracy"]
+
     @property
     def axis(self) -> str:
         """Extract axis from tags (e.g., 'axis:accuracy' -> 'accuracy')."""
@@ -18,7 +19,7 @@ class RubricCriterion:
             if tag.startswith("axis:"):
                 return tag.split(":")[1]
         return "unknown"
-    
+
     @property
     def criterion_id(self) -> str:
         """Generate a criterion ID from the text."""
@@ -28,26 +29,27 @@ class RubricCriterion:
 @dataclass
 class HealthBenchExample:
     """Single HealthBench conversation with rubric."""
-    prompt_id: str                       # Unique identifier
-    prompt: List[dict]                   # [{"role": "user/assistant", "content": "..."}]
-    rubrics: List[RubricCriterion]       # List of rubric criteria
-    example_tags: List[str]              # Tags like ["theme:emergency_referrals"]
-    
+
+    prompt_id: str  # Unique identifier
+    prompt: List[dict]  # [{"role": "user/assistant", "content": "..."}]
+    rubrics: List[RubricCriterion]  # List of rubric criteria
+    example_tags: List[str]  # Tags like ["theme:emergency_referrals"]
+
     @property
     def example_id(self) -> str:
         """Alias for prompt_id."""
         return self.prompt_id
-    
+
     @property
     def conversation(self) -> List[dict]:
         """Alias for prompt."""
         return self.prompt
-    
+
     @property
     def rubric_criteria(self) -> List[RubricCriterion]:
         """Alias for rubrics."""
         return self.rubrics
-    
+
     @property
     def theme(self) -> str:
         """Extract theme from example_tags (e.g., 'theme:communication' -> 'communication')."""
@@ -55,11 +57,11 @@ class HealthBenchExample:
             if tag.startswith("theme:"):
                 return tag.split(":")[1]
         return "unknown"
-    
+
     @property
     def n_criteria(self) -> int:
         return len(self.rubrics)
-    
+
     @property
     def max_possible_score(self) -> float:
         """Sum of positive point values."""
@@ -68,11 +70,7 @@ class HealthBenchExample:
 
 def parse_rubric(raw: dict) -> RubricCriterion:
     """Parse a raw rubric JSON object into RubricCriterion."""
-    return RubricCriterion(
-        criterion=raw["criterion"],
-        points=raw["points"],
-        tags=raw.get("tags", [])
-    )
+    return RubricCriterion(criterion=raw["criterion"], points=raw["points"], tags=raw.get("tags", []))
 
 
 def parse_example(raw: dict) -> HealthBenchExample:
@@ -81,7 +79,7 @@ def parse_example(raw: dict) -> HealthBenchExample:
         prompt_id=raw["prompt_id"],
         prompt=raw["prompt"],
         rubrics=[parse_rubric(r) for r in raw["rubrics"]],
-        example_tags=raw.get("example_tags", [])
+        example_tags=raw.get("example_tags", []),
     )
 
 
@@ -90,18 +88,17 @@ def load_healthbench(
 ) -> List[HealthBenchExample]:
     if cache_dir is None:
         cache_dir = Path(__file__).parent / "data"
-    
+
     cache_path = cache_dir / "healthbench.jsonl"
-    
+
     if not cache_path.exists():
         raise FileNotFoundError(
-            f"HealthBench dataset not found at {cache_path}. "
-            "Please ensure healthbench.jsonl is in the data/ directory."
+            f"HealthBench dataset not found at {cache_path}. Please ensure healthbench.jsonl is in the data/ directory."
         )
-    
+
     print(f"[data] Loading HealthBench from: {cache_path}")
     data = cache_path.read_text()
-    
+
     examples = []
     for line in data.strip().split("\n"):
         if not line:
@@ -109,7 +106,7 @@ def load_healthbench(
         raw = json.loads(line)
         example = parse_example(raw)
         examples.append(example)
-    
+
     print(f"[data] Loaded {len(examples)} examples")
     return examples
 

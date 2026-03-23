@@ -6,6 +6,7 @@ Goes through the results folder, finds all Claude method directories,
 extracts cost from solve_out.txt files, and computes totals per method.
 If cost is not available (trace cut), uses the average of other runs.
 """
+
 import os
 import re
 import sys
@@ -70,14 +71,12 @@ def parse_run_dir_name(run_dir_name: str) -> tuple[str, str, int]:
         raise ValueError(f"Invalid run directory name (no underscore): {run_dir_name}")
 
     prefix = run_dir_name[:last_underscore]
-    job_id_str = run_dir_name[last_underscore + 1:]
+    job_id_str = run_dir_name[last_underscore + 1 :]
 
     try:
         job_id = int(job_id_str)
     except ValueError:
-        raise ValueError(
-            f"Invalid run directory name (job_id not an integer): {run_dir_name}"
-        )
+        raise ValueError(f"Invalid run directory name (job_id not an integer): {run_dir_name}")
 
     # Now parse benchmark and model from prefix
     # benchmark is the first component, model is the rest
@@ -86,7 +85,7 @@ def parse_run_dir_name(run_dir_name: str) -> tuple[str, str, int]:
         raise ValueError(f"Invalid run directory name (no benchmark): {run_dir_name}")
 
     benchmark = prefix[:first_underscore]
-    model = prefix[first_underscore + 1:]
+    model = prefix[first_underscore + 1 :]
 
     if not benchmark or not model:
         raise ValueError(f"Invalid run directory name (empty benchmark/model): {run_dir_name}")
@@ -129,9 +128,7 @@ def filter_latest_runs(run_dirs: list[Path]) -> list[Path]:
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Compute total costs for Claude models per method."
-    )
+    parser = argparse.ArgumentParser(description="Compute total costs for Claude models per method.")
     parser.add_argument(
         "--results-dir",
         default=None,
@@ -219,7 +216,9 @@ def main():
 
     with open(output_path, "w", newline="") as f:
         writer = csv.writer(f)
-        writer.writerow(["method", "total_cost_usd", "run_count", "valid_cost_count", "missing_cost_count", "avg_cost_usd"])
+        writer.writerow(
+            ["method", "total_cost_usd", "run_count", "valid_cost_count", "missing_cost_count", "avg_cost_usd"]
+        )
 
         for method_name in sorted(results.keys()):
             data = results[method_name]
@@ -235,24 +234,23 @@ def main():
             # Total = sum of valid costs + (missing_count * avg_cost)
             total_cost = sum(costs) + (missing_count * avg_cost)
 
-            writer.writerow([
-                method_name,
-                f"{total_cost:.4f}",
-                run_count,
-                len(costs),
-                missing_count,
-                f"{avg_cost:.4f}",
-            ])
+            writer.writerow(
+                [
+                    method_name,
+                    f"{total_cost:.4f}",
+                    run_count,
+                    len(costs),
+                    missing_count,
+                    f"{avg_cost:.4f}",
+                ]
+            )
 
             notes = []
             if missing_count > 0:
                 notes.append(f"{missing_count} missing costs filled with avg ${avg_cost:.4f}")
             notes_str = f" ({', '.join(notes)})" if notes else ""
 
-            print(
-                f"{method_name}: {run_count} runs, total ${total_cost:.2f}, "
-                f"avg ${avg_cost:.4f}{notes_str}"
-            )
+            print(f"{method_name}: {run_count} runs, total ${total_cost:.2f}, avg ${avg_cost:.4f}{notes_str}")
 
     print(f"\nWritten: {output_path}")
 

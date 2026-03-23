@@ -22,31 +22,28 @@ from .utils.completion import (
 )
 
 
-def get_answer(
-    question: dict, answer_file: str, settings: dict
-):
+def get_answer(question: dict, answer_file: str, settings: dict):
     # build messages
     messages = []
     if "sys_prompt" in settings:
         messages.append({"role": "system", "content": settings["sys_prompt"]})
-        
+
     messages.append({"role": "user", "content": question["prompt"]})
 
     # retrieve the api completion function from register
     api_completion_func = registered_api_completion[settings["api_type"]]
-    
+
     # build arguments for api completions
     kwargs = settings | {
         "api_dict": get_endpoint(settings["endpoints"]),
         "messages": messages,
     }
-    
-    
+
     output = api_completion_func(**kwargs)
-        
+
     if output is API_ERROR_OUTPUT:
         return
-    
+
     messages.append({"role": "assistant", "content": output})
 
     # Dump answers
@@ -57,16 +54,11 @@ def get_answer(
         "messages": messages,
         "tstamp": time.time(),
     }
-    
+
     encoding = tiktoken.encoding_for_model("gpt-4o")
-    metadata = {
-        "token_len": len(encoding.encode(output['answer'], disallowed_special=()))
-    }
+    metadata = {"token_len": len(encoding.encode(output["answer"], disallowed_special=()))}
     ans["metadata"] = metadata | count_markdown_elements(
-        remove_pattern(
-            output['answer'], 
-            re.compile("```([^`]*)```")
-        ),
+        remove_pattern(output["answer"], re.compile("```([^`]*)```")),
         suffix="",
     )
 
@@ -77,19 +69,15 @@ def get_answer(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--config-file", type=str, default="config/gen_answer_config.yaml"
-    )
-    parser.add_argument(
-        "--endpoint-file", type=str, default="config/api_config.yaml"
-    )
+    parser.add_argument("--config-file", type=str, default="config/gen_answer_config.yaml")
+    parser.add_argument("--endpoint-file", type=str, default="config/api_config.yaml")
     args = parser.parse_args()
 
     config = make_config(args.config_file)
     endpoints = make_config(args.endpoint_file)
 
     existing_answer = load_model_answers(os.path.join("data", config["bench_name"], "model_answer"))
-    
+
     print(config)
 
     for model in config["model_list"]:
@@ -106,18 +94,18 @@ if __name__ == "__main__":
             parallel = endpoint_settings["parallel"]
         else:
             parallel = 1
-            
-        if 'local_engine' in endpoint_settings and endpoint_settings['local_engine']:
-            local_completion_func = registered_engine_completion[endpoint_settings['api_type']]
-            
+
+        if "local_engine" in endpoint_settings and endpoint_settings["local_engine"]:
+            local_completion_func = registered_engine_completion[endpoint_settings["api_type"]]
+
             kwargs = endpoint_settings | {
                 "answer_file": answer_file,
                 "batch_context": questions,
             }
             local_completion_func(**kwargs)
-            
+
             reorg_answer_file(answer_file)
-            
+
         else:
             with concurrent.futures.ThreadPoolExecutor(max_workers=parallel) as executor:
                 futures = []
@@ -135,10 +123,7 @@ if __name__ == "__main__":
                     futures.append(future)
                 if count > 0:
                     print(f"{count} number of existing answers")
-                for future in tqdm.tqdm(
-                    concurrent.futures.as_completed(futures), total=len(futures)
-                ):
+                for future in tqdm.tqdm(concurrent.futures.as_completed(futures), total=len(futures)):
                     future.result()
 
             reorg_answer_file(answer_file)
-            

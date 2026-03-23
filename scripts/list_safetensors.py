@@ -2,6 +2,7 @@
 """
 List all files with "safetensors" in their name within directories called "final_model".
 """
+
 import os
 import argparse
 
@@ -32,9 +33,7 @@ def find_safetensors_in_final_model(root_dir: str) -> list[str]:
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="List safetensors files in final_model directories."
-    )
+    parser = argparse.ArgumentParser(description="List safetensors files in final_model directories.")
     parser.add_argument(
         "--root",
         default=None,
