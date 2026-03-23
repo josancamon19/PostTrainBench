@@ -1,15 +1,14 @@
 #!/usr/bin/env python3
 from __future__ import annotations
-import os
 
 import argparse
 import json
-
-from inspect_ai.log._log import EvalLog, EvalMetric, EvalSample
-from inspect_ai import eval as inspect_eval  # type: ignore  # noqa: E402
-from inspect_ai.util._display import init_display_type  # noqa: E402
+import os
 
 import inspect_evals.gsm8k  # noqa: F401, E402  (registers task definitions)
+from inspect_ai import eval as inspect_eval  # type: ignore  # noqa: E402
+from inspect_ai.log._log import EvalLog, EvalMetric, EvalSample
+from inspect_ai.util._display import init_display_type  # noqa: E402
 
 
 def parse_args() -> argparse.Namespace:
