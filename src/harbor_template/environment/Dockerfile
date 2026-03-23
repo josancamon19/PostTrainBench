@@ -2,10 +2,8 @@ FROM nvidia/cuda:12.9.1-cudnn-devel-ubuntu22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV PATH="/root/.local/bin:$PATH"
-ENV NO_PROXY="localhost,127.0.0.1"
-ENV no_proxy="localhost,127.0.0.1"
 
-# Update and install system dependencies
+# System dependencies
 RUN apt-get update && apt-get install -y \
     python3.10 \
     python3-dev \
@@ -16,56 +14,33 @@ RUN apt-get update && apt-get install -y \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-# Create python3 symlink
+# python/python3 symlinks
 RUN ln -sf /usr/bin/python3.10 /usr/bin/python3 && \
     ln -sf /usr/bin/python3.10 /usr/bin/python
 
-# Install Node.js (LTS version 22.x) for npm
-RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
-    apt-get install -y nodejs
-
-# Install uv
+# uv
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
-
-# Install vllm
 RUN uv pip install --system --no-cache vllm --torch-backend=auto
-
-RUN uv pip install --system --no-cache ninja packaging
-
-# Install the required ML packages
 RUN uv pip install --system --no-cache \
     accelerate \
-    boto3 \
     bitsandbytes \
     datasets \
     evaluate \
+    inspect-ai \
+    inspect-evals \
     lm-eval \
+    ninja \
     openai \
+    packaging \
     pandas \
+    peft \
     scikit-learn \
-    shortuuid \
-    tokenizers \
     transformers \
     trl \
-    peft \
-    tiktoken \
-    inspect-ai \
-    matplotlib \
-    certifi
-
-# Note: flash_attn requires GPU to compile - install at runtime if needed:
-# pip install flash_attn --no-build-isolation
-
-# Install inspect evals
-RUN uv pip install --system --no-cache inspect-evals
+    matplotlib
 
 # Setup workspace
 RUN mkdir -p /app
 WORKDIR /app
-
-# Copy all task files (populated by adapter; .dockerignore excludes Dockerfile)
 COPY . /app/
-
-# Set permissions
-RUN chmod -R a+rw /app/ && \
-    chmod +x /app/timer.sh
+RUN chmod -R a+rw /app/ && chmod +x /app/timer.sh
