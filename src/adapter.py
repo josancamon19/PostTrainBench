@@ -172,7 +172,7 @@ fi
         else:
             raise FileNotFoundError(f"evaluate.py not found: {eval_src}")
 
-        templates_src = SRC_DIR / "templates"
+        templates_src = TEMPLATE_DIR / "environment" / "templates"
         if templates_src.exists():
             shutil.copytree(templates_src, env_dir / "templates", dirs_exist_ok=True)
         else:
@@ -219,7 +219,7 @@ fi
         if eval_src.exists():
             shutil.copy(eval_src, tests_dir / "evaluate.py")
 
-        templates_src = SRC_DIR / "templates"
+        templates_src = TEMPLATE_DIR / "environment" / "templates"
         if templates_src.exists():
             shutil.copytree(templates_src, tests_dir / "templates", dirs_exist_ok=True)
 
