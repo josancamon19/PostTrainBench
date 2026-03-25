@@ -44,7 +44,6 @@ python3 "$TESTS_DIR/evaluate.py" \
     --checkpoint "$CHECKPOINT" \
     --base-model "$MODEL_ID" \
     --json-output-file "$LOGS_DIR/metrics.json" \
-    --limit -1 \
     2>&1 | tee "$LOGS_DIR/final_eval.txt"
 set -e
 
