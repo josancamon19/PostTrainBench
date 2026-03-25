@@ -1,0 +1,27 @@
+version = "1.0"
+
+[metadata]
+author_name = "PostTrainBench Team"
+category = "ml-training"
+tags = ["post-training", "llm", "fine-tuning", "prime-rl"]
+
+[environment]
+gpus = 0
+cpus = 4
+memory_mb = 8000
+storage_mb = 10000
+build_timeout_sec = 1800.0
+allow_internet = true
+
+[verifier]
+timeout_sec = 10800.0
+
+[verifier.env]
+OPENAI_API_KEY = "${OPENAI_API_KEY}"
+CODEX_API_KEY = "${OPENAI_API_KEY}"
+
+[agent]
+timeout_sec = 36000.0
+
+[agent.env]
+PRIME_API_KEY = "${PRIME_API_KEY}"

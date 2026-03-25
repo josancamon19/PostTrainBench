@@ -8,7 +8,8 @@ from pathlib import Path
 
 import chz
 
-TEMPLATE_DIR = Path(__file__).parent / "harbor_template"
+HARBOR_TEMPLATE_DIR = Path(__file__).parent / "harbor_template"
+PRIME_RL_TEMPLATE_DIR = Path(__file__).parent / "prime_rl_template"
 SRC_DIR = Path(__file__).parent
 
 CLAUDE_CLAUSE = (
@@ -84,13 +85,33 @@ MODELS = {
 }
 
 
+PRIME_RL_MODELS = {
+    "qwen3-4b": ModelInfo(model_id="Qwen/Qwen3-4B-Instruct-2507", short_name="qwen3-4b"),
+    "smollm3-3b": ModelInfo(model_id="HuggingFaceTB/SmolLM3-3B", short_name="smollm3-3b"),
+    "llama3.2-3b": ModelInfo(model_id="meta-llama/Llama-3.2-3B-Instruct", short_name="llama3.2-3b"),
+}
+
+PRIME_RL_BENCHMARKS = {"gsm8k", "aime2025"}
+
+
 class PostTrainBenchAdapter:
     """Adapter to generate Harbor tasks from PostTrainBench configuration."""
 
-    def __init__(self, output_dir: Path, num_hours: int = 10, include_claude_clause: bool = True):
+    def __init__(
+        self,
+        output_dir: Path,
+        num_hours: float = 10,
+        include_claude_clause: bool = True,
+        mode: str = "default",
+    ):
         self.output_dir = Path(output_dir)
         self.num_hours = num_hours
         self.include_claude_clause = include_claude_clause
+        self.mode = mode
+        if mode == "prime-rl":
+            self.template_dir = PRIME_RL_TEMPLATE_DIR
+        else:
+            self.template_dir = HARBOR_TEMPLATE_DIR
 
     def _read_benchmark_name(self, benchmark_id: str) -> str:
         bench_file = SRC_DIR / "tasks" / benchmark_id / "benchmark.txt"
@@ -101,7 +122,7 @@ class PostTrainBenchAdapter:
         raise FileNotFoundError(f"Benchmark file not found: {bench_file}")
 
     def generate_task_toml(self, task_dir: Path, benchmark_id: str = "") -> None:
-        content = (TEMPLATE_DIR / "task.toml").read_text()
+        content = (self.template_dir / "task.toml").read_text()
         agent_timeout = self.num_hours * 3600
         content = content.replace("timeout_sec = 36000.0", f"timeout_sec = {float(agent_timeout)}")
         if benchmark_id in ("arenahardwriting", "healthbench"):
@@ -111,7 +132,7 @@ class PostTrainBenchAdapter:
     def generate_instruction(
         self, task_dir: Path, model_info: ModelInfo, benchmark_info: BenchmarkInfo, benchmark_id: str = ""
     ) -> None:
-        content = (TEMPLATE_DIR / "instruction.md").read_text()
+        content = (self.template_dir / "instruction.md").read_text()
         content = content.replace("{model}", model_info.model_id)
         content = content.replace("{benchmark}", benchmark_info.benchmark_name)
         content = content.replace("{num_hours}", str(self.num_hours))
@@ -161,8 +182,8 @@ fi
         env_dir = task_dir / "environment"
         env_dir.mkdir(parents=True, exist_ok=True)
 
-        shutil.copy(TEMPLATE_DIR / "environment" / "Dockerfile", env_dir / "Dockerfile")
-        dockerignore_src = TEMPLATE_DIR / "environment" / ".dockerignore"
+        shutil.copy(self.template_dir / "environment" / "Dockerfile", env_dir / "Dockerfile")
+        dockerignore_src = self.template_dir / "environment" / ".dockerignore"
         if dockerignore_src.exists():
             shutil.copy(dockerignore_src, env_dir / ".dockerignore")
 
@@ -172,7 +193,7 @@ fi
         else:
             raise FileNotFoundError(f"evaluate.py not found: {eval_src}")
 
-        templates_src = TEMPLATE_DIR / "environment" / "templates"
+        templates_src = self.template_dir / "environment" / "templates"
         if templates_src.exists():
             shutil.copytree(templates_src, env_dir / "templates", dirs_exist_ok=True)
         else:
@@ -191,7 +212,7 @@ fi
                 else:
                     shutil.copy(item, dst)
 
-        judge_src = TEMPLATE_DIR / "environment" / "contamination_judge.py"
+        judge_src = self.template_dir / "environment" / "contamination_judge.py"
         if judge_src.exists():
             shutil.copy(judge_src, env_dir / "contamination_judge.py")
 
@@ -203,6 +224,7 @@ fi
             "model_id": model_info.model_id,
             "model_short_name": model_info.short_name,
             "num_hours": self.num_hours,
+            "mode": self.mode,
         }
         (env_dir / "metadata.json").write_text(json.dumps(metadata, indent=2))
 
@@ -212,14 +234,14 @@ fi
         tests_dir.mkdir(parents=True, exist_ok=True)
 
         test_sh_dst = tests_dir / "test.sh"
-        shutil.copy(TEMPLATE_DIR / "tests" / "test.sh", test_sh_dst)
+        shutil.copy(self.template_dir / "tests" / "test.sh", test_sh_dst)
         test_sh_dst.chmod(0o755)
 
         eval_src = SRC_DIR / "tasks" / benchmark_id / "evaluate.py"
         if eval_src.exists():
             shutil.copy(eval_src, tests_dir / "evaluate.py")
 
-        templates_src = TEMPLATE_DIR / "environment" / "templates"
+        templates_src = self.template_dir / "environment" / "templates"
         if templates_src.exists():
             shutil.copytree(templates_src, tests_dir / "templates", dirs_exist_ok=True)
 
@@ -230,11 +252,17 @@ fi
     def generate_task(self, benchmark_id: str, model_key: str) -> Path:
         if benchmark_id not in BENCHMARKS:
             raise ValueError(f"Unknown benchmark: {benchmark_id}. Available: {list(BENCHMARKS.keys())}")
-        if model_key not in MODELS:
-            raise ValueError(f"Unknown model: {model_key}. Available: {list(MODELS.keys())}")
+        if self.mode == "prime-rl" and benchmark_id not in PRIME_RL_BENCHMARKS:
+            raise ValueError(
+                f"Benchmark {benchmark_id!r} not yet supported in prime-rl mode. "
+                f"Available: {sorted(PRIME_RL_BENCHMARKS)}"
+            )
 
         benchmark_info = BENCHMARKS[benchmark_id]
-        model_info = MODELS[model_key]
+        models = PRIME_RL_MODELS if self.mode == "prime-rl" else MODELS
+        if model_key not in models:
+            raise ValueError(f"Unknown model for {self.mode} mode: {model_key}. Available: {list(models.keys())}")
+        model_info = models[model_key]
 
         with contextlib.suppress(FileNotFoundError):
             benchmark_info = BenchmarkInfo(
@@ -243,7 +271,8 @@ fi
                 setup_note=benchmark_info.setup_note,
             )
 
-        task_id = f"{benchmark_id}-{model_info.short_name}"
+        prefix = "prime-rl-" if self.mode == "prime-rl" else ""
+        task_id = f"{prefix}{benchmark_id}-{model_info.short_name}"
         task_dir = self.output_dir / task_id
         task_dir.mkdir(parents=True, exist_ok=True)
 
@@ -259,8 +288,10 @@ fi
 
     def generate_all_tasks(self) -> list[Path]:
         tasks = []
-        for benchmark_id in BENCHMARKS:
-            for model_key in MODELS:
+        benchmarks = PRIME_RL_BENCHMARKS if self.mode == "prime-rl" else BENCHMARKS
+        models = PRIME_RL_MODELS if self.mode == "prime-rl" else MODELS
+        for benchmark_id in benchmarks:
+            for model_key in models:
                 tasks.append(self.generate_task(benchmark_id, model_key))
         return tasks
 
@@ -276,7 +307,8 @@ def generate(
     benchmark: str | None = None,
     model: str | None = None,
     output: Path = Path("./datasets/posttrainbench"),
-    num_hours: int = 10,
+    num_hours: float = 10,
+    mode: str = "default",
     all: bool = False,
     list: bool = False,
 ) -> None:
@@ -287,29 +319,32 @@ def generate(
         model: Base model to generate (e.g. qwen3-1.7b, smollm3-3b).
         output: Output directory for generated tasks.
         num_hours: Number of hours for the training task.
+        mode: Task mode. "default" for raw GPU training, "prime-rl" for prime-rl based training.
         all: Generate tasks for all benchmark + model combinations.
         list: List available benchmarks and models.
     """
     if list:
         print("Available benchmarks:")
-        for bm_id, bm_info in BENCHMARKS.items():
+        benchmarks = PRIME_RL_BENCHMARKS if mode == "prime-rl" else BENCHMARKS
+        for bm_id in benchmarks:
+            bm_info = BENCHMARKS[bm_id]
             print(f"  {bm_id}: {bm_info.benchmark_name}")
         print("\nAvailable models:")
-        for model_key, model_info in MODELS.items():
+        models = PRIME_RL_MODELS if mode == "prime-rl" else MODELS
+        for model_key, model_info in models.items():
             print(f"  {model_key}: {model_info.model_id}")
-        print("\nAvailable task combinations:")
-        for task_id in list_available_tasks():
-            print(f"  {task_id}")
+        print(f"\nMode: {mode}")
         return
 
-    adapter = PostTrainBenchAdapter(output_dir=output, num_hours=num_hours)
+    env_type = "daytona" if mode == "prime-rl" else "modal"
+    adapter = PostTrainBenchAdapter(output_dir=output, num_hours=num_hours, mode=mode)
 
     if all:
-        print(f"Generating all tasks to {output}/...")
+        print(f"Generating all {mode} tasks to {output}/...")
         tasks = adapter.generate_all_tasks()
         print(f"\nGenerated {len(tasks)} tasks.")
         print("\nTo run a task with Harbor:")
-        print(f"  harbor run --path {tasks[0]} --agent claude-code --model anthropic/claude-sonnet-4 --env modal")
+        print(f"  harbor run --path {tasks[0]} --agent claude-code --model anthropic/claude-sonnet-4 --env {env_type}")
         return
 
     if not benchmark or not model:
@@ -318,7 +353,7 @@ def generate(
 
     task_dir = adapter.generate_task(benchmark, model)
     print("\nTo run this task with Harbor:")
-    print(f"  harbor run --path {task_dir} --agent claude-code --model anthropic/claude-sonnet-4 --env modal")
+    print(f"  harbor run --path {task_dir} --agent claude-code --model anthropic/claude-sonnet-4 --env {env_type}")
 
 
 if __name__ == "__main__":

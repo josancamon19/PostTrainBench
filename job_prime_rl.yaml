@@ -1,0 +1,36 @@
+# PostTrainBench Job Configuration — prime-rl mode (Harbor + Daytona)
+# Agent uses prime-rl framework for structured RL training.
+
+name: posttrainbench-prime-rl
+description: |
+  PostTrainBench (prime-rl mode) measures CLI agents' ability to post-train
+  LLMs using the prime-rl framework. The agent writes TOML configs and runs
+  prime-rl on an H100 GPU for up to 10 hours.
+
+datasets:
+  - path: datasets/posttrainbench
+
+agents:
+  - name: codex
+    model_name: openai/gpt-5.1-codex
+
+environment:
+  type: daytona
+  delete: true
+  env:
+    - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+    - OPENAI_API_KEY=${OPENAI_API_KEY}
+    - GEMINI_API_KEY=${GEMINI_API_KEY}
+    - PRIME_API_KEY=${PRIME_API_KEY}
+
+orchestrator:
+  type: local
+  n_concurrent_trials: 1
+  quiet: false
+
+jobs_dir: jobs/posttrainbench-prime-rl
+
+# Collect agent workspace (configs, checkpoints, logs) after each run.
+artifacts:
+  - source: /app
+    destination: workspace
