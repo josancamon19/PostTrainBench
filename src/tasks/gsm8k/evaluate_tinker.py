@@ -1,17 +1,10 @@
 #!/usr/bin/env python3
 """Evaluate a Tinker checkpoint (or base model) on GSM8K.
 
-Uses tinker_cookbook renderers and completers for proper chat formatting and generation.
-
 Usage:
-    # Evaluate a Tinker checkpoint
     python evaluate.py --checkpoint "tinker://<run_id>/sampler_weights/final"
-
-    # Evaluate a base model (no fine-tuning)
     python evaluate.py --base-model "Qwen/Qwen3-8B-Base"
-
-    # Limit samples for faster iteration
-    python evaluate.py --checkpoint "tinker://..." --limit 50
+    python evaluate.py --checkpoint "tinker://..." --base-model "meta-llama/Llama-3.2-1B"
 """
 from __future__ import annotations
 
@@ -27,47 +20,8 @@ from tinker_cookbook.renderers import get_renderer
 
 from datasets import load_dataset
 
-
-def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Evaluate a Tinker checkpoint on GSM8K.")
-    parser.add_argument(
-        "--checkpoint",
-        type=str,
-        default=None,
-        help="Tinker checkpoint path (e.g. tinker://<run_id>/sampler_weights/final).",
-    )
-    parser.add_argument(
-        "--base-model",
-        type=str,
-        default=None,
-        help="Base model identifier (e.g. Qwen/Qwen3-8B-Base). Used for renderer selection, or to evaluate without fine-tuning.",
-    )
-    parser.add_argument(
-        "--limit",
-        type=int,
-        default=150,
-        help="Number of samples to evaluate (default: 150, use -1 for all).",
-    )
-    parser.add_argument(
-        "--max-tokens",
-        type=int,
-        default=1024,
-        help="Maximum tokens to generate per sample.",
-    )
-    parser.add_argument(
-        "--temperature",
-        type=float,
-        default=0.0,
-        help="Sampling temperature.",
-    )
-    parser.add_argument(
-        "--json-output-file",
-        type=str,
-        default=None,
-        help="Optional path to output the metrics as a JSON file.",
-    )
-    return parser.parse_args()
-
+MAX_TOKENS = 512
+TEMPERATURE = 0.0
 
 GSM8K_SYSTEM = (
     "Solve math problems step by step. "
@@ -75,8 +29,15 @@ GSM8K_SYSTEM = (
 )
 
 
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Evaluate a Tinker checkpoint on GSM8K.")
+    parser.add_argument("--checkpoint", type=str, default=None)
+    parser.add_argument("--base-model", type=str, default=None)
+    parser.add_argument("--json-output-file", type=str, default=None)
+    return parser.parse_args()
+
+
 def extract_answer(text: str) -> str | None:
-    """Extract the final numerical answer from model output."""
     match = re.search(r"####\s*([^\n]+)", text)
     if match:
         return match.group(1).strip().replace(",", "")
@@ -87,7 +48,6 @@ def extract_answer(text: str) -> str | None:
 
 
 def extract_gold_answer(answer_text: str) -> str:
-    """Extract the gold answer from GSM8K answer field."""
     match = re.search(r"####\s*([^\n]+)", answer_text)
     if match:
         return match.group(1).strip().replace(",", "")
@@ -95,10 +55,8 @@ def extract_gold_answer(answer_text: str) -> str:
 
 
 def resolve_model_name(checkpoint: str | None, base_model: str | None) -> str:
-    """Resolve the base model name from CLI arg or metadata.json."""
     if base_model:
         return base_model
-    # Read from metadata.json if available (written by the adapter)
     try:
         with open("metadata.json") as f:
             return json.load(f)["model_id"]
@@ -130,37 +88,24 @@ def evaluate(args: argparse.Namespace) -> dict:
     tokenizer = sampling_client.get_tokenizer()
     renderer = get_renderer(renderer_name, tokenizer)
 
-    # Load GSM8K test split
     dataset = load_dataset("openai/gsm8k", "main", split="test")
-    if args.limit > 0:
-        dataset = dataset.select(range(min(args.limit, len(dataset))))
-
     print(f"Evaluating on {len(dataset)} samples (batch)...", flush=True)
 
-    # Build all prompts
-    messages_list = [
-        [
+    sampling_params = types.SamplingParams(
+        max_tokens=MAX_TOKENS,
+        temperature=TEMPERATURE,
+        stop=renderer.get_stop_sequences(),
+    )
+
+    # Fire all requests concurrently
+    futures = []
+    for example in dataset:
+        messages = [
             {"role": "system", "content": GSM8K_SYSTEM},
             {"role": "user", "content": example["question"]},
         ]
-        for example in dataset
-    ]
-
-    # Fire all sample requests concurrently using ConcurrentFuture
-    sampling_params = types.SamplingParams(
-        max_tokens=args.max_tokens,
-        temperature=args.temperature,
-        stop=renderer.get_stop_sequences(),
-    )
-    futures = []
-    for messages in messages_list:
         prompt = renderer.build_generation_prompt(messages)
-        future = sampling_client.sample(
-            prompt=prompt,
-            sampling_params=sampling_params,
-            num_samples=1,
-        )
-        futures.append(future)
+        futures.append(sampling_client.sample(prompt=prompt, sampling_params=sampling_params, num_samples=1))
 
     print(f"  Fired {len(futures)} requests...", flush=True)
 
@@ -171,8 +116,7 @@ def evaluate(args: argparse.Namespace) -> dict:
         try:
             result = future.result()
             parsed, _ = renderer.parse_response(result.sequences[0].tokens)
-            model_output = parsed["content"]
-            predicted = extract_answer(model_output)
+            predicted = extract_answer(parsed["content"])
             gold = extract_gold_answer(example["answer"])
             if predicted is not None and predicted == gold:
                 correct += 1
@@ -184,11 +128,7 @@ def evaluate(args: argparse.Namespace) -> dict:
             print(f"  Progress: {total}/{len(dataset)} | Accuracy: {acc:.4f} ({correct}/{total})", flush=True)
 
     accuracy = correct / total if total > 0 else 0
-    metrics = {
-        "accuracy": accuracy,
-        "correct": correct,
-        "total": total,
-    }
+    metrics = {"accuracy": accuracy, "correct": correct, "total": total}
     print(f"\nResults: accuracy={accuracy:.4f} ({correct}/{total})")
     return metrics
 

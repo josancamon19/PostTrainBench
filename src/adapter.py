@@ -86,6 +86,8 @@ MODELS = {
 # Models available on Tinker (subset that Tinker API supports)
 TINKER_MODELS = {
     "qwen3-4b-instruct": ModelInfo(model_id="Qwen/Qwen3-4B-Instruct-2507", short_name="qwen3-4b-instruct"),
+    "llama3.2-3b": ModelInfo(model_id="meta-llama/Llama-3.2-3B", short_name="llama3.2-3b"),
+    "llama3.2-1b": ModelInfo(model_id="meta-llama/Llama-3.2-1B", short_name="llama3.2-1b"),
 }
 
 
