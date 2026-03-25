@@ -24,3 +24,7 @@ timeout_sec = 3600.0
 
 [agent.env]
 TINKER_API_KEY = "${TINKER_API_KEY}"
+
+[[artifacts]]
+source = "/app"
+destination = "workspace"
