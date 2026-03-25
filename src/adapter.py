@@ -83,14 +83,22 @@ MODELS = {
     "gemma3-4b": ModelInfo(model_id="google/gemma-3-4b-pt", short_name="gemma3-4b"),
 }
 
+# Models available on Tinker (subset that Tinker API supports)
+TINKER_MODELS = {
+    "qwen3-4b-instruct": ModelInfo(model_id="Qwen/Qwen3-4B-Instruct-2507", short_name="qwen3-4b-instruct"),
+}
+
 
 class PostTrainBenchAdapter:
     """Adapter to generate Harbor tasks from PostTrainBench configuration."""
 
-    def __init__(self, output_dir: Path, num_hours: int = 10, include_claude_clause: bool = True):
+    def __init__(
+        self, output_dir: Path, num_hours: float = 10, include_claude_clause: bool = True, mode: str = "gpu"
+    ):
         self.output_dir = Path(output_dir)
         self.num_hours = num_hours
         self.include_claude_clause = include_claude_clause
+        self.mode = mode  # "gpu" (default) or "tinker"
 
     def _read_benchmark_name(self, benchmark_id: str) -> str:
         bench_file = SRC_DIR / "tasks" / benchmark_id / "benchmark.txt"
@@ -100,8 +108,30 @@ class PostTrainBenchAdapter:
             return BENCHMARKS[benchmark_id].benchmark_name
         raise FileNotFoundError(f"Benchmark file not found: {bench_file}")
 
+    def _template(self, *parts: str) -> Path:
+        """Resolve a template path, using .tinker variant when in tinker mode.
+
+        E.g. ("task.toml") -> "task.tinker.toml", ("environment", "Dockerfile") -> "environment/Dockerfile.tinker".
+        """
+        if self.mode == "tinker":
+            filename = parts[-1]
+            name, dot, ext = filename.rpartition(".")
+            if dot:
+                tinker_filename = f"{name}.tinker.{ext}"
+            else:
+                tinker_filename = f"{filename}.tinker"
+            prefixed = list(parts[:-1]) + [tinker_filename]
+            candidate = TEMPLATE_DIR / Path(*prefixed)
+            if candidate.exists():
+                return candidate
+        return TEMPLATE_DIR / Path(*parts)
+
+    @property
+    def _models(self) -> dict[str, ModelInfo]:
+        return TINKER_MODELS if self.mode == "tinker" else MODELS
+
     def generate_task_toml(self, task_dir: Path, benchmark_id: str = "") -> None:
-        content = (TEMPLATE_DIR / "task.toml").read_text()
+        content = self._template("task.toml").read_text()
         agent_timeout = self.num_hours * 3600
         content = content.replace("timeout_sec = 36000.0", f"timeout_sec = {float(agent_timeout)}")
         if benchmark_id in ("arenahardwriting", "healthbench"):
@@ -111,7 +141,7 @@ class PostTrainBenchAdapter:
     def generate_instruction(
         self, task_dir: Path, model_info: ModelInfo, benchmark_info: BenchmarkInfo, benchmark_id: str = ""
     ) -> None:
-        content = (TEMPLATE_DIR / "instruction.md").read_text()
+        content = self._template("instruction.md").read_text()
         content = content.replace("{model}", model_info.model_id)
         content = content.replace("{benchmark}", benchmark_info.benchmark_name)
         content = content.replace("{num_hours}", str(self.num_hours))
@@ -161,22 +191,29 @@ fi
         env_dir = task_dir / "environment"
         env_dir.mkdir(parents=True, exist_ok=True)
 
-        shutil.copy(TEMPLATE_DIR / "environment" / "Dockerfile", env_dir / "Dockerfile")
+        shutil.copy(self._template("environment", "Dockerfile"), env_dir / "Dockerfile")
         dockerignore_src = TEMPLATE_DIR / "environment" / ".dockerignore"
         if dockerignore_src.exists():
             shutil.copy(dockerignore_src, env_dir / ".dockerignore")
 
-        eval_src = SRC_DIR / "tasks" / benchmark_id / "evaluate.py"
-        if eval_src.exists():
-            shutil.copy(eval_src, env_dir / "evaluate.py")
+        if self.mode == "tinker":
+            eval_src = SRC_DIR / "tasks" / benchmark_id / "evaluate_tinker.py"
+            if eval_src.exists():
+                shutil.copy(eval_src, env_dir / "evaluate.py")
+            else:
+                raise FileNotFoundError(f"evaluate_tinker.py not found: {eval_src}")
         else:
-            raise FileNotFoundError(f"evaluate.py not found: {eval_src}")
+            eval_src = SRC_DIR / "tasks" / benchmark_id / "evaluate.py"
+            if eval_src.exists():
+                shutil.copy(eval_src, env_dir / "evaluate.py")
+            else:
+                raise FileNotFoundError(f"evaluate.py not found: {eval_src}")
 
-        templates_src = TEMPLATE_DIR / "environment" / "templates"
-        if templates_src.exists():
-            shutil.copytree(templates_src, env_dir / "templates", dirs_exist_ok=True)
-        else:
-            raise FileNotFoundError(f"templates directory not found: {templates_src}")
+            templates_src = TEMPLATE_DIR / "environment" / "templates"
+            if templates_src.exists():
+                shutil.copytree(templates_src, env_dir / "templates", dirs_exist_ok=True)
+            else:
+                raise FileNotFoundError(f"templates directory not found: {templates_src}")
 
         eval_code_src = SRC_DIR / "tasks" / benchmark_id / "evaluation_code"
         if eval_code_src.is_dir():
@@ -203,6 +240,7 @@ fi
             "model_id": model_info.model_id,
             "model_short_name": model_info.short_name,
             "num_hours": self.num_hours,
+            "mode": self.mode,
         }
         (env_dir / "metadata.json").write_text(json.dumps(metadata, indent=2))
 
@@ -212,29 +250,34 @@ fi
         tests_dir.mkdir(parents=True, exist_ok=True)
 
         test_sh_dst = tests_dir / "test.sh"
-        shutil.copy(TEMPLATE_DIR / "tests" / "test.sh", test_sh_dst)
+        shutil.copy(self._template("tests", "test.sh"), test_sh_dst)
         test_sh_dst.chmod(0o755)
 
-        eval_src = SRC_DIR / "tasks" / benchmark_id / "evaluate.py"
+        if self.mode == "tinker":
+            eval_src = SRC_DIR / "tasks" / benchmark_id / "evaluate_tinker.py"
+        else:
+            eval_src = SRC_DIR / "tasks" / benchmark_id / "evaluate.py"
         if eval_src.exists():
             shutil.copy(eval_src, tests_dir / "evaluate.py")
 
-        templates_src = TEMPLATE_DIR / "environment" / "templates"
-        if templates_src.exists():
-            shutil.copytree(templates_src, tests_dir / "templates", dirs_exist_ok=True)
+        if self.mode != "tinker":
+            templates_src = TEMPLATE_DIR / "environment" / "templates"
+            if templates_src.exists():
+                shutil.copytree(templates_src, tests_dir / "templates", dirs_exist_ok=True)
 
         eval_code_src = SRC_DIR / "tasks" / benchmark_id / "evaluation_code"
         if eval_code_src.is_dir():
             shutil.copytree(eval_code_src, tests_dir / "evaluation_code", dirs_exist_ok=True)
 
     def generate_task(self, benchmark_id: str, model_key: str) -> Path:
+        models = self._models
         if benchmark_id not in BENCHMARKS:
             raise ValueError(f"Unknown benchmark: {benchmark_id}. Available: {list(BENCHMARKS.keys())}")
-        if model_key not in MODELS:
-            raise ValueError(f"Unknown model: {model_key}. Available: {list(MODELS.keys())}")
+        if model_key not in models:
+            raise ValueError(f"Unknown model: {model_key}. Available: {list(models.keys())}")
 
         benchmark_info = BENCHMARKS[benchmark_id]
-        model_info = MODELS[model_key]
+        model_info = models[model_key]
 
         with contextlib.suppress(FileNotFoundError):
             benchmark_info = BenchmarkInfo(
@@ -244,6 +287,8 @@ fi
             )
 
         task_id = f"{benchmark_id}-{model_info.short_name}"
+        if self.mode == "tinker":
+            task_id += "-tinker"
         task_dir = self.output_dir / task_id
         task_dir.mkdir(parents=True, exist_ok=True)
 
@@ -259,14 +304,17 @@ fi
 
     def generate_all_tasks(self) -> list[Path]:
         tasks = []
+        models = self._models
         for benchmark_id in BENCHMARKS:
-            for model_key in MODELS:
+            for model_key in models:
                 tasks.append(self.generate_task(benchmark_id, model_key))
         return tasks
 
 
-def list_available_tasks() -> list[str]:
-    return [f"{bid}-{MODELS[mk].short_name}" for bid in BENCHMARKS for mk in MODELS]
+def list_available_tasks(mode: str = "gpu") -> list[str]:
+    models = TINKER_MODELS if mode == "tinker" else MODELS
+    suffix = "-tinker" if mode == "tinker" else ""
+    return [f"{bid}-{models[mk].short_name}{suffix}" for bid in BENCHMARKS for mk in models]
 
 
 # --- CLI ---
@@ -276,9 +324,10 @@ def generate(
     benchmark: str | None = None,
     model: str | None = None,
     output: Path = Path("./datasets/posttrainbench"),
-    num_hours: int = 10,
+    num_hours: float = 10,
     all: bool = False,
     list: bool = False,
+    mode: str = "gpu",
 ) -> None:
     """Generate Harbor tasks for PostTrainBench.
 
@@ -289,20 +338,23 @@ def generate(
         num_hours: Number of hours for the training task.
         all: Generate tasks for all benchmark + model combinations.
         list: List available benchmarks and models.
+        mode: Export mode: "gpu" (default, local GPU training) or "tinker" (Tinker API training).
     """
     if list:
-        print("Available benchmarks:")
+        models = TINKER_MODELS if mode == "tinker" else MODELS
+        print(f"Mode: {mode}")
+        print("\nAvailable benchmarks:")
         for bm_id, bm_info in BENCHMARKS.items():
             print(f"  {bm_id}: {bm_info.benchmark_name}")
         print("\nAvailable models:")
-        for model_key, model_info in MODELS.items():
+        for model_key, model_info in models.items():
             print(f"  {model_key}: {model_info.model_id}")
         print("\nAvailable task combinations:")
-        for task_id in list_available_tasks():
+        for task_id in list_available_tasks(mode):
             print(f"  {task_id}")
         return
 
-    adapter = PostTrainBenchAdapter(output_dir=output, num_hours=num_hours)
+    adapter = PostTrainBenchAdapter(output_dir=output, num_hours=num_hours, mode=mode)
 
     if all:
         print(f"Generating all tasks to {output}/...")
