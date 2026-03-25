@@ -131,9 +131,18 @@ class PostTrainBenchAdapter:
         return TINKER_MODELS if self.mode == "tinker" else MODELS
 
     def generate_task_toml(self, task_dir: Path, benchmark_id: str = "") -> None:
+        import re
+
         content = self._template("task.toml").read_text()
         agent_timeout = self.num_hours * 3600
-        content = content.replace("timeout_sec = 36000.0", f"timeout_sec = {float(agent_timeout)}")
+        # Replace the agent timeout (last timeout_sec in [agent] section)
+        content = re.sub(
+            r"(\[agent\].*?timeout_sec\s*=\s*)[\d.]+",
+            rf"\g<1>{float(agent_timeout)}",
+            content,
+            count=1,
+            flags=re.DOTALL,
+        )
         if benchmark_id in ("arenahardwriting", "healthbench"):
             content += '\n[agent.env]\nOPENAI_API_KEY = "${OPENAI_API_KEY}"\n'
         (task_dir / "task.toml").write_text(content)
@@ -231,6 +240,9 @@ fi
         judge_src = TEMPLATE_DIR / "environment" / "contamination_judge.py"
         if judge_src.exists():
             shutil.copy(judge_src, env_dir / "contamination_judge.py")
+        judge_prompt_src = TEMPLATE_DIR / "environment" / "contamination_judge_prompt.txt"
+        if judge_prompt_src.exists():
+            shutil.copy(judge_prompt_src, env_dir / "contamination_judge_prompt.txt")
 
         self.generate_timer_sh(env_dir)
 

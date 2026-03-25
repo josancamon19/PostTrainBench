@@ -31,7 +31,8 @@ fi
 # Read metadata
 META=$(python3 -c "import json; print(json.dumps(json.load(open('$WORKSPACE/metadata.json'))))")
 BENCHMARK_ID=$(echo "$META" | python3 -c "import sys,json; print(json.load(sys.stdin)['benchmark_id'])")
-echo "Benchmark: $BENCHMARK_ID"
+MODEL_ID=$(echo "$META" | python3 -c "import sys,json; print(json.load(sys.stdin)['model_id'])")
+echo "Benchmark: $BENCHMARK_ID | Model: $MODEL_ID"
 
 # Run evaluation
 echo ""
@@ -41,6 +42,7 @@ cd "$TESTS_DIR"
 set +e
 python3 "$TESTS_DIR/evaluate.py" \
     --checkpoint "$CHECKPOINT" \
+    --base-model "$MODEL_ID" \
     --json-output-file "$LOGS_DIR/metrics.json" \
     --limit -1 \
     2>&1 | tee "$LOGS_DIR/final_eval.txt"

@@ -33,16 +33,17 @@ from datasets import load_dataset
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Evaluate a Tinker checkpoint on GSM8K.")
-    group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument(
+    parser.add_argument(
         "--checkpoint",
         type=str,
+        default=None,
         help="Tinker checkpoint path (e.g. tinker://<run_id>/sampler_weights/final).",
     )
-    group.add_argument(
+    parser.add_argument(
         "--base-model",
         type=str,
-        help="Base model identifier (e.g. Qwen/Qwen3-8B-Base). Evaluates without fine-tuning.",
+        default=None,
+        help="Base model identifier (e.g. Qwen/Qwen3-8B-Base). Used for renderer selection, or to evaluate without fine-tuning.",
     )
     parser.add_argument(
         "--limit",
@@ -97,7 +98,7 @@ def extract_gold_answer(answer_text: str) -> str:
 
 
 def resolve_model_name(checkpoint: str | None, base_model: str | None) -> str:
-    """Resolve the base model name from checkpoint metadata or CLI arg."""
+    """Resolve the base model name from CLI arg or metadata.json."""
     if base_model:
         return base_model
     # Read from metadata.json if available (written by the adapter)
@@ -106,7 +107,9 @@ def resolve_model_name(checkpoint: str | None, base_model: str | None) -> str:
             return json.load(f)["model_id"]
     except (FileNotFoundError, KeyError):
         pass
-    raise ValueError("Cannot determine model name. Provide --base-model or ensure metadata.json exists.")
+    if checkpoint:
+        raise ValueError("Cannot determine model name for renderer. Provide --base-model alongside --checkpoint.")
+    raise ValueError("Provide --checkpoint, --base-model, or both.")
 
 
 async def evaluate_async(args: argparse.Namespace) -> dict:
