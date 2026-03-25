@@ -8,6 +8,7 @@ from pathlib import Path
 
 import chz
 
+BASE_TEMPLATE_DIR = Path(__file__).parent / "base_template"
 HARBOR_TEMPLATE_DIR = Path(__file__).parent / "harbor_template"
 PRIME_RL_TEMPLATE_DIR = Path(__file__).parent / "prime_rl_template"
 SRC_DIR = Path(__file__).parent
@@ -176,28 +177,35 @@ fi
         timer_path.write_text(timer_script)
         timer_path.chmod(0o755)
 
+    def _copy_dir(self, src: Path, dst: Path) -> None:
+        """Copy all files from src into dst, creating dirs as needed."""
+        if not src.exists():
+            return
+        for item in src.rglob("*"):
+            if item.is_file():
+                rel = item.relative_to(src)
+                dest = dst / rel
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy(item, dest)
+
     def generate_environment(
         self, task_dir: Path, benchmark_id: str, model_info: ModelInfo, benchmark_info: BenchmarkInfo
     ) -> None:
         env_dir = task_dir / "environment"
         env_dir.mkdir(parents=True, exist_ok=True)
 
-        shutil.copy(self.template_dir / "environment" / "Dockerfile", env_dir / "Dockerfile")
-        dockerignore_src = self.template_dir / "environment" / ".dockerignore"
-        if dockerignore_src.exists():
-            shutil.copy(dockerignore_src, env_dir / ".dockerignore")
+        # 1. Copy base template (shared files: templates, judge, dockerignore)
+        self._copy_dir(BASE_TEMPLATE_DIR / "environment", env_dir)
 
+        # 2. Overlay mode-specific files (Dockerfile, etc.)
+        self._copy_dir(self.template_dir / "environment", env_dir)
+
+        # 3. Benchmark-specific files
         eval_src = SRC_DIR / "tasks" / benchmark_id / "evaluate.py"
         if eval_src.exists():
             shutil.copy(eval_src, env_dir / "evaluate.py")
         else:
             raise FileNotFoundError(f"evaluate.py not found: {eval_src}")
-
-        templates_src = self.template_dir / "environment" / "templates"
-        if templates_src.exists():
-            shutil.copytree(templates_src, env_dir / "templates", dirs_exist_ok=True)
-        else:
-            raise FileNotFoundError(f"templates directory not found: {templates_src}")
 
         eval_code_src = SRC_DIR / "tasks" / benchmark_id / "evaluation_code"
         if eval_code_src.is_dir():
@@ -211,10 +219,6 @@ fi
                     shutil.copytree(item, dst, dirs_exist_ok=True)
                 else:
                     shutil.copy(item, dst)
-
-        judge_src = self.template_dir / "environment" / "contamination_judge.py"
-        if judge_src.exists():
-            shutil.copy(judge_src, env_dir / "contamination_judge.py")
 
         self.generate_timer_sh(env_dir)
 
@@ -233,15 +237,23 @@ fi
         tests_dir = task_dir / "tests"
         tests_dir.mkdir(parents=True, exist_ok=True)
 
-        test_sh_dst = tests_dir / "test.sh"
-        shutil.copy(self.template_dir / "tests" / "test.sh", test_sh_dst)
-        test_sh_dst.chmod(0o755)
+        # 1. Copy base template tests (test.sh, verifier.py)
+        self._copy_dir(BASE_TEMPLATE_DIR / "tests", tests_dir)
 
+        # 2. Overlay mode-specific tests (if any)
+        self._copy_dir(self.template_dir / "tests", tests_dir)
+
+        # Make test.sh executable
+        test_sh = tests_dir / "test.sh"
+        if test_sh.exists():
+            test_sh.chmod(0o755)
+
+        # 3. Benchmark-specific eval files
         eval_src = SRC_DIR / "tasks" / benchmark_id / "evaluate.py"
         if eval_src.exists():
             shutil.copy(eval_src, tests_dir / "evaluate.py")
 
-        templates_src = self.template_dir / "environment" / "templates"
+        templates_src = BASE_TEMPLATE_DIR / "environment" / "templates"
         if templates_src.exists():
             shutil.copytree(templates_src, tests_dir / "templates", dirs_exist_ok=True)
 
