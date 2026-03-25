@@ -9,20 +9,20 @@ mkdir -p "$LOGS_DIR"
 
 echo "=== PostTrainBench Verifier (Tinker) ==="
 
-# Validate final_checkpoint.txt exists
-if [ ! -f "$WORKSPACE/final_checkpoint.txt" ]; then
-    echo "ERROR: final_checkpoint.txt not found"
+# Validate best_checkpoint.txt exists
+if [ ! -f "$WORKSPACE/best_checkpoint.txt" ]; then
+    echo "ERROR: best_checkpoint.txt not found"
     ls -la "$WORKSPACE" > "$LOGS_DIR/workspace_listing.txt" 2>&1
-    echo '{"error": "final_checkpoint.txt not found", "accuracy": 0}' > "$LOGS_DIR/metrics.json"
+    echo '{"error": "best_checkpoint.txt not found", "accuracy": 0}' > "$LOGS_DIR/metrics.json"
     echo "0" > "$LOGS_DIR/reward.txt"
     exit 0
 fi
 
-CHECKPOINT=$(cat "$WORKSPACE/final_checkpoint.txt" | tr -d '[:space:]')
+CHECKPOINT=$(cat "$WORKSPACE/best_checkpoint.txt" | tr -d '[:space:]')
 echo "Checkpoint: $CHECKPOINT"
 
 if [ -z "$CHECKPOINT" ]; then
-    echo "ERROR: final_checkpoint.txt is empty"
+    echo "ERROR: best_checkpoint.txt is empty"
     echo '{"error": "empty checkpoint path", "accuracy": 0}' > "$LOGS_DIR/metrics.json"
     echo "0" > "$LOGS_DIR/reward.txt"
     exit 0

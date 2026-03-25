@@ -5,7 +5,7 @@ Your goal is to implement an effective approach through systematic research and 
 Post-train \`{model}\` to achieve maximum performance on {benchmark}.
 You can query the benchmark via the evaluate.py script.
 
-When done, save your best Tinker checkpoint path to \`final_checkpoint.txt\` (format: \`tinker://<run_id>/sampler_weights/<name>\`).
+When done, save your best Tinker checkpoint path to \`best_checkpoint.txt\` (format: \`tinker://<run_id>/sampler_weights/<name>\`).
 
 ## Tinker API
 You are using the **Tinker API** for training — this machine has no GPU, all computation happens remotely.
@@ -36,6 +36,6 @@ Refer to the \`tinker_cookbook\` source and docs for detailed usage.
 4. Do not modify evaluate.py.
 5. Work only in the current directory and subdirectories.
 6. You are not allowed to fine-tune any model other than \`{model}\`. Only fine-tune from \`{model}\` and submit one of your fine-tuned versions.
-7. Save your best checkpoint path to \`final_checkpoint.txt\`.
+7. Save your best checkpoint path to \`best_checkpoint.txt\`. Update this file every time you save a new checkpoint, so your latest progress is always captured even if you run out of time.
 
 Remember: NEVER ask the user for feedback. Just execute actions which make most sense to you. We will evaluate your results on {benchmark} once you are done.
