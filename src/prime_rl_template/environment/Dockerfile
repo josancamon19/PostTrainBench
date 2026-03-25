@@ -40,6 +40,9 @@ RUN uv pip install --system --no-cache \
     pandas \
     transformers
 
+# Auto-configure prime CLI from PRIME_API_KEY env var on any shell login
+RUN echo '[ -n "$PRIME_API_KEY" ] && prime config set-api-key "$PRIME_API_KEY" 2>/dev/null' >> /root/.bashrc
+
 # Setup workspace
 RUN mkdir -p /app
 WORKDIR /app

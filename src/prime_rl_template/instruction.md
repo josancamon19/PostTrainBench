@@ -10,6 +10,12 @@ Store your best trained model in the folder `final_model`.
 
 You have access to **prime-rl** via the `prime` CLI, which runs training and evaluation on hosted GPUs. The prime-rl source (with examples and docs) is available at `/opt/prime-rl/`.
 
+### Authentication:
+The `PRIME_API_KEY` environment variable is set. The prime CLI should be auto-configured, but if you see auth errors, run:
+```bash
+prime config set-api-key "$PRIME_API_KEY"
+```
+
 ### Key commands:
 ```bash
 prime rl run config.toml        # Run RL training
