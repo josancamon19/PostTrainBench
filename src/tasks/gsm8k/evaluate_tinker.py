@@ -16,15 +16,12 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import asyncio
 import json
 import re
 import sys
 
 import tinker
 from tinker import types
-
-from tinker_cookbook.completers import TinkerMessageCompleter
 from tinker_cookbook.model_info import get_model_attributes, get_recommended_renderer_name
 from tinker_cookbook.renderers import get_renderer
 
@@ -112,13 +109,12 @@ def resolve_model_name(checkpoint: str | None, base_model: str | None) -> str:
     raise ValueError("Provide --checkpoint, --base-model, or both.")
 
 
-async def evaluate_async(args: argparse.Namespace) -> dict:
+def evaluate(args: argparse.Namespace) -> dict:
     service_client = tinker.ServiceClient()
 
     model_name = resolve_model_name(args.checkpoint, args.base_model)
     print(f"Model: {model_name}")
 
-    # Use tinker_cookbook to get the right renderer for this model
     renderer_name = get_recommended_renderer_name(model_name)
     model_attrs = get_model_attributes(model_name)
     print(f"Renderer: {renderer_name} | Model: {model_attrs.organization}/{model_attrs.size_str}")
@@ -134,45 +130,58 @@ async def evaluate_async(args: argparse.Namespace) -> dict:
     tokenizer = sampling_client.get_tokenizer()
     renderer = get_renderer(renderer_name, tokenizer)
 
-    # Build a TinkerMessageCompleter for structured generation
-    completer = TinkerMessageCompleter(
-        sampling_client=sampling_client,
-        renderer=renderer,
-        max_tokens=args.max_tokens,
-    )
-
     # Load GSM8K test split
     dataset = load_dataset("openai/gsm8k", "main", split="test")
     if args.limit > 0:
         dataset = dataset.select(range(min(args.limit, len(dataset))))
 
-    print(f"Evaluating on {len(dataset)} samples...")
+    print(f"Evaluating on {len(dataset)} samples (batch)...", flush=True)
 
-    correct = 0
-    total = 0
-
-    for i, example in enumerate(dataset):
-        messages = [
+    # Build all prompts
+    messages_list = [
+        [
             {"role": "system", "content": GSM8K_SYSTEM},
             {"role": "user", "content": example["question"]},
         ]
+        for example in dataset
+    ]
 
+    # Fire all sample requests concurrently using ConcurrentFuture
+    sampling_params = types.SamplingParams(
+        max_tokens=args.max_tokens,
+        temperature=args.temperature,
+        stop=renderer.get_stop_sequences(),
+    )
+    futures = []
+    for messages in messages_list:
+        prompt = renderer.build_generation_prompt(messages)
+        future = sampling_client.sample(
+            prompt=prompt,
+            sampling_params=sampling_params,
+            num_samples=1,
+        )
+        futures.append(future)
+
+    print(f"  Fired {len(futures)} requests...", flush=True)
+
+    # Collect results
+    correct = 0
+    total = 0
+    for i, (future, example) in enumerate(zip(futures, dataset)):
         try:
-            response = await completer(messages)
-            model_output = response["content"]
+            result = future.result()
+            parsed, _ = renderer.parse_response(result.sequences[0].tokens)
+            model_output = parsed["content"]
             predicted = extract_answer(model_output)
             gold = extract_gold_answer(example["answer"])
-
             if predicted is not None and predicted == gold:
                 correct += 1
         except Exception as e:
             print(f"  Sample {i}: ERROR - {e}", file=sys.stderr)
-
         total += 1
-
-        if (i + 1) % 10 == 0:
+        if total % 100 == 0 or total == len(dataset):
             acc = correct / total if total > 0 else 0
-            print(f"  Progress: {i + 1}/{len(dataset)} | Accuracy: {acc:.4f} ({correct}/{total})")
+            print(f"  Progress: {total}/{len(dataset)} | Accuracy: {acc:.4f} ({correct}/{total})", flush=True)
 
     accuracy = correct / total if total > 0 else 0
     metrics = {
@@ -180,14 +189,13 @@ async def evaluate_async(args: argparse.Namespace) -> dict:
         "correct": correct,
         "total": total,
     }
-
     print(f"\nResults: accuracy={accuracy:.4f} ({correct}/{total})")
     return metrics
 
 
 def main() -> None:
     args = parse_args()
-    metrics = asyncio.run(evaluate_async(args))
+    metrics = evaluate(args)
 
     if args.json_output_file:
         with open(args.json_output_file, "w") as f:
