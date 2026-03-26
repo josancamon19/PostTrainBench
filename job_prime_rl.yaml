@@ -28,7 +28,7 @@ orchestrator:
   n_concurrent_trials: 1
   quiet: false
 
-jobs_dir: jobs/posttrainbench-prime-rl
+jobs_dir: prime-rl-gsm8k-qwen3-4b/
 
 # Collect agent workspace (configs, checkpoints, logs) after each run.
 artifacts:

@@ -150,9 +150,10 @@ class PostTrainBenchAdapter:
         (task_dir / "instruction.md").write_text(content)
 
     def generate_timer_sh(self, env_dir: Path) -> None:
+        total_seconds = int(self.num_hours * 3600)
         timer_script = f"""#!/bin/bash
 
-NUM_HOURS={self.num_hours}
+TOTAL_SECONDS={total_seconds}
 
 START_FILE="$(dirname "$0")/.timer_start"
 if [ ! -f "$START_FILE" ]; then
@@ -160,7 +161,7 @@ if [ ! -f "$START_FILE" ]; then
 fi
 START_DATE=$(cat "$START_FILE")
 
-DEADLINE=$((START_DATE + NUM_HOURS * 3600))
+DEADLINE=$((START_DATE + TOTAL_SECONDS))
 NOW=$(date +%s)
 REMAINING=$((DEADLINE - NOW))
 
@@ -221,6 +222,15 @@ fi
                     shutil.copy(item, dst)
 
         self.generate_timer_sh(env_dir)
+
+        # Write .env file so the Dockerfile can configure prime CLI at build time.
+        # Needed because Codex agent strips env vars from child processes.
+        if self.mode == "prime-rl":
+            import os
+
+            prime_key = os.environ.get("PRIME_API_KEY", "")
+            if prime_key:
+                (env_dir / ".env").write_text(f"PRIME_API_KEY={prime_key}\n")
 
         metadata = {
             "benchmark_id": benchmark_id,

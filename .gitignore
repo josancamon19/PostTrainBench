@@ -232,3 +232,4 @@ __marimo__/
 /datasets/
 /results/
 /jobs/
+.prime_api_key
