@@ -39,12 +39,12 @@ echo "Benchmark: $BENCHMARK_NAME ($BENCHMARK_ID) | Model: $MODEL_ID"
 echo ""
 echo "=== Running Contamination Judge ==="
 
-if [ -f "$WORKSPACE/contamination_judge.py" ] && [ -n "$BENCHMARK_NAME" ]; then
-    JUDGE_TASK=$(python3 "$WORKSPACE/contamination_judge.py" \
+if [ -f "$TESTS_DIR/contamination_judge.py" ] && [ -n "$BENCHMARK_NAME" ]; then
+    JUDGE_TASK=$(python3 "$TESTS_DIR/contamination_judge.py" \
         --model "$MODEL_ID" \
         --benchmark "$BENCHMARK_NAME" 2>/dev/null) || true
 
-    if [ -n "$JUDGE_TASK" ] && [ -n "$CODEX_API_KEY" ]; then
+    if [ -n "$JUDGE_TASK" ] && [ -n "$OPENAI_API_KEY" ]; then
         echo "Running codex CLI contamination judge..."
         set +e
         cd "$WORKSPACE"
@@ -63,7 +63,7 @@ if [ -f "$WORKSPACE/contamination_judge.py" ] && [ -n "$BENCHMARK_NAME" ]; then
         [ -f "$LOGS_DIR/contamination_judgement.txt" ] || echo "no contamination detected (codex did not produce output)" > "$LOGS_DIR/contamination_judgement.txt"
         [ -f "$LOGS_DIR/disallowed_model_judgement.txt" ] || echo "only allowed use detected (codex did not produce output)" > "$LOGS_DIR/disallowed_model_judgement.txt"
     else
-        echo "Warning: CODEX_API_KEY not set or prompt generation failed, skipping judge"
+        echo "Warning: OPENAI_API_KEY not set or prompt generation failed, skipping judge"
         echo "no contamination detected (judge skipped - no API key)" > "$LOGS_DIR/contamination_judgement.txt"
         echo "only allowed use detected (judge skipped - no API key)" > "$LOGS_DIR/disallowed_model_judgement.txt"
     fi

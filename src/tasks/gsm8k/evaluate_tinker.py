@@ -6,6 +6,7 @@ Usage:
     python evaluate.py --base-model "Qwen/Qwen3-8B-Base"
     python evaluate.py --checkpoint "tinker://..." --base-model "meta-llama/Llama-3.2-1B"
 """
+
 from __future__ import annotations
 
 import argparse
@@ -16,7 +17,7 @@ import sys
 import tinker
 from tinker import types
 from tinker_cookbook.model_info import get_model_attributes, get_recommended_renderer_name
-from tinker_cookbook.renderers import get_renderer
+from tinker_cookbook.renderers import get_renderer, get_text_content
 
 from datasets import load_dataset
 
@@ -116,7 +117,8 @@ def evaluate(args: argparse.Namespace) -> dict:
         try:
             result = future.result()
             parsed, _ = renderer.parse_response(result.sequences[0].tokens)
-            predicted = extract_answer(parsed["content"])
+            content = get_text_content(parsed)
+            predicted = extract_answer(content)
             gold = extract_gold_answer(example["answer"])
             if predicted is not None and predicted == gold:
                 correct += 1

@@ -84,19 +84,27 @@ MODELS = {
 }
 
 # Models available on Tinker (subset that Tinker API supports)
+# GSM8K reference scores (instruct version, 8-shot CoT): target after post-training
 TINKER_MODELS = {
-    "qwen3-4b-instruct": ModelInfo(model_id="Qwen/Qwen3-4B-Instruct-2507", short_name="qwen3-4b-instruct"),
-    "llama3.2-3b": ModelInfo(model_id="meta-llama/Llama-3.2-3B", short_name="llama3.2-3b"),
-    "llama3.2-1b": ModelInfo(model_id="meta-llama/Llama-3.2-1B", short_name="llama3.2-1b"),
+    "qwen3-4b-instruct": ModelInfo(
+        model_id="Qwen/Qwen3-4B-Instruct-2507", short_name="qwen3-4b-instruct"
+    ),  # Instruction, Dense — GSM8K: 82.2% (already instruct)
+    "llama3.1-8b": ModelInfo(
+        model_id="meta-llama/Llama-3.1-8B", short_name="llama3.1-8b"
+    ),  # Base, Dense — base: 3.1%, instruct ref: 84.5%
+    "llama3.2-3b": ModelInfo(
+        model_id="meta-llama/Llama-3.2-3B", short_name="llama3.2-3b"
+    ),  # Base, Dense — base: 6.1%, instruct ref: 77.7%
+    "llama3.2-1b": ModelInfo(
+        model_id="meta-llama/Llama-3.2-1B", short_name="llama3.2-1b"
+    ),  # Base, Dense — base: 3.6%, instruct ref: 44.4%
 }
 
 
 class PostTrainBenchAdapter:
     """Adapter to generate Harbor tasks from PostTrainBench configuration."""
 
-    def __init__(
-        self, output_dir: Path, num_hours: float = 10, include_claude_clause: bool = True, mode: str = "gpu"
-    ):
+    def __init__(self, output_dir: Path, num_hours: float = 10, include_claude_clause: bool = True, mode: str = "gpu"):
         self.output_dir = Path(output_dir)
         self.num_hours = num_hours
         self.include_claude_clause = include_claude_clause
@@ -169,17 +177,23 @@ class PostTrainBenchAdapter:
         (task_dir / "instruction.md").write_text(content)
 
     def generate_timer_sh(self, env_dir: Path) -> None:
+        timeout_sec = int(self.num_hours * 3600)
         timer_script = f"""#!/bin/bash
 
-NUM_HOURS={self.num_hours}
+TIMEOUT_SEC={timeout_sec}
 
-START_FILE="$(dirname "$0")/.timer_start"
-if [ ! -f "$START_FILE" ]; then
-    date +%s > "$START_FILE"
+# Use container boot time as the start time (synced with agent timeout)
+START_DATE=$(awk '/btime/{{print $2}}' /proc/stat 2>/dev/null)
+if [ -z "$START_DATE" ]; then
+    # Fallback for non-Linux: first-call timestamp
+    START_FILE="$(dirname "$0")/.timer_start"
+    if [ ! -f "$START_FILE" ]; then
+        date +%s > "$START_FILE"
+    fi
+    START_DATE=$(cat "$START_FILE")
 fi
-START_DATE=$(cat "$START_FILE")
 
-DEADLINE=$((START_DATE + NUM_HOURS * 3600))
+DEADLINE=$((START_DATE + TIMEOUT_SEC))
 NOW=$(date +%s)
 REMAINING=$((DEADLINE - NOW))
 
@@ -239,12 +253,8 @@ fi
                 else:
                     shutil.copy(item, dst)
 
-        judge_src = TEMPLATE_DIR / "environment" / "contamination_judge.py"
-        if judge_src.exists():
-            shutil.copy(judge_src, env_dir / "contamination_judge.py")
-        judge_prompt_src = TEMPLATE_DIR / "environment" / "contamination_judge_prompt.txt"
-        if judge_prompt_src.exists():
-            shutil.copy(judge_prompt_src, env_dir / "contamination_judge_prompt.txt")
+        # NOTE: contamination judge files are copied into tests/ (not environment/)
+        # so the agent cannot read or tamper with the judge logic.
 
         self.generate_timer_sh(env_dir)
 
@@ -282,6 +292,13 @@ fi
         eval_code_src = SRC_DIR / "tasks" / benchmark_id / "evaluation_code"
         if eval_code_src.is_dir():
             shutil.copytree(eval_code_src, tests_dir / "evaluation_code", dirs_exist_ok=True)
+
+        judge_src = TEMPLATE_DIR / "judge" / "contamination_judge.py"
+        if judge_src.exists():
+            shutil.copy(judge_src, tests_dir / "contamination_judge.py")
+        judge_prompt_src = TEMPLATE_DIR / "judge" / "contamination_judge_prompt.txt"
+        if judge_prompt_src.exists():
+            shutil.copy(judge_prompt_src, tests_dir / "contamination_judge_prompt.txt")
 
     def generate_task(self, benchmark_id: str, model_key: str) -> Path:
         models = self._models
