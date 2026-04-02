@@ -7,7 +7,8 @@ description: |
 
 datasets:
   - path: datasets/posttrainbench
-    pattern: gsm8k-*-tinker
+    task_names:
+      - "gsm8k-*-tinker"
 
 agents:
   # - name: nop
@@ -36,7 +37,7 @@ environment:
 
 orchestrator:
   type: local
-  n_concurrent_trials: 1
+  n_concurrent_trials: 16
   quiet: false
 
 # Collect agent workspace (code, logs, training scripts) after each run.

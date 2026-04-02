@@ -1,70 +1,139 @@
 # PostTrainBench Harbor Adapter
 
-This adapter generates [Harbor](https://harborframework.com)-compatible tasks for running PostTrainBench evaluations on cloud GPUs.
+This adapter generates [Harbor](https://harborframework.com)-compatible tasks for running PostTrainBench evaluations. Supports two modes: **GPU** (local vLLM) and **Tinker** (remote API).
 
 ## Supported Benchmarks
 
-| Benchmark ID | Name | Type | Notes |
-|-------------|------|------|-------|
-| gsm8k | GSM8K (Grade School Math 8K) | inspect-ai | |
-| humaneval | HumanEval | inspect-ai | |
-| aime2025 | AIME 2025 | inspect-ai | |
-| gpqamain | GPQA | inspect-ai | |
-| bfcl | Berkeley Function Calling Leaderboard | inspect-ai | Includes `bfcl_evaluation_code.py` via task_context |
-| arenahardwriting | Arena-Hard-v2.0 (Writing) | vLLM + OpenAI judge | Requires `OPENAI_API_KEY` for agent |
-| healthbench | HealthBench | vLLM + OpenAI judge | Requires `OPENAI_API_KEY` for agent |
+| Benchmark ID | Name | Samples | Metric |
+|-------------|------|---------|--------|
+| gsm8k | GSM8K (Grade School Math 8K) | 1,319 | Accuracy (exact match) |
+| humaneval | HumanEval | 164 | pass@1 (code execution) |
+| aime2025 | AIME 2025 | 30 | Accuracy (exact match) |
+| gpqamain | GPQA Main | 448 | Accuracy (multiple choice) |
+| bfcl | Berkeley Function Calling Leaderboard | 400 | Accuracy (function name match) |
+| arenahardwriting | Arena-Hard-v2.0 (Writing) | - | OpenAI judge (GPU mode only) |
+| healthbench | HealthBench | - | OpenAI judge (GPU mode only) |
 
 ## Supported Models
 
-| Key | HuggingFace Model ID |
-|-----|---------------------|
+### Tinker Mode (remote API, no GPU required)
+
+| Key | Model ID | Type | GSM8K | HumanEval | AIME 2025 | GPQA | BFCL |
+|-----|----------|------|-------|-----------|-----------|------|------|
+| llama3.1-8b | meta-llama/Llama-3.1-8B | Base | 3.3% | 22.0% | 0.0% | 17.2% | 78.3% |
+| llama3.2-3b | meta-llama/Llama-3.2-3B | Base | 5.8% | 0.6% | 0.0% | 23.7% | 96.0% |
+| llama3.2-1b | meta-llama/Llama-3.2-1B | Base | 3.7% | 0.0% | 0.0% | 11.4% | 22.5% |
+
+#### Reference scores (instruct/trained versions, for context)
+
+| Model | GSM8K | HumanEval | AIME 2025 | GPQA | BFCL |
+|-------|-------|-----------|-----------|------|------|
+| Qwen3-4B-Instruct-2507 | 82.5% | 83.5% | 16.7% | 46.2% | - |
+| Qwen3-8B (Hybrid) | - | - | 36.7% | - | - |
+| Llama-3.3-70B-Instruct | - | - | 10.0% | - | 100% |
+| Qwen3.5-397B-A17B | - | - | 43.3% | - | - |
+
+### GPU Mode (local vLLM, H100 required)
+
+| Key | Model ID |
+|-----|----------|
 | qwen3-1.7b | Qwen/Qwen3-1.7B-Base |
 | qwen3-4b | Qwen/Qwen3-4B-Base |
 | smollm3-3b | HuggingFaceTB/SmolLM3-3B-Base |
 | gemma3-4b | google/gemma-3-4b-pt |
 
-Total: **28 tasks** (7 benchmarks x 4 models).
+## Quick Start
 
-## Installation
+### 1. Install
 
 ```bash
-# Use the included pyproject.toml file to get the python environment with harbor and modal
 uv sync
 ```
 
-## Quick Start
-
-### 1. Generate tasks
+### 2. Generate tasks
 
 ```bash
-cd src/harbor_adapter
+# Tinker mode (no GPU needed)
+python src/adapter.py mode=tinker all=true
 
-# Generate a single task
-python run_adapter.py --benchmark gsm8k --model qwen3-1.7b --output ./tasks
+# Single task
+python src/adapter.py mode=tinker benchmark=gsm8k model=llama3.2-1b
 
-# Or generate all 28 task combinations
-python run_adapter.py --all --output ./tasks
+# GPU mode
+python src/adapter.py mode=gpu all=true
 
-# List available benchmarks and models
-python run_adapter.py --list
+# List available options
+python src/adapter.py list=true mode=tinker
 ```
 
-### 2. Set API keys
+### 3. Set API keys
 
 ```bash
 python -m modal setup                # Modal cloud setup
 export ANTHROPIC_API_KEY=<your-key>  # For Claude agent
-export OPENAI_API_KEY=<your-key>     # For contamination judge (codex CLI) + arenahardwriting/healthbench eval
+export TINKER_API_KEY=<your-key>     # For Tinker mode
+export OPENAI_API_KEY=<your-key>     # For contamination judge + arenahardwriting/healthbench
 ```
 
-### 3. Run with Harbor
+### 4. Run with Harbor
 
 ```bash
+# Run all GSM8K Tinker tasks
+harbor run -c job.yaml
+
+# Run a single task
 harbor run \
-    --path ./tasks/posttrainbench-gsm8k-qwen3-1.7b \
-    --agent claude-code \
-    --model anthropic/claude-sonnet-4 \
+    -p datasets/posttrainbench/gsm8k-llama3.2-1b-tinker \
+    -a claude-code \
+    -m anthropic/claude-sonnet-4 \
     --env modal
+
+# Test with oracle (dummy solution, verifies pipeline)
+harbor run -c job.yaml -a oracle -p datasets/posttrainbench -t "gsm8k-llama3.2-1b-tinker"
+```
+
+## Task Structure
+
+### Tinker Mode
+
+```
+gsm8k-llama3.2-1b-tinker/
+├── task.toml              # Task config (no GPU, timeouts, env vars)
+├── instruction.md         # Agent instructions
+├── solution/
+│   └── solve.sh           # Oracle dummy solution (saves base weights)
+├── environment/
+│   ├── Dockerfile         # Python + tinker + tinker-cookbook + datasets
+│   ├── evaluate.py        # Benchmark evaluation script
+│   ├── tinker_util.py     # Shared Tinker evaluation utilities
+│   ├── timer.sh           # Countdown timer (synced with agent timeout)
+│   └── metadata.json      # Benchmark/model metadata
+└── tests/
+    ├── test.sh            # Verifier: evaluate checkpoint + contamination judge
+    ├── evaluate.py        # Pristine copy of evaluation script
+    ├── tinker_util.py     # Shared utilities for verifier
+    ├── contamination_judge.py
+    └── contamination_judge_prompt.txt
+```
+
+### GPU Mode
+
+```
+gsm8k-qwen3-1.7b/
+├── task.toml              # Task config (1x H100, timeouts, env vars)
+├── instruction.md         # Agent instructions
+├── environment/
+│   ├── Dockerfile         # CUDA + vLLM + ML packages
+│   ├── evaluate.py        # Benchmark evaluation (inspect-ai + vLLM)
+│   ├── timer.sh           # Countdown timer
+│   ├── metadata.json      # Benchmark/model metadata
+│   └── templates/         # Chat templates per model
+└── tests/
+    ├── test.sh            # Verifier: contamination judge + 3-phase eval retry
+    ├── evaluate.py        # Pristine copy
+    ├── templates/         # Chat templates
+    ├── contamination_judge.py
+    └── contamination_judge_prompt.txt
 ```
 
 ## API Key Requirements
@@ -72,90 +141,18 @@ harbor run \
 | Key | Used By | Required For |
 |-----|---------|-------------|
 | `ANTHROPIC_API_KEY` | Agent (Claude) | All benchmarks |
-| `OPENAI_API_KEY` | Contamination judge (codex CLI), evaluation judge | All benchmarks (judge), arenahardwriting/healthbench (agent eval) |
-
-- The verifier receives `OPENAI_API_KEY` as both `OPENAI_API_KEY` and `CODEX_API_KEY` (codex CLI reads `CODEX_API_KEY`).
-- For arenahardwriting and healthbench, `OPENAI_API_KEY` is also passed to the agent environment since their `evaluate.py` scripts call the OpenAI API for judging.
-
-## Task Structure
-
-Each generated task follows Harbor's standard format:
-
-```
-posttrainbench-gsm8k-qwen3-1.7b/
-├── task.toml              # Task configuration (GPU, timeout, env vars)
-├── instruction.md         # Instructions for the agent
-├── environment/
-│   ├── Dockerfile         # Container definition (CUDA + vLLM + ML packages)
-│   ├── .dockerignore      # Excludes Dockerfile from COPY
-│   ├── evaluate.py        # Benchmark evaluation script
-│   ├── contamination_judge.py  # Generates judge prompt for codex CLI
-│   ├── timer.sh           # Countdown timer (sentinel-file based)
-│   ├── metadata.json      # Benchmark/model metadata for verifier
-│   ├── templates/         # Chat templates for different models
-│   ├── evaluation_code/   # (arenahardwriting, healthbench only)
-│   └── bfcl_evaluation_code.py  # (bfcl only, from task_context)
-└── tests/
-    └── test.sh            # Verifier: contamination judge + 3-phase eval retry
-```
-
-## Evaluation Retry Logic
-
-The verifier (`test.sh`) uses a 3-phase evaluation retry strategy matching `run_task.sh`:
-
-| Phase | Max Attempts | Token Limits |
-|-------|-------------|-------------|
-| 1 | 4 | Default |
-| 2 | 3 | Reduced (see below) |
-| 3 | 2 | Further reduced (see below) |
-
-Token limits per benchmark:
-
-| Benchmark | Phase 2 | Phase 3 |
-|-----------|---------|---------|
-| aime2025 | `--max-tokens 12000` | `--max-tokens 8000` |
-| arenahardwriting | `--max-new-tokens 12288` | `--max-new-tokens 8192` |
-| bfcl | `--max-tokens 12000` | `--max-tokens 8000` |
-| gpqamain | `--max-tokens 12000` | `--max-tokens 8000` |
-| gsm8k | `--max-tokens 3000` | `--max-tokens 2000` |
-| healthbench | `--max-new-tokens 12288` | `--max-new-tokens 8192` |
-| humaneval | `--max-tokens 3000` | `--max-tokens 2000` |
-
-GPU processes are killed between attempts to free VRAM.
+| `TINKER_API_KEY` | Tinker API (training + inference) | Tinker mode |
+| `OPENAI_API_KEY` | Contamination judge, evaluation judge | All benchmarks (judge), arenahardwriting/healthbench (agent eval) |
 
 ## Contamination Judge
 
-The contamination judge uses OpenAI's Codex CLI to analyze the agent's code:
-
-```bash
-codex --search -a never exec --json -c model_reasoning_summary=detailed \
-    --skip-git-repo-check --yolo --model "gpt-5.1-codex" "$JUDGE_PROMPT"
-```
-
-It checks for:
+The verifier runs a contamination judge (in `tests/`, not visible to the agent) using OpenAI's Codex CLI to check for:
 - **Data contamination**: Using benchmark test data for training
 - **Model violations**: Using a different model than the specified base model
 
-Codex reads the workspace code and writes `contamination_judgement.txt` and `disallowed_model_judgement.txt` directly. The judge prompt is synced with `src/disallowed_usage_judge/prompt.txt`.
-
-## Timer
-
-The timer uses a sentinel-file approach: on the first `bash timer.sh` call, the current timestamp is recorded in `.timer_start`. This ensures the countdown is accurate even if the task is generated long before the agent starts.
-
-## Configuration
-
-| Setting | Default | Notes |
-|---------|---------|-------|
-| GPU | 1x H100 | Configured in task.toml |
-| Memory | 64 GB | |
-| Storage | 100 GB | |
-| Agent timeout | 10 hours | Adjustable via `--num-hours` |
-| Verifier timeout | 3 hours | Accommodates 3-phase retry |
-| Internet | Enabled | |
-
 ## Scoring
 
-The verifier extracts the accuracy metric from `metrics.json` as the reward (0-1 scale). Results are stored in:
+The verifier extracts accuracy from `metrics.json` as the reward (0-1 scale). Results:
 - `/logs/verifier/metrics.json` - Full evaluation metrics
 - `/logs/verifier/reward.txt` - Accuracy score
 - `/logs/verifier/contamination_judgement.txt` - Data contamination verdict
