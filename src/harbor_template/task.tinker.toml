@@ -23,6 +23,9 @@ OPENAI_API_KEY = "${OPENAI_API_KEY}"
 [agent]
 timeout_sec = 3600.0
 
+[agent.env]
+TINKER_API_KEY = "${TINKER_API_KEY}"
+
 [solution.env]
 TINKER_API_KEY = "${TINKER_API_KEY}"
 

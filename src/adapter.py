@@ -141,18 +141,7 @@ class PostTrainBenchAdapter:
         return TINKER_MODELS if self.mode == "tinker" else MODELS
 
     def generate_task_toml(self, task_dir: Path, benchmark_id: str = "") -> None:
-        import re
-
         content = self._template("task.toml").read_text()
-        agent_timeout = self.num_hours * 3600
-        # Replace the agent timeout (last timeout_sec in [agent] section)
-        content = re.sub(
-            r"(\[agent\].*?timeout_sec\s*=\s*)[\d.]+",
-            rf"\g<1>{float(agent_timeout)}",
-            content,
-            count=1,
-            flags=re.DOTALL,
-        )
         if benchmark_id in ("arenahardwriting", "healthbench"):
             content += '\n[agent.env]\nOPENAI_API_KEY = "${OPENAI_API_KEY}"\n'
         (task_dir / "task.toml").write_text(content)
@@ -163,7 +152,8 @@ class PostTrainBenchAdapter:
         content = self._template("instruction.md").read_text()
         content = content.replace("{model}", model_info.model_id)
         content = content.replace("{benchmark}", benchmark_info.benchmark_name)
-        content = content.replace("{num_hours}", str(self.num_hours))
+        timeout_sec = self._read_agent_timeout_sec()
+        content = content.replace("{num_hours}", str(timeout_sec / 3600))
         content = content.replace("{setup_other}", benchmark_info.setup_note)
         if benchmark_id in ("arenahardwriting", "healthbench"):
             content = content.replace(
@@ -176,8 +166,16 @@ class PostTrainBenchAdapter:
             content += CLAUDE_CLAUSE
         (task_dir / "instruction.md").write_text(content)
 
+    def _read_agent_timeout_sec(self) -> int:
+        """Read agent timeout from the task.toml template (single source of truth)."""
+        import tomllib
+
+        content = self._template("task.toml").read_text()
+        config = tomllib.loads(content)
+        return int(config["agent"]["timeout_sec"])
+
     def generate_timer_sh(self, env_dir: Path) -> None:
-        timeout_sec = int(self.num_hours * 3600)
+        timeout_sec = self._read_agent_timeout_sec()
         timer_script = f"""#!/bin/bash
 
 TIMEOUT_SEC={timeout_sec}
@@ -349,10 +347,18 @@ fi
         print(f"Task generated at: {task_dir}")
         return task_dir
 
+    def _benchmarks_for_mode(self) -> list[str]:
+        if self.mode == "tinker":
+            return [
+                bid for bid in BENCHMARKS
+                if (SRC_DIR / "tasks" / bid / "evaluate_tinker.py").exists()
+            ]
+        return list(BENCHMARKS)
+
     def generate_all_tasks(self) -> list[Path]:
         tasks = []
         models = self._models
-        for benchmark_id in BENCHMARKS:
+        for benchmark_id in self._benchmarks_for_mode():
             for model_key in models:
                 tasks.append(self.generate_task(benchmark_id, model_key))
         return tasks
@@ -361,7 +367,11 @@ fi
 def list_available_tasks(mode: str = "gpu") -> list[str]:
     models = TINKER_MODELS if mode == "tinker" else MODELS
     suffix = "-tinker" if mode == "tinker" else ""
-    return [f"{bid}-{models[mk].short_name}{suffix}" for bid in BENCHMARKS for mk in models]
+    if mode == "tinker":
+        benchmarks = [bid for bid in BENCHMARKS if (SRC_DIR / "tasks" / bid / "evaluate_tinker.py").exists()]
+    else:
+        benchmarks = list(BENCHMARKS)
+    return [f"{bid}-{models[mk].short_name}{suffix}" for bid in benchmarks for mk in models]
 
 
 # --- CLI ---
@@ -371,7 +381,7 @@ def generate(
     benchmark: str | None = None,
     model: str | None = None,
     output: Path = Path("./datasets/posttrainbench"),
-    num_hours: float = 10,
+    num_hours: float | None = None,
     all: bool = False,
     list: bool = False,
     mode: str = "gpu",
@@ -382,7 +392,7 @@ def generate(
         benchmark: Benchmark to generate (e.g. gsm8k, humaneval, aime2025).
         model: Base model to generate (e.g. qwen3-1.7b, smollm3-3b).
         output: Output directory for generated tasks.
-        num_hours: Number of hours for the training task.
+        num_hours: Number of hours for the training task. Defaults to 10 for gpu mode, 0.5 for tinker mode.
         all: Generate tasks for all benchmark + model combinations.
         list: List available benchmarks and models.
         mode: Export mode: "gpu" (default, local GPU training) or "tinker" (Tinker API training).
@@ -401,6 +411,8 @@ def generate(
             print(f"  {task_id}")
         return
 
+    if num_hours is None:
+        num_hours = 1 if mode == "tinker" else 10
     adapter = PostTrainBenchAdapter(output_dir=output, num_hours=num_hours, mode=mode)
 
     if all:
