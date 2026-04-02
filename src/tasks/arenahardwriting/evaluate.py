@@ -1,25 +1,22 @@
 # IMPORTANT: You are NOT allowed to use the OpenAI API for anything but this evaluation script.
-import os
-
 import argparse
 import atexit
 import json
 import math
+import os
 import random
 import re
 import socket
 import subprocess
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional
-
-from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import requests
 import shortuuid
 import tiktoken
-from tqdm import tqdm
-
+from evaluation_code.show_result import load_judgments, print_leaderboard
 from evaluation_code.utils.add_markdown_info import count_markdown_elements, remove_pattern
 from evaluation_code.utils.completion import (
     load_model_answers,
@@ -27,8 +24,7 @@ from evaluation_code.utils.completion import (
     make_config,
 )
 from evaluation_code.utils.judge_utils import JUDGE_SETTINGS
-from evaluation_code.show_result import load_judgments, print_leaderboard
-
+from tqdm import tqdm
 
 API_MAX_RETRY = 3
 API_RETRY_SLEEP = 5

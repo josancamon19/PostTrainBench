@@ -11,7 +11,7 @@ from typing import Callable
 import tinker
 from tinker import types
 from tinker_cookbook.model_info import get_model_attributes, get_recommended_renderer_name
-from tinker_cookbook.renderers import get_renderer, get_text_content
+from tinker_cookbook.renderers import get_renderer
 
 
 def parse_args(description: str = "Evaluate a Tinker checkpoint.") -> argparse.Namespace:
@@ -112,7 +112,7 @@ def batch_evaluate(
         try:
             result = future.result()
             parsed, _ = ctx.renderer.parse_response(result.sequences[0].tokens)
-            content = get_text_content(parsed)
+            content = parsed["content"]
             if score_fn(content, example):
                 correct += 1
         except Exception as e:

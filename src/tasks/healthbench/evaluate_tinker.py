@@ -17,7 +17,6 @@ sys.path.insert(0, sys.path[0] + "/../..")
 from tinker_util import parse_args, setup_tinker, save_metrics
 
 from tinker import types
-from tinker_cookbook.renderers import get_text_content
 
 from evaluation_code.data_loader import load_healthbench
 from evaluation_code.grader import grade_examples_parallel
@@ -51,7 +50,7 @@ def generate_answers_tinker(ctx, examples, max_tokens=MAX_TOKENS):
         try:
             result = future.result()
             parsed, _ = ctx.renderer.parse_response(result.sequences[0].tokens)
-            text = get_text_content(parsed)
+            text = parsed["content"]
 
             # Strip thinking tags if present
             if text.startswith("<think>") and "</think>" in text:
@@ -80,7 +79,7 @@ def main() -> None:
     # Load data
     examples = load_healthbench()
     random.Random(42).shuffle(examples)
-    if args.limit:
+    if args.limit is not None and args.limit != -1:
         examples = examples[: min(args.limit, len(examples))]
     print(f"[data] Loaded {len(examples)} HealthBench examples")
 
@@ -93,7 +92,7 @@ def main() -> None:
     results = grade_examples_parallel(
         examples=examples,
         responses=responses,
-        grader_model="gpt-4.1-mini",
+        grader_model="gpt-5-mini",
         example_workers=4,
         criteria_workers=8,
         max_concurrent_requests=64,
