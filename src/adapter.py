@@ -227,6 +227,10 @@ fi
                 shutil.copy(eval_src, env_dir / "evaluate.py")
             else:
                 raise FileNotFoundError(f"evaluate_tinker.py not found: {eval_src}")
+            # Copy shared tinker evaluation module
+            tinker_eval_src = SRC_DIR / "tinker_util.py"
+            if tinker_eval_src.exists():
+                shutil.copy(tinker_eval_src, env_dir / "tinker_util.py")
         else:
             eval_src = SRC_DIR / "tasks" / benchmark_id / "evaluate.py"
             if eval_src.exists():
@@ -283,6 +287,10 @@ fi
             eval_src = SRC_DIR / "tasks" / benchmark_id / "evaluate.py"
         if eval_src.exists():
             shutil.copy(eval_src, tests_dir / "evaluate.py")
+        if self.mode == "tinker":
+            tinker_eval_src = SRC_DIR / "tinker_util.py"
+            if tinker_eval_src.exists():
+                shutil.copy(tinker_eval_src, tests_dir / "tinker_util.py")
 
         if self.mode != "tinker":
             templates_src = TEMPLATE_DIR / "environment" / "templates"
@@ -329,6 +337,14 @@ fi
         self.generate_instruction(task_dir, model_info, benchmark_info, benchmark_id)
         self.generate_environment(task_dir, benchmark_id, model_info, benchmark_info)
         self.generate_tests(task_dir, benchmark_id)
+
+        solution_src = self._template("solution.sh")
+        if solution_src.exists():
+            solution_dir = task_dir / "solution"
+            solution_dir.mkdir(parents=True, exist_ok=True)
+            dst = solution_dir / "solve.sh"
+            shutil.copy(solution_src, dst)
+            dst.chmod(0o755)
 
         print(f"Task generated at: {task_dir}")
         return task_dir
