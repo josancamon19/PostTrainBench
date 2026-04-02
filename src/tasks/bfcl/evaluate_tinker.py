@@ -86,21 +86,29 @@ def build_messages(example):
 
 
 def score(content: str, example: dict) -> bool:
-    """Check if generated function call matches ground truth (name match)."""
+    """Check if generated function call matches ground truth (function name match).
+
+    Ground truth format: [{"func_name": {"param": [possible_values], ...}}]
+    Model output format: {"name": "func_name", "arguments": {...}}
+    """
     try:
-        # Try to parse the model output as JSON
         # Strip markdown fences if present
         content = re.sub(r"```json?\s*", "", content)
         content = re.sub(r"```\s*", "", content)
         generated = json.loads(content.strip())
+        if isinstance(generated, list):
+            generated = generated[0] if generated else {}
+
+        # Extract function name from model output ({"name": "...", "arguments": {...}})
+        gen_name = generated.get("name", "")
+
+        # Extract function name from ground truth ({"func_name": {"param": [...]}})
         gt = example["ground_truth"]
         if isinstance(gt, list):
             gt = gt[0] if gt else {}
-        if isinstance(generated, list):
-            generated = generated[0] if generated else {}
-        # Check function name match at minimum
-        gen_name = generated.get("name", "")
-        gt_name = gt.get("name", "") if isinstance(gt, dict) else ""
+        # GT keys are the function names
+        gt_name = list(gt.keys())[0] if isinstance(gt, dict) and gt else ""
+
         return gen_name == gt_name
     except (json.JSONDecodeError, TypeError, KeyError):
         return False

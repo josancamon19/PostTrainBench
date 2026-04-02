@@ -1,3 +1,4 @@
+n_attempts: 1
 name: posttrainbench
 description: |
   PostTrainBench measures the ability of CLI agents to post-train pre-trained

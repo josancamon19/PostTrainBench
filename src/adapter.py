@@ -86,9 +86,9 @@ MODELS = {
 # Models available on Tinker (subset that Tinker API supports)
 # GSM8K reference scores (instruct version, 8-shot CoT): target after post-training
 TINKER_MODELS = {
-    "qwen3-4b-instruct": ModelInfo(
-        model_id="Qwen/Qwen3-4B-Instruct-2507", short_name="qwen3-4b-instruct"
-    ),  # Instruction, Dense — GSM8K: 82.2% (already instruct)
+    # "qwen3-4b-instruct": ModelInfo(
+    #     model_id="Qwen/Qwen3-4B-Instruct-2507", short_name="qwen3-4b-instruct"
+    # ),  # Instruction, Dense — GSM8K: 82.2% (already instruct)
     "llama3.1-8b": ModelInfo(
         model_id="meta-llama/Llama-3.1-8B", short_name="llama3.1-8b"
     ),  # Base, Dense — base: 3.1%, instruct ref: 84.5%
