@@ -143,7 +143,15 @@ class PostTrainBenchAdapter:
     def generate_task_toml(self, task_dir: Path, benchmark_id: str = "") -> None:
         content = self._template("task.toml").read_text()
         if benchmark_id in ("arenahardwriting", "healthbench"):
-            content += '\n[agent.env]\nOPENAI_API_KEY = "${OPENAI_API_KEY}"\n'
+            if "[environment.env]" in content:
+                content = content.replace(
+                    "[environment.env]",
+                    '[environment.env]\nOPENAI_API_KEY = "${OPENAI_API_KEY}"',
+                    1,
+                )
+            else:
+                # Insert [environment.env] after [environment] section
+                content += '\n[environment.env]\nOPENAI_API_KEY = "${OPENAI_API_KEY}"\n'
         (task_dir / "task.toml").write_text(content)
 
     def generate_instruction(
