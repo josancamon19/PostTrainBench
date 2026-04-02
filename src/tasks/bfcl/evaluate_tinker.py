@@ -27,28 +27,44 @@ SYSTEM = (
 
 
 def prepare_dataset(limit: int | None = None):
-    """Load BFCL simple function calling subset."""
-    ds = load_dataset("gorilla-llm/Berkeley-Function-Calling-Leaderboard", split="test")
-    examples = []
-    for row in ds:
-        # BFCL has multiple categories; focus on simple function calls
-        try:
-            question = json.loads(row["question"]) if isinstance(row["question"], str) else row["question"]
-            functions = json.loads(row["function"]) if isinstance(row["function"], str) else row["function"]
-            ground_truth = (
-                json.loads(row["ground_truth"]) if isinstance(row["ground_truth"], str) else row["ground_truth"]
-            )
-        except (json.JSONDecodeError, TypeError):
-            continue
+    """Load BFCL simple function calling subset with ground truth answers."""
+    from huggingface_hub import hf_hub_download
 
+    # Load questions and ground truth separately (BFCL stores them in different files)
+    q_path = hf_hub_download(
+        repo_id="gorilla-llm/Berkeley-Function-Calling-Leaderboard",
+        filename="BFCL_v3_simple.json",
+        repo_type="dataset",
+    )
+    gt_path = hf_hub_download(
+        repo_id="gorilla-llm/Berkeley-Function-Calling-Leaderboard",
+        filename="possible_answer/BFCL_v3_simple.json",
+        repo_type="dataset",
+    )
+    with open(q_path) as f:
+        questions = {r["id"]: r for r in (json.loads(line) for line in f)}
+    with open(gt_path) as f:
+        answers = {r["id"]: r for r in (json.loads(line) for line in f)}
+
+    examples = []
+    for qid, row in questions.items():
+        gt = answers.get(qid)
+        if not gt:
+            continue
+        question = row.get("question", [])
+        functions = row.get("function", [])
+        ground_truth = gt.get("ground_truth", [])
         if not question or not functions or not ground_truth:
             continue
 
-        # Build a user message with function schemas
         func_schemas = (
             json.dumps(functions, indent=2) if isinstance(functions, list) else json.dumps([functions], indent=2)
         )
-        user_msg = question[0]["content"] if isinstance(question, list) and question else str(question)
+        # question is list[list[dict]] — e.g. [[{"role": "user", "content": "..."}]]
+        q = question[0] if isinstance(question, list) else question
+        if isinstance(q, list):
+            q = q[0]
+        user_msg = q["content"] if isinstance(q, dict) else str(q)
 
         examples.append(
             {

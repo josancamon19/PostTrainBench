@@ -46,7 +46,7 @@ def score(content: str, example: dict) -> bool:
 def main() -> None:
     args = parse_args("Evaluate a Tinker checkpoint on AIME 2025.")
     ctx = setup_tinker(args)
-    dataset = load_dataset("Maxwell-Jia/AIME_2025", split="test")
+    dataset = load_dataset("math-ai/aime25", split="test")
     if args.limit:
         dataset = dataset.select(range(min(args.limit, len(dataset))))
     metrics = batch_evaluate(ctx, dataset, build_messages, score, max_tokens=MAX_TOKENS)
