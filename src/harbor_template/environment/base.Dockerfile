@@ -39,7 +39,7 @@ RUN uv pip install --system --no-cache \
     lm-eval \
     matplotlib \
     ninja \
-    openai \
+    "openai>=2.26.0" \
     packaging \
     pandas \
     peft \
