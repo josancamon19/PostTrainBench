@@ -1,0 +1,429 @@
+[
+  {
+    "model_key": "llama3.2-1b",
+    "model_type": "instruct",
+    "model_id": "meta-llama/Llama-3.2-1B-Instruct",
+    "benchmark_id": "humaneval",
+    "score": 0.3475609756097561,
+    "metrics": {
+      "accuracy": 0.3475609756097561,
+      "stderr": 0.03729852575607224
+    }
+  },
+  {
+    "model_key": "llama3.2-3b",
+    "model_type": "instruct",
+    "model_id": "meta-llama/Llama-3.2-3B-Instruct",
+    "benchmark_id": "aime2025",
+    "score": 0.0,
+    "metrics": {
+      "accuracy": 0.0,
+      "stderr": 0.0
+    }
+  },
+  {
+    "model_key": "llama3.2-3b",
+    "model_type": "instruct",
+    "model_id": "meta-llama/Llama-3.2-3B-Instruct",
+    "benchmark_id": "humaneval",
+    "score": 0.5060975609756098,
+    "metrics": {
+      "accuracy": 0.5060975609756098,
+      "stderr": 0.039160110209191246
+    }
+  },
+  {
+    "model_key": "llama3.2-3b",
+    "model_type": "instruct",
+    "model_id": "meta-llama/Llama-3.2-3B-Instruct",
+    "benchmark_id": "healthbench",
+    "score": 0.25625229080019124,
+    "metrics": {
+      "accuracy": 0.25625229080019124,
+      "stderr": 0.047102733011851694,
+      "n_examples": 32,
+      "total_grader_calls": 238,
+      "by_theme": {
+        "global_health": 0.1355227435103596,
+        "hedging": 0.2490699422390352,
+        "communication": 0.24560272945366113,
+        "complex_responses": 0.39580604061669983,
+        "health_data_tasks": 0.26153846153846155,
+        "context_seeking": 0.4010989010989011,
+        "emergency_referrals": 0.20652173913043478
+      },
+      "by_axis": {
+        "accuracy": 0.2714570858283433,
+        "completeness": 0.14857142857142858,
+        "context_awareness": 0.45794392523364486,
+        "communication_quality": 0.3953488372093023,
+        "instruction_following": 0.4117647058823529
+      }
+    }
+  },
+  {
+    "model_key": "llama3.1-8b",
+    "model_type": "instruct",
+    "model_id": "meta-llama/Llama-3.1-8B-Instruct",
+    "benchmark_id": "healthbench",
+    "score": 0.23370793023054237,
+    "metrics": {
+      "accuracy": 0.23370793023054237,
+      "stderr": 0.04400603202387413,
+      "n_examples": 32,
+      "total_grader_calls": 238,
+      "by_theme": {
+        "global_health": 0.06671429705485432,
+        "hedging": 0.23498576747876856,
+        "communication": 0.26742297270247584,
+        "complex_responses": 0.3571377196903144,
+        "health_data_tasks": 0.3076923076923077,
+        "context_seeking": 0.2857142857142857,
+        "emergency_referrals": 0.20652173913043478
+      },
+      "by_axis": {
+        "accuracy": 0.249500998003992,
+        "completeness": 0.12571428571428572,
+        "context_awareness": 0.40186915887850466,
+        "communication_quality": 0.4418604651162791,
+        "instruction_following": 1.0
+      }
+    }
+  },
+  {
+    "model_key": "llama3.2-1b",
+    "model_type": "instruct",
+    "model_id": "meta-llama/Llama-3.2-1B-Instruct",
+    "benchmark_id": "aime2025",
+    "score": 0.0,
+    "metrics": {
+      "accuracy": 0.0,
+      "stderr": 0.0
+    }
+  },
+  {
+    "model_key": "llama3.1-8b",
+    "model_type": "instruct",
+    "model_id": "meta-llama/Llama-3.1-8B-Instruct",
+    "benchmark_id": "arenahardwriting",
+    "score": 0.5074626865671642,
+    "metrics": {
+      "accuracy": 0.5074626865671642,
+      "stderr": 0.04335066912520508
+    }
+  },
+  {
+    "model_key": "llama3.2-3b",
+    "model_type": "instruct",
+    "model_id": "meta-llama/Llama-3.2-3B-Instruct",
+    "benchmark_id": "arenahardwriting",
+    "score": 0.43283582089552236,
+    "metrics": {
+      "accuracy": 0.43283582089552236,
+      "stderr": 0.042962562216652206
+    }
+  },
+  {
+    "model_key": "llama3.1-8b",
+    "model_type": "instruct",
+    "model_id": "meta-llama/Llama-3.1-8B-Instruct",
+    "benchmark_id": "aime2025",
+    "score": 0.0,
+    "metrics": {
+      "accuracy": 0.0,
+      "stderr": 0.0
+    }
+  },
+  {
+    "model_key": "llama3.2-1b",
+    "model_type": "instruct",
+    "model_id": "meta-llama/Llama-3.2-1B-Instruct",
+    "benchmark_id": "healthbench",
+    "score": 0.12877121905452701,
+    "metrics": {
+      "accuracy": 0.12877121905452701,
+      "stderr": 0.05015089404062269,
+      "n_examples": 32,
+      "total_grader_calls": 238,
+      "by_theme": {
+        "global_health": 0.0,
+        "hedging": 0.19172007754034628,
+        "communication": 0.19269415166154294,
+        "complex_responses": 0.2632674711917349,
+        "health_data_tasks": 0.046153846153846156,
+        "context_seeking": 0.09340659340659338,
+        "emergency_referrals": 0.10869565217391304
+      },
+      "by_axis": {
+        "accuracy": 0.25349301397205587,
+        "completeness": 0.0038095238095238095,
+        "context_awareness": 0.3644859813084112,
+        "communication_quality": 0.20930232558139536,
+        "instruction_following": 0.0
+      }
+    }
+  },
+  {
+    "model_key": "llama3.2-1b",
+    "model_type": "instruct",
+    "model_id": "meta-llama/Llama-3.2-1B-Instruct",
+    "benchmark_id": "arenahardwriting",
+    "score": 0.2,
+    "metrics": {
+      "accuracy": 0.2,
+      "stderr": 0.03392755718719884
+    }
+  },
+  {
+    "model_key": "llama3.2-1b",
+    "model_type": "base",
+    "model_id": "meta-llama/Llama-3.2-1B",
+    "benchmark_id": "bfcl",
+    "score": 0.2725,
+    "metrics": {
+      "accuracy": 0.2725,
+      "stderr": 0.022290166077429716,
+      "live_multiple_acc": 0.0,
+      "live_simple_acc": 0.0,
+      "live_irrelevance_acc": 1.0,
+      "simple_java_acc": 0.0,
+      "parallel_multiple_acc": 0.0,
+      "simple_python_acc": 0.0,
+      "multiple_acc": 0.0,
+      "live_parallel_multiple_acc": 0.0,
+      "exec_parallel_multiple_acc": 0.0,
+      "sql_acc": 0.0,
+      "exec_parallel_acc": 0.0,
+      "parallel_acc": 0.0,
+      "irrelevance_acc": 1.0,
+      "exec_simple_acc": 0.0,
+      "exec_multiple_acc": 0.0,
+      "live_parallel_acc": 0.0,
+      "simple_javascript_acc": 0.0,
+      "all": 0.2725,
+      "live_multiple_sterr": 0.0,
+      "live_simple_sterr": 0.0,
+      "live_irrelevance_sterr": 0.0,
+      "simple_java_sterr": 0.0,
+      "parallel_multiple_sterr": 0.0,
+      "simple_python_sterr": 0.0,
+      "multiple_sterr": 0.0,
+      "live_parallel_multiple_sterr": 0.0,
+      "exec_parallel_multiple_sterr": 0.0,
+      "sql_sterr": 0.0,
+      "exec_parallel_sterr": 0.0,
+      "parallel_sterr": 0.0,
+      "irrelevance_sterr": 0.0,
+      "exec_simple_sterr": 0.0,
+      "exec_multiple_sterr": 0.0,
+      "live_parallel_sterr": 0.0,
+      "simple_javascript_sterr": 0.0,
+      "all2": 0.022290166077429716
+    }
+  },
+  {
+    "model_key": "llama3.2-3b",
+    "model_type": "base",
+    "model_id": "meta-llama/Llama-3.2-3B",
+    "benchmark_id": "bfcl",
+    "score": 0.2375,
+    "metrics": {
+      "accuracy": 0.2375,
+      "stderr": 0.021304202581158664,
+      "parallel_acc": 0.0,
+      "sql_acc": 0.0,
+      "exec_parallel_acc": 0.0,
+      "live_irrelevance_acc": 1.0,
+      "live_relevance_acc": 0.0,
+      "simple_python_acc": 0.0,
+      "live_multiple_acc": 0.0,
+      "simple_javascript_acc": 0.0,
+      "parallel_multiple_acc": 0.0,
+      "simple_java_acc": 0.0,
+      "live_simple_acc": 0.0,
+      "exec_simple_acc": 0.0,
+      "multiple_acc": 0.0,
+      "irrelevance_acc": 1.0,
+      "exec_multiple_acc": 0.0,
+      "exec_parallel_multiple_acc": 0.0,
+      "live_parallel_multiple_acc": 0.0,
+      "all": 0.2375,
+      "parallel_sterr": 0.0,
+      "sql_sterr": 0.0,
+      "exec_parallel_sterr": 0.0,
+      "live_irrelevance_sterr": 0.0,
+      "live_relevance_sterr": 0.0,
+      "simple_python_sterr": 0.0,
+      "live_multiple_sterr": 0.0,
+      "simple_javascript_sterr": 0.0,
+      "parallel_multiple_sterr": 0.0,
+      "simple_java_sterr": 0.0,
+      "live_simple_sterr": 0.0,
+      "exec_simple_sterr": 0.0,
+      "multiple_sterr": 0.0,
+      "irrelevance_sterr": 0.0,
+      "exec_multiple_sterr": 0.0,
+      "exec_parallel_multiple_sterr": 0.0,
+      "live_parallel_multiple_sterr": 0.0,
+      "all2": 0.021304202581158664
+    }
+  },
+  {
+    "model_key": "llama3.1-8b",
+    "model_type": "base",
+    "model_id": "meta-llama/Llama-3.1-8B",
+    "benchmark_id": "bfcl",
+    "score": 0.2875,
+    "metrics": {
+      "accuracy": 0.2875,
+      "stderr": 0.022658174179374144,
+      "live_irrelevance_acc": 0.9888888888888889,
+      "live_multiple_acc": 0.0,
+      "simple_python_acc": 0.0,
+      "parallel_acc": 0.0,
+      "irrelevance_acc": 1.0,
+      "multiple_acc": 0.0,
+      "parallel_multiple_acc": 0.0,
+      "simple_javascript_acc": 0.0,
+      "sql_acc": 0.0,
+      "live_simple_acc": 0.0,
+      "live_parallel_acc": 0.0,
+      "exec_simple_acc": 0.0,
+      "live_parallel_multiple_acc": 0.0,
+      "exec_multiple_acc": 0.0,
+      "simple_java_acc": 0.0,
+      "exec_parallel_multiple_acc": 0.0,
+      "live_relevance_acc": 0.0,
+      "exec_parallel_acc": 0.0,
+      "all": 0.2875,
+      "live_irrelevance_sterr": 0.011111111111111112,
+      "live_multiple_sterr": 0.0,
+      "simple_python_sterr": 0.0,
+      "parallel_sterr": 0.0,
+      "irrelevance_sterr": 0.0,
+      "multiple_sterr": 0.0,
+      "parallel_multiple_sterr": 0.0,
+      "simple_javascript_sterr": 0.0,
+      "sql_sterr": 0.0,
+      "live_simple_sterr": 0.0,
+      "live_parallel_sterr": 0.0,
+      "exec_simple_sterr": 0.0,
+      "live_parallel_multiple_sterr": 0.0,
+      "exec_multiple_sterr": 0.0,
+      "simple_java_sterr": 0.0,
+      "exec_parallel_multiple_sterr": 0.0,
+      "live_relevance_sterr": 0.0,
+      "exec_parallel_sterr": 0.0,
+      "all2": 0.022658174179374144
+    }
+  },
+  {
+    "model_key": "llama3.2-1b",
+    "model_type": "base",
+    "model_id": "meta-llama/Llama-3.2-1B",
+    "benchmark_id": "arenahardwriting",
+    "score": 0.0,
+    "metrics": {
+      "accuracy": 0.0,
+      "stderr": 0.0
+    }
+  },
+  {
+    "model_key": "llama3.2-1b",
+    "model_type": "base",
+    "model_id": "meta-llama/Llama-3.2-1B",
+    "benchmark_id": "healthbench",
+    "score": 0.05873672011159224,
+    "metrics": {
+      "accuracy": 0.05873672011159224,
+      "stderr": 0.018018461315768213,
+      "n_examples": 245,
+      "total_grader_calls": 1873,
+      "by_theme": {
+        "global_health": 0.0,
+        "hedging": 0.19006060948407327,
+        "communication": 0.03346080732512034,
+        "complex_responses": 0.0754640526861394,
+        "health_data_tasks": 0.0,
+        "context_seeking": 0.0,
+        "emergency_referrals": 0.0
+      },
+      "by_axis": {
+        "accuracy": 0.16726511071214842,
+        "completeness": 0.019788311090658078,
+        "context_awareness": 0.09737827715355805,
+        "communication_quality": 0.010802469135802469,
+        "instruction_following": 0.06402439024390244
+      }
+    }
+  },
+  {
+    "model_key": "llama3.1-8b",
+    "model_type": "base",
+    "model_id": "meta-llama/Llama-3.1-8B",
+    "benchmark_id": "healthbench",
+    "score": 0.19632938765333274,
+    "metrics": {
+      "accuracy": 0.19632938765333274,
+      "stderr": 0.022390669941118452,
+      "n_examples": 245,
+      "total_grader_calls": 1873,
+      "by_theme": {
+        "global_health": 0.17478005974487446,
+        "hedging": 0.32701749878318986,
+        "communication": 0.13908341297078933,
+        "complex_responses": 0.16699353244881937,
+        "health_data_tasks": 0.0,
+        "context_seeking": 0.09934693284542732,
+        "emergency_referrals": 0.20627213214241027
+      },
+      "by_axis": {
+        "accuracy": 0.2588270496708558,
+        "completeness": 0.1373676944316613,
+        "context_awareness": 0.29307116104868913,
+        "communication_quality": 0.36882716049382713,
+        "instruction_following": 0.22560975609756098
+      }
+    }
+  },
+  {
+    "model_key": "llama3.2-3b",
+    "model_type": "base",
+    "model_id": "meta-llama/Llama-3.2-3B",
+    "benchmark_id": "healthbench",
+    "score": 0.14910710241449585,
+    "metrics": {
+      "accuracy": 0.14910710241449585,
+      "stderr": 0.022156276486990496,
+      "n_examples": 245,
+      "total_grader_calls": 1873,
+      "by_theme": {
+        "global_health": 0.0910628693359284,
+        "hedging": 0.3089017131991977,
+        "communication": 0.09747801955859264,
+        "complex_responses": 0.232997809636499,
+        "health_data_tasks": 0.0,
+        "context_seeking": 0.0,
+        "emergency_referrals": 0.13027739043503409
+      },
+      "by_axis": {
+        "accuracy": 0.2414721723518851,
+        "completeness": 0.0980211688909342,
+        "context_awareness": 0.21629213483146068,
+        "communication_quality": 0.08487654320987655,
+        "instruction_following": 0.3201219512195122
+      }
+    }
+  },
+  {
+    "model_key": "llama3.2-3b",
+    "model_type": "base",
+    "model_id": "meta-llama/Llama-3.2-3B",
+    "benchmark_id": "arenahardwriting",
+    "score": 0.0014326647564469914,
+    "metrics": {
+      "accuracy": 0.0014326647564469914,
+      "stderr": 0.0010126838000853412
+    }
+  }
+]

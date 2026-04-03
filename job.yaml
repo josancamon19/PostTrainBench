@@ -32,7 +32,7 @@ environment:
 
 orchestrator:
   type: local
-  n_concurrent_trials: 16
+  n_concurrent_trials: 32
   quiet: false
 
 # Collect agent workspace (code, logs, training scripts) after each run.
