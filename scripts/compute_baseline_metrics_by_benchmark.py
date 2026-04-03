@@ -4,6 +4,7 @@ Compute metrics for baseline models (base and instruct-tuned) using factors from
 
 Reads aggregated_baseline.csv and computes averaged metrics for base and instruct groups.
 """
+
 import os
 import csv
 import json
@@ -61,9 +62,7 @@ def compute_metric_by_benchmark(data: dict, factors: dict, benchmarks: list, mod
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Compute baseline metrics using benchmark factors."
-    )
+    parser = argparse.ArgumentParser(description="Compute baseline metrics using benchmark factors.")
     parser.add_argument(
         "--output",
         default=None,

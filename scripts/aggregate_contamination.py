@@ -2,7 +2,7 @@
 import os
 import csv
 
-OUTPUT_PREFIX = "contamination_"        # e.g. "contamination_method.csv"
+OUTPUT_PREFIX = "contamination_"  # e.g. "contamination_method.csv"
 
 
 def load_contamination(contamination_path: str):
@@ -46,7 +46,7 @@ def load_disallowed_model(disallowed_path: str):
 def combine_results(contamination, disallowed_model):
     """
     Combine contamination and disallowed model results into a single cell value.
-    
+
     Returns:
         - "" if no illegal use detected (and no contamination)
         - "M" if disallowed model detected (but no contamination)
@@ -62,7 +62,7 @@ def combine_results(contamination, disallowed_model):
         if disallowed_model in ("ERR", "IMPORTANT ERR"):
             errors.append(f"M:{disallowed_model}")
         return " ".join(errors)
-    
+
     # Both are boolean now
     if disallowed_model and contamination:
         return "MC"
@@ -86,7 +86,7 @@ def process_method(method_path: str, method_name: str):
         entry_path = os.path.join(method_path, entry)
         if not os.path.isdir(entry_path):
             continue
-        try: 
+        try:
             benchmark, _, model, run_id = entry.split("_")
             key = (benchmark, model)
         except ValueError as e:
@@ -126,7 +126,7 @@ def process_method(method_path: str, method_name: str):
                     run_dir = latest_runs[key]["path"]
                     contamination_path = os.path.join(run_dir, "contamination_judgement.txt")
                     disallowed_path = os.path.join(run_dir, "disallowed_model_judgement.txt")
-                    
+
                     contamination = load_contamination(contamination_path)
                     disallowed_model = load_disallowed_model(disallowed_path)
                     cell = combine_results(contamination, disallowed_model)
@@ -137,7 +137,7 @@ def process_method(method_path: str, method_name: str):
 
 
 def get_results_dir():
-    return os.environ.get("POST_TRAIN_BENCH_RESULTS_DIR", 'results')
+    return os.environ.get("POST_TRAIN_BENCH_RESULTS_DIR", "results")
 
 
 def main():

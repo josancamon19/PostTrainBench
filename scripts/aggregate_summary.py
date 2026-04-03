@@ -9,6 +9,7 @@ Output format:
 - Columns: baseline_base, baseline_instruct, method1, method2, ...
 - Values: average score across models
 """
+
 import os
 import csv
 import argparse
@@ -97,7 +98,8 @@ def parse_args():
         help="List of methods to include in the aggregation.",
     )
     parser.add_argument(
-        "-o", "--output",
+        "-o",
+        "--output",
         default=None,
         help="Output CSV filename. Default: summary.csv in results dir.",
     )

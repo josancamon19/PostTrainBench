@@ -5,6 +5,7 @@ Extract token usage from codex runs and compute average per method.
 Goes through the results folder, finds all codex method directories,
 extracts token counts from solve_out.txt files, and computes averages.
 """
+
 import os
 import re
 import sys
@@ -68,9 +69,7 @@ def parse_run_dir_name(run_dir_name: str) -> tuple[str, int]:
     try:
         job_id = int(job_id_str)
     except ValueError:
-        raise ValueError(
-            f"Invalid run directory name (job_id not an integer): {run_dir_name}"
-        )
+        raise ValueError(f"Invalid run directory name (job_id not an integer): {run_dir_name}")
 
     if not run_key:
         raise ValueError(f"Invalid run directory name (empty run_key): {run_dir_name}")
@@ -108,9 +107,7 @@ def filter_latest_runs(run_dirs: list[Path]) -> list[Path]:
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Extract token usage from codex runs and compute averages per method."
-    )
+    parser = argparse.ArgumentParser(description="Extract token usage from codex runs and compute averages per method.")
     parser.add_argument(
         "--results-dir",
         default=None,
@@ -129,8 +126,7 @@ def main():
     parser.add_argument(
         "--skip-incomplete",
         action="store_true",
-        help="Skip runs that don't have token usage info (incomplete runs). "
-        "By default, the script fails on such runs.",
+        help="Skip runs that don't have token usage info (incomplete runs). By default, the script fails on such runs.",
     )
     args = parser.parse_args()
 
@@ -205,8 +201,7 @@ def main():
 
         if not token_counts:
             raise RuntimeError(
-                f"No valid runs found in method {method_name} "
-                f"(all {skipped_count} runs were incomplete)"
+                f"No valid runs found in method {method_name} (all {skipped_count} runs were incomplete)"
             )
 
         results[method_name] = token_counts

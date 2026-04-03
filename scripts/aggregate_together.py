@@ -9,6 +9,7 @@ Output format:
 - Blank line
 - Next method...
 """
+
 import os
 import csv
 import argparse
@@ -20,6 +21,7 @@ METHOD_NAME_MAP = {
     "codex_gpt-5.2_final_v3": "gpt-5.2",
     "gemini_models_gemini-3-pro-preview_final_v3": "gemini-3-pro",
 }
+
 
 def get_results_dir():
     return os.environ.get("POST_TRAIN_BENCH_RESULTS_DIR", "results")
@@ -49,16 +51,15 @@ def load_csv_rows(csv_path: str) -> tuple[list, list]:
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(
-        description="Aggregate final CSVs into a single concatenated file."
-    )
+    parser = argparse.ArgumentParser(description="Aggregate final CSVs into a single concatenated file.")
     parser.add_argument(
         "methods",
         nargs="+",
         help="List of methods to include in the aggregation.",
     )
     parser.add_argument(
-        "-o", "--output",
+        "-o",
+        "--output",
         default=None,
         help="Output CSV filename. Default: summary_concat.csv in results dir.",
     )

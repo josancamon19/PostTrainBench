@@ -8,6 +8,7 @@ For each method's aggregated CSV, replaces values with baseline when:
 
 Baseline values come from aggregated_baseline.csv.
 """
+
 import os
 import csv
 import argparse
@@ -122,9 +123,7 @@ def process_method(method_name: str, baseline_data: dict, results_dir: str):
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(
-        description="Create final aggregated CSVs with baseline fallbacks."
-    )
+    parser = argparse.ArgumentParser(description="Create final aggregated CSVs with baseline fallbacks.")
     parser.add_argument(
         "--methods",
         nargs="*",

@@ -5,11 +5,13 @@ Aggregate results across multiple runs for each agent.
 Takes the outputs of aggregate_final.py (final_*.csv files) and combines
 them into average and standard deviation CSVs for each agent group.
 """
+
 import os
 import csv
 import math
 
 from constants import HARDCODED_AGENT_MAP, HARDCODED_BENCHMARKS
+
 
 def get_results_dir():
     return os.environ.get("POST_TRAIN_BENCH_RESULTS_DIR", "results")
@@ -65,10 +67,7 @@ def aggregate_runs(agent_name: str, method_names: list[str], results_dir: str):
         if all_models is None:
             all_models = models
         else:
-            assert all_models == models, (
-                f"Model mismatch for {method_name}: "
-                f"expected {all_models}, got {models}"
-            )
+            assert all_models == models, f"Model mismatch for {method_name}: expected {all_models}, got {models}"
 
         all_data.append(data)
 

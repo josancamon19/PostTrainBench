@@ -5,6 +5,7 @@ Compute averages and standard deviations for time taken across multiple runs.
 Reads from aggregated_time_overview.csv and computes statistics for each agent
 group defined in HARDCODED_AGENT_MAP.
 """
+
 import os
 import csv
 import math
@@ -88,12 +89,14 @@ def main():
         writer.writerow(["agent", "avg_time", "std_time", "n"])
         for agent_name in HARDCODED_AGENT_MAP.keys():
             data = aggregated_results[agent_name]
-            writer.writerow([
-                agent_name,
-                format_hours_to_time(data["avg_hours"]),
-                format_hours_to_time(data["std_hours"]),
-                data["n"],
-            ])
+            writer.writerow(
+                [
+                    agent_name,
+                    format_hours_to_time(data["avg_hours"]),
+                    format_hours_to_time(data["std_hours"]),
+                    data["n"],
+                ]
+            )
     print(f"Written: {output_path}")
 
 
