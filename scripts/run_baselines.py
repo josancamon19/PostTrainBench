@@ -20,7 +20,7 @@ import modal
 
 SRC_DIR = Path(__file__).parent.parent / "src"
 sys.path.insert(0, str(SRC_DIR))
-from constants import BENCHMARKS, BASE_SCORES, INSTRUCT_BASELINES
+from constants import BASE_SCORES, BENCHMARKS, INSTRUCT_BASELINES
 
 EVAL_MODELS = {
     "llama3.1-8b": {

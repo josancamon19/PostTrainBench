@@ -5,8 +5,6 @@ description: |
 
 datasets:
   - path: datasets/posttrainbench/gpu
-    task_names:
-      - "gsm8k-qwen3-1.7b"
 
 agents:
   - name: claude-code
@@ -20,7 +18,7 @@ environment:
 
 orchestrator:
   type: local
-  n_concurrent_trials: 1
+  n_concurrent_trials: 12
   quiet: false
 
 artifacts:

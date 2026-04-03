@@ -21,7 +21,7 @@ timeout_sec = 1800.0
 OPENAI_API_KEY = "${OPENAI_API_KEY}"
 
 [agent]
-timeout_sec = 36000.0
+timeout_sec = 1800.0
 
 [[artifacts]]
 source = "/app"
