@@ -48,18 +48,9 @@ def has_score(model_id: str, benchmark_id: str, model_type: str) -> bool:
     return (base_model_id, benchmark_id) in INSTRUCT_BASELINES
 
 
-def run_eval(model_key: str, model_type: str, benchmark_id: str, dry_run: bool = False) -> dict | None:
+def run_eval(model_key: str, model_type: str, benchmark_id: str) -> dict | None:
     model_id = EVAL_MODELS[model_key][model_type]
     label = f"{benchmark_id}/{model_id}"
-    base_id = EVAL_MODELS[model_key]["base"]
-
-    if has_score(base_id, benchmark_id, model_type):
-        print(f"  SKIP {label} (already have score)")
-        return None
-
-    if dry_run:
-        print(f"  WOULD RUN {label}")
-        return None
 
     print(f"  RUNNING {label}...")
 
@@ -100,18 +91,33 @@ def run_eval(model_key: str, model_type: str, benchmark_id: str, dry_run: bool =
         image = image.add_local_dir(str(templates), "/app/templates")
 
     # Build command
+    # max-connections tuned per model size for H100 throughput
     limit = "-1"
-    if benchmark_id in ("arenahardwriting", "healthbench"):
-        limit = "32"
+    conns = {"llama3.2-1b": 128, "llama3.2-3b": 64, "llama3.1-8b": 32}
+    max_conn = conns.get(model_key, 64)
+    sandbox_timeout = 7200
 
-    cmd = f"cd /app && python3 evaluate.py --model-path {model_id} --limit {limit} --json-output-file /tmp/metrics.json"
+    if benchmark_id == "bfcl":
+        limit = "400"  # match Tinker's BFCL_v3_simple subset size
+
+    if benchmark_id in ("arenahardwriting", "healthbench"):
+        # These scripts manage their own vLLM server, no inspect-ai args
+        # They need longer timeout for LLM judge calls
+        extra_args = ""
+        sandbox_timeout = 14400  # 4 hours
+    else:
+        # Fix: limit max_tokens for base models to avoid garbage overflow
+        extra_args = f"--gpu-memory-utilization 0.9 --max-connections {max_conn} --max-tokens 2048"
+
+    # Fix Python integer string conversion limit for base model garbage output
+    cmd = f"cd /app && python3 -X int_max_str_digits=0 evaluate.py --model-path {model_id} --limit {limit} {extra_args} --json-output-file /tmp/metrics.json"
 
     try:
         app = modal.App.lookup("posttrainbench-baselines", create_if_missing=True)
         sb = modal.Sandbox.create(
             image=image,
             gpu="H100",
-            timeout=3600,
+            timeout=sandbox_timeout,
             app=app,
         )
 
@@ -151,6 +157,7 @@ def main():
     parser.add_argument("--benchmark", type=str, default=None, help="Benchmark ID (e.g. gsm8k)")
     parser.add_argument("--type", type=str, default=None, choices=["base", "instruct"])
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--force", action="store_true", help="Re-run even if score already exists")
     parser.add_argument("--workers", type=int, default=3, help="Max concurrent Modal sandboxes")
     parser.add_argument("--output", type=str, default="scripts/baseline_results.json")
     args = parser.parse_args()
@@ -170,7 +177,7 @@ def main():
     for model_key, model_type, benchmark_id in jobs:
         model_id = EVAL_MODELS[model_key][model_type]
         base_id = EVAL_MODELS[model_key]["base"]
-        if has_score(base_id, benchmark_id, model_type):
+        if not args.force and has_score(base_id, benchmark_id, model_type):
             print(f"  SKIP {benchmark_id}/{model_id} (already have score)")
         else:
             actual_jobs.append((model_key, model_type, benchmark_id))

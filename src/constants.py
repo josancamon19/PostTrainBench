@@ -144,3 +144,32 @@ BASE_SCORES: dict[tuple[str, str], float] = {
     ("meta-llama/Llama-3.2-1B", "arenahardwriting"): 0.014,
     ("meta-llama/Llama-3.2-1B", "healthbench"): 0.058,
 }
+
+# Base model scores (measured via GPU/vLLM evaluation, temp=0.6 from model generation_config).
+# For comparison with Tinker scores (temp=0.0) above.
+BASE_SCORES_GPU: dict[tuple[str, str], float] = {
+    # Llama-3.1-8B
+    ("meta-llama/Llama-3.1-8B", "gsm8k"): 0.041,
+    ("meta-llama/Llama-3.1-8B", "humaneval"): 0.091,
+    ("meta-llama/Llama-3.1-8B", "aime2025"): 0.0,
+    ("meta-llama/Llama-3.1-8B", "gpqamain"): 0.062,
+    ("meta-llama/Llama-3.1-8B", "bfcl"): 0.288,
+    ("meta-llama/Llama-3.1-8B", "arenahardwriting"): 0.0,
+    ("meta-llama/Llama-3.1-8B", "healthbench"): 0.196,
+    # Llama-3.2-3B
+    ("meta-llama/Llama-3.2-3B", "gsm8k"): 0.040,
+    ("meta-llama/Llama-3.2-3B", "humaneval"): 0.213,
+    ("meta-llama/Llama-3.2-3B", "aime2025"): 0.0,
+    ("meta-llama/Llama-3.2-3B", "gpqamain"): 0.004,
+    ("meta-llama/Llama-3.2-3B", "bfcl"): 0.238,
+    ("meta-llama/Llama-3.2-3B", "arenahardwriting"): 0.001,
+    ("meta-llama/Llama-3.2-3B", "healthbench"): 0.149,
+    # Llama-3.2-1B
+    ("meta-llama/Llama-3.2-1B", "gsm8k"): 0.021,
+    ("meta-llama/Llama-3.2-1B", "humaneval"): 0.085,
+    ("meta-llama/Llama-3.2-1B", "aime2025"): 0.0,
+    ("meta-llama/Llama-3.2-1B", "gpqamain"): 0.0,
+    ("meta-llama/Llama-3.2-1B", "bfcl"): 0.273,
+    ("meta-llama/Llama-3.2-1B", "arenahardwriting"): 0.0,
+    ("meta-llama/Llama-3.2-1B", "healthbench"): 0.059,
+}
