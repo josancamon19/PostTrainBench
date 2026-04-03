@@ -87,19 +87,30 @@ TINKER_MODELS = {
 # Keys: (model_id, benchmark_id) -> score as float (0-1 scale).
 # Only includes pairs with official published numbers.
 INSTRUCT_BASELINES: dict[tuple[str, str], float] = {
-    # Llama-3.1-8B-Instruct (Meta official)
+    # Llama-3.1-8B-Instruct
     ("meta-llama/Llama-3.1-8B", "gsm8k"): 0.845,
     ("meta-llama/Llama-3.1-8B", "humaneval"): 0.726,
+    ("meta-llama/Llama-3.1-8B", "aime2025"): 0.0,
     ("meta-llama/Llama-3.1-8B", "gpqamain"): 0.304,
     ("meta-llama/Llama-3.1-8B", "bfcl"): 0.761,
-    # Llama-3.2-3B-Instruct (Meta official)
+    ("meta-llama/Llama-3.1-8B", "arenahardwriting"): 0.507,
+    ("meta-llama/Llama-3.1-8B", "healthbench"): 0.234,
+    # Llama-3.2-3B-Instruct
     ("meta-llama/Llama-3.2-3B", "gsm8k"): 0.777,
+    ("meta-llama/Llama-3.2-3B", "humaneval"): 0.506,
+    ("meta-llama/Llama-3.2-3B", "aime2025"): 0.0,
     ("meta-llama/Llama-3.2-3B", "gpqamain"): 0.328,
     ("meta-llama/Llama-3.2-3B", "bfcl"): 0.670,
-    # Llama-3.2-1B-Instruct (Meta official)
+    ("meta-llama/Llama-3.2-3B", "arenahardwriting"): 0.433,
+    ("meta-llama/Llama-3.2-3B", "healthbench"): 0.256,
+    # Llama-3.2-1B-Instruct
     ("meta-llama/Llama-3.2-1B", "gsm8k"): 0.444,
+    ("meta-llama/Llama-3.2-1B", "humaneval"): 0.348,
+    ("meta-llama/Llama-3.2-1B", "aime2025"): 0.0,
     ("meta-llama/Llama-3.2-1B", "gpqamain"): 0.272,
     ("meta-llama/Llama-3.2-1B", "bfcl"): 0.257,
+    ("meta-llama/Llama-3.2-1B", "arenahardwriting"): 0.200,
+    ("meta-llama/Llama-3.2-1B", "healthbench"): 0.129,
 }
 
 # Base model scores (measured via Tinker evaluation).

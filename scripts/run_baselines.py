@@ -70,19 +70,34 @@ def run_eval(model_key: str, model_type: str, benchmark_id: str, dry_run: bool =
         return None
 
     # Build the image with task files baked in
-    image = modal.Image.from_registry(BASE_IMAGE).copy_local_file(
-        str(eval_script), "/app/evaluate.py"
-    )
+    image = modal.Image.from_registry(BASE_IMAGE)
+
+    # HF_TOKEN for gated models
+    hf_token = os.environ.get("HF_TOKEN", "")
+    env_vars = {}
+    if hf_token:
+        env_vars["HF_TOKEN"] = hf_token
+
+    # OPENAI_API_KEY for judge-based benchmarks
+    if benchmark_id in ("arenahardwriting", "healthbench"):
+        openai_key = os.environ.get("OPENAI_API_KEY", "")
+        if openai_key:
+            env_vars["OPENAI_API_KEY"] = openai_key
+
+    if env_vars:
+        image = image.env(env_vars)
+
+    image = image.add_local_file(str(eval_script), "/app/evaluate.py")
 
     # Copy evaluation_code if exists
     eval_code = task_dir / "evaluation_code"
     if eval_code.is_dir():
-        image = image.copy_local_dir(str(eval_code), "/app/evaluation_code")
+        image = image.add_local_dir(str(eval_code), "/app/evaluation_code")
 
     # Copy templates
     templates = SRC_DIR / "harbor_template" / "environment" / "templates"
     if templates.is_dir():
-        image = image.copy_local_dir(str(templates), "/app/templates")
+        image = image.add_local_dir(str(templates), "/app/templates")
 
     # Build command
     limit = "-1"
@@ -90,13 +105,6 @@ def run_eval(model_key: str, model_type: str, benchmark_id: str, dry_run: bool =
         limit = "32"
 
     cmd = f"cd /app && python3 evaluate.py --model-path {model_id} --limit {limit} --json-output-file /tmp/metrics.json"
-
-    # Add env vars
-    secrets = []
-    if benchmark_id in ("arenahardwriting", "healthbench"):
-        openai_key = os.environ.get("OPENAI_API_KEY", "")
-        if openai_key:
-            image = image.env({"OPENAI_API_KEY": openai_key})
 
     try:
         app = modal.App.lookup("posttrainbench-baselines", create_if_missing=True)
@@ -143,6 +151,7 @@ def main():
     parser.add_argument("--benchmark", type=str, default=None, help="Benchmark ID (e.g. gsm8k)")
     parser.add_argument("--type", type=str, default=None, choices=["base", "instruct"])
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--workers", type=int, default=3, help="Max concurrent Modal sandboxes")
     parser.add_argument("--output", type=str, default="scripts/baseline_results.json")
     args = parser.parse_args()
 
@@ -156,13 +165,39 @@ def main():
             for benchmark_id in benchmarks:
                 jobs.append((model_key, model_type, benchmark_id))
 
-    print(f"Running {len(jobs)} evaluations (dry_run={args.dry_run})...\n")
+    # Filter out skips before parallelizing
+    actual_jobs = []
+    for model_key, model_type, benchmark_id in jobs:
+        model_id = EVAL_MODELS[model_key][model_type]
+        base_id = EVAL_MODELS[model_key]["base"]
+        if has_score(base_id, benchmark_id, model_type):
+            print(f"  SKIP {benchmark_id}/{model_id} (already have score)")
+        else:
+            actual_jobs.append((model_key, model_type, benchmark_id))
+
+    print(f"\nRunning {len(actual_jobs)} evaluations (dry_run={args.dry_run}, workers={args.workers})...\n")
 
     results = []
-    for model_key, model_type, benchmark_id in jobs:
-        result = run_eval(model_key, model_type, benchmark_id, args.dry_run)
-        if result:
-            results.append(result)
+    if args.dry_run:
+        for model_key, model_type, benchmark_id in actual_jobs:
+            model_id = EVAL_MODELS[model_key][model_type]
+            print(f"  WOULD RUN {benchmark_id}/{model_id}")
+    elif args.workers <= 1:
+        for model_key, model_type, benchmark_id in actual_jobs:
+            result = run_eval(model_key, model_type, benchmark_id)
+            if result:
+                results.append(result)
+    else:
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+        with ThreadPoolExecutor(max_workers=args.workers) as executor:
+            futures = {
+                executor.submit(run_eval, mk, mt, bid): (mk, mt, bid)
+                for mk, mt, bid in actual_jobs
+            }
+            for future in as_completed(futures):
+                result = future.result()
+                if result:
+                    results.append(result)
 
     if results:
         output_path = Path(args.output)
