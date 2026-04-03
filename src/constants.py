@@ -94,7 +94,7 @@ INSTRUCT_BASELINES: dict[tuple[str, str], float] = {
     # Llama-3.1-8B-Instruct
     ("meta-llama/Llama-3.1-8B", "gsm8k"): 0.845,
     ("meta-llama/Llama-3.1-8B", "humaneval"): 0.726,
-    ("meta-llama/Llama-3.1-8B", "aime2025"): 0.0,
+    # ("meta-llama/Llama-3.1-8B", "aime2025"): 0.0,
     ("meta-llama/Llama-3.1-8B", "gpqamain"): 0.304,
     ("meta-llama/Llama-3.1-8B", "bfcl"): 0.761,
     ("meta-llama/Llama-3.1-8B", "arenahardwriting"): 0.507,
@@ -102,7 +102,7 @@ INSTRUCT_BASELINES: dict[tuple[str, str], float] = {
     # Llama-3.2-3B-Instruct
     ("meta-llama/Llama-3.2-3B", "gsm8k"): 0.777,
     ("meta-llama/Llama-3.2-3B", "humaneval"): 0.506,
-    ("meta-llama/Llama-3.2-3B", "aime2025"): 0.0,
+    # ("meta-llama/Llama-3.2-3B", "aime2025"): 0.0,
     ("meta-llama/Llama-3.2-3B", "gpqamain"): 0.328,
     ("meta-llama/Llama-3.2-3B", "bfcl"): 0.670,
     ("meta-llama/Llama-3.2-3B", "arenahardwriting"): 0.433,
@@ -110,7 +110,7 @@ INSTRUCT_BASELINES: dict[tuple[str, str], float] = {
     # Llama-3.2-1B-Instruct
     ("meta-llama/Llama-3.2-1B", "gsm8k"): 0.444,
     ("meta-llama/Llama-3.2-1B", "humaneval"): 0.348,
-    ("meta-llama/Llama-3.2-1B", "aime2025"): 0.0,
+    # ("meta-llama/Llama-3.2-1B", "aime2025"): 0.0,
     ("meta-llama/Llama-3.2-1B", "gpqamain"): 0.272,
     ("meta-llama/Llama-3.2-1B", "bfcl"): 0.257,
     ("meta-llama/Llama-3.2-1B", "arenahardwriting"): 0.200,
@@ -122,7 +122,7 @@ BASE_SCORES: dict[tuple[str, str], float] = {
     # Llama-3.1-8B
     ("meta-llama/Llama-3.1-8B", "gsm8k"): 0.033,
     ("meta-llama/Llama-3.1-8B", "humaneval"): 0.220,
-    ("meta-llama/Llama-3.1-8B", "aime2025"): 0.0,
+    # ("meta-llama/Llama-3.1-8B", "aime2025"): 0.0,
     ("meta-llama/Llama-3.1-8B", "gpqamain"): 0.172,
     ("meta-llama/Llama-3.1-8B", "bfcl"): 0.655,
     ("meta-llama/Llama-3.1-8B", "arenahardwriting"): 0.017,
@@ -130,7 +130,7 @@ BASE_SCORES: dict[tuple[str, str], float] = {
     # Llama-3.2-3B
     ("meta-llama/Llama-3.2-3B", "gsm8k"): 0.058,
     ("meta-llama/Llama-3.2-3B", "humaneval"): 0.006,
-    ("meta-llama/Llama-3.2-3B", "aime2025"): 0.0,
+    # ("meta-llama/Llama-3.2-3B", "aime2025"): 0.0,
     ("meta-llama/Llama-3.2-3B", "gpqamain"): 0.237,
     ("meta-llama/Llama-3.2-3B", "bfcl"): 0.685,
     ("meta-llama/Llama-3.2-3B", "arenahardwriting"): 0.004,
@@ -138,7 +138,7 @@ BASE_SCORES: dict[tuple[str, str], float] = {
     # Llama-3.2-1B
     ("meta-llama/Llama-3.2-1B", "gsm8k"): 0.037,
     ("meta-llama/Llama-3.2-1B", "humaneval"): 0.0,
-    ("meta-llama/Llama-3.2-1B", "aime2025"): 0.0,
+    # ("meta-llama/Llama-3.2-1B", "aime2025"): 0.0,
     ("meta-llama/Llama-3.2-1B", "gpqamain"): 0.114,
     ("meta-llama/Llama-3.2-1B", "bfcl"): 0.142,
     ("meta-llama/Llama-3.2-1B", "arenahardwriting"): 0.014,
@@ -151,7 +151,7 @@ BASE_SCORES_GPU: dict[tuple[str, str], float] = {
     # Llama-3.1-8B
     ("meta-llama/Llama-3.1-8B", "gsm8k"): 0.041,
     ("meta-llama/Llama-3.1-8B", "humaneval"): 0.091,
-    ("meta-llama/Llama-3.1-8B", "aime2025"): 0.0,
+    # ("meta-llama/Llama-3.1-8B", "aime2025"): 0.0,
     ("meta-llama/Llama-3.1-8B", "gpqamain"): 0.062,
     ("meta-llama/Llama-3.1-8B", "bfcl"): 0.288,
     ("meta-llama/Llama-3.1-8B", "arenahardwriting"): 0.0,
@@ -159,7 +159,7 @@ BASE_SCORES_GPU: dict[tuple[str, str], float] = {
     # Llama-3.2-3B
     ("meta-llama/Llama-3.2-3B", "gsm8k"): 0.040,
     ("meta-llama/Llama-3.2-3B", "humaneval"): 0.213,
-    ("meta-llama/Llama-3.2-3B", "aime2025"): 0.0,
+    # ("meta-llama/Llama-3.2-3B", "aime2025"): 0.0,
     ("meta-llama/Llama-3.2-3B", "gpqamain"): 0.004,
     ("meta-llama/Llama-3.2-3B", "bfcl"): 0.238,
     ("meta-llama/Llama-3.2-3B", "arenahardwriting"): 0.001,
@@ -167,7 +167,7 @@ BASE_SCORES_GPU: dict[tuple[str, str], float] = {
     # Llama-3.2-1B
     ("meta-llama/Llama-3.2-1B", "gsm8k"): 0.021,
     ("meta-llama/Llama-3.2-1B", "humaneval"): 0.085,
-    ("meta-llama/Llama-3.2-1B", "aime2025"): 0.0,
+    # ("meta-llama/Llama-3.2-1B", "aime2025"): 0.0,
     ("meta-llama/Llama-3.2-1B", "gpqamain"): 0.0,
     ("meta-llama/Llama-3.2-1B", "bfcl"): 0.273,
     ("meta-llama/Llama-3.2-1B", "arenahardwriting"): 0.0,
