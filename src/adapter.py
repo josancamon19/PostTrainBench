@@ -3,112 +3,32 @@
 import contextlib
 import json
 import shutil
-from dataclasses import dataclass
 from pathlib import Path
 
 import chz
 
-TEMPLATE_DIR = Path(__file__).parent / "harbor_template"
-SRC_DIR = Path(__file__).parent
-
-CLAUDE_CLAUSE = (
-    "\nYou are running in a non-interactive mode. "
-    "So make sure every process you are running finishes before you write your last message.\n"
+from constants import (
+    BASE_SCORES,
+    BENCHMARKS,
+    INSTRUCT_BASELINES,
+    MODELS,
+    TINKER_MODELS,
+    BenchmarkInfo,
+    ModelInfo,
 )
 
-
-@dataclass
-class BenchmarkInfo:
-    task_id: str
-    benchmark_name: str
-    setup_note: str = ""
-
-
-@dataclass
-class ModelInfo:
-    model_id: str
-    short_name: str
-
-
-BENCHMARKS = {
-    "gsm8k": BenchmarkInfo(
-        task_id="gsm8k",
-        benchmark_name="GSM8K (Grade School Math 8K)",
-        setup_note="- A final note: the evaluate.py script sometimes outputs ERROR warnings. "
-        "Do not be alarmed by this, this is normal behavior for inspect-ai. "
-        "Also if you run into issues with the evaluate.py script, this is likely "
-        "due to memory constraints on the GPU. In this case please decrease "
-        "--max-connections or --max-tokens.\n",
-    ),
-    "humaneval": BenchmarkInfo(
-        task_id="humaneval",
-        benchmark_name="HumanEval",
-        setup_note="- A final note: the evaluate.py script sometimes outputs ERROR warnings. "
-        "Do not be alarmed by this, this is normal behavior for inspect-ai.\n",
-    ),
-    "aime2025": BenchmarkInfo(
-        task_id="aime2025",
-        benchmark_name="AIME 2025",
-        setup_note="- A final note: the evaluate.py script sometimes outputs ERROR warnings. "
-        "Do not be alarmed by this, this is normal behavior for inspect-ai.\n",
-    ),
-    "gpqamain": BenchmarkInfo(
-        task_id="gpqamain",
-        benchmark_name="GPQA",
-        setup_note="- A final note: the evaluate.py script sometimes outputs ERROR warnings. "
-        "Do not be alarmed by this, this is normal behavior for inspect-ai.\n",
-    ),
-    "bfcl": BenchmarkInfo(
-        task_id="bfcl",
-        benchmark_name="Berkeley Function Calling Leaderboard",
-        setup_note="- A final note: the evaluate.py script sometimes outputs ERROR warnings. "
-        "Do not be alarmed by this, this is normal behavior for inspect-ai.\n",
-    ),
-    "arenahardwriting": BenchmarkInfo(
-        task_id="arenahardwriting",
-        benchmark_name="Arena-Hard-v2.0 (Writing)",
-        setup_note="",
-    ),
-    "healthbench": BenchmarkInfo(
-        task_id="healthbench",
-        benchmark_name="HealthBench",
-        setup_note="",
-    ),
-}
-
-MODELS = {
-    "qwen3-1.7b": ModelInfo(model_id="Qwen/Qwen3-1.7B-Base", short_name="qwen3-1.7b"),
-    "qwen3-4b": ModelInfo(model_id="Qwen/Qwen3-4B-Base", short_name="qwen3-4b"),
-    "smollm3-3b": ModelInfo(model_id="HuggingFaceTB/SmolLM3-3B-Base", short_name="smollm3-3b"),
-    "gemma3-4b": ModelInfo(model_id="google/gemma-3-4b-pt", short_name="gemma3-4b"),
-}
-
-# Models available on Tinker (subset that Tinker API supports)
-# GSM8K reference scores (instruct version, 8-shot CoT): target after post-training
-TINKER_MODELS = {
-    # "qwen3-4b-instruct": ModelInfo(
-    #     model_id="Qwen/Qwen3-4B-Instruct-2507", short_name="qwen3-4b-instruct"
-    # ),  # Instruction, Dense — GSM8K: 82.2% (already instruct)
-    "llama3.1-8b": ModelInfo(
-        model_id="meta-llama/Llama-3.1-8B", short_name="llama3.1-8b"
-    ),  # Base, Dense — base: 3.1%, instruct ref: 84.5%
-    "llama3.2-3b": ModelInfo(
-        model_id="meta-llama/Llama-3.2-3B", short_name="llama3.2-3b"
-    ),  # Base, Dense — base: 6.1%, instruct ref: 77.7%
-    "llama3.2-1b": ModelInfo(
-        model_id="meta-llama/Llama-3.2-1B", short_name="llama3.2-1b"
-    ),  # Base, Dense — base: 3.6%, instruct ref: 44.4%
-}
+TEMPLATE_DIR = Path(__file__).parent / "harbor_template"
+SRC_DIR = Path(__file__).parent
 
 
 class PostTrainBenchAdapter:
     """Adapter to generate Harbor tasks from PostTrainBench configuration."""
 
-    def __init__(self, output_dir: Path, num_hours: float = 10, include_claude_clause: bool = True, mode: str = "gpu"):
+    def __init__(self, output_dir: Path, num_hours: float = 10, mode: str = "gpu", include_target: bool = False):
         self.output_dir = Path(output_dir)
         self.num_hours = num_hours
-        self.include_claude_clause = include_claude_clause
         self.mode = mode  # "gpu" (default) or "tinker"
+        self.include_target = include_target
 
     def _read_benchmark_name(self, benchmark_id: str) -> str:
         bench_file = SRC_DIR / "tasks" / benchmark_id / "benchmark.txt"
@@ -170,8 +90,15 @@ class PostTrainBenchAdapter:
             )
         else:
             content = content.replace("{openai_restriction}", "")
-        if self.include_claude_clause:
-            content += CLAUDE_CLAUSE
+
+        # Add target score inline if available and enabled
+        target = INSTRUCT_BASELINES.get((model_info.model_id, benchmark_id))
+        if self.include_target and target is not None:
+            target_pct = f"{target * 100:.1f}%"
+            content = content.replace("{target_line}", f" Aim for at least **{target_pct}**. Keep iterating until you reach it or run out of time.")
+        else:
+            content = content.replace("{target_line}", "")
+
         (task_dir / "instruction.md").write_text(content)
 
     def _read_agent_timeout_sec(self) -> int:
@@ -268,6 +195,8 @@ fi
 
         self.generate_timer_sh(env_dir)
 
+        target = INSTRUCT_BASELINES.get((model_info.model_id, benchmark_id))
+        base = BASE_SCORES.get((model_info.model_id, benchmark_id))
         metadata = {
             "benchmark_id": benchmark_id,
             "benchmark_name": benchmark_info.benchmark_name,
@@ -276,6 +205,10 @@ fi
             "num_hours": self.num_hours,
             "mode": self.mode,
         }
+        if target is not None:
+            metadata["target_score"] = target
+        if base is not None:
+            metadata["base_score"] = base
         (env_dir / "metadata.json").write_text(json.dumps(metadata, indent=2))
 
     def generate_tests(self, task_dir: Path, benchmark_id: str) -> None:
@@ -367,7 +300,9 @@ fi
         tasks = []
         models = self._models
         for benchmark_id in self._benchmarks_for_mode():
-            for model_key in models:
+            for model_key, model_info in models.items():
+                if self.include_target and (model_info.model_id, benchmark_id) not in INSTRUCT_BASELINES:
+                    continue
                 tasks.append(self.generate_task(benchmark_id, model_key))
         return tasks
 
@@ -392,7 +327,8 @@ def generate(
     num_hours: float | None = None,
     all: bool = False,
     list: bool = False,
-    mode: str = "gpu",
+    mode: str = "all",
+    include_target: bool = True,
 ) -> None:
     """Generate Harbor tasks for PostTrainBench.
 
@@ -400,44 +336,57 @@ def generate(
         benchmark: Benchmark to generate (e.g. gsm8k, humaneval, aime2025).
         model: Base model to generate (e.g. qwen3-1.7b, smollm3-3b).
         output: Output directory for generated tasks.
-        num_hours: Number of hours for the training task. Defaults to 10 for gpu mode, 0.5 for tinker mode.
+        num_hours: Number of hours for the training task. Defaults to 10 for gpu mode, 1 for tinker mode.
         all: Generate tasks for all benchmark + model combinations.
         list: List available benchmarks and models.
-        mode: Export mode: "gpu" (default, local GPU training) or "tinker" (Tinker API training).
+        mode: Export mode: "gpu", "tinker", or "all" (default, exports both).
+        include_target: Include instruct baseline target score in the instruction (tinker mode only).
     """
+    modes = ["tinker", "gpu"] if mode == "all" else [mode]
+
     if list:
-        models = TINKER_MODELS if mode == "tinker" else MODELS
-        print(f"Mode: {mode}")
-        print("\nAvailable benchmarks:")
-        for bm_id, bm_info in BENCHMARKS.items():
-            print(f"  {bm_id}: {bm_info.benchmark_name}")
-        print("\nAvailable models:")
-        for model_key, model_info in models.items():
-            print(f"  {model_key}: {model_info.model_id}")
-        print("\nAvailable task combinations:")
-        for task_id in list_available_tasks(mode):
-            print(f"  {task_id}")
+        for m in modes:
+            models = TINKER_MODELS if m == "tinker" else MODELS
+            print(f"Mode: {m}")
+            print("\nAvailable benchmarks:")
+            for bm_id, bm_info in BENCHMARKS.items():
+                print(f"  {bm_id}: {bm_info.benchmark_name}")
+            print("\nAvailable models:")
+            for model_key, model_info in models.items():
+                print(f"  {model_key}: {model_info.model_id}")
+            print("\nAvailable task combinations:")
+            for task_id in list_available_tasks(m):
+                print(f"  {task_id}")
+            print()
         return
 
-    if num_hours is None:
-        num_hours = 1 if mode == "tinker" else 10
-    adapter = PostTrainBenchAdapter(output_dir=output, num_hours=num_hours, mode=mode)
+    total_tasks = []
+    for m in modes:
+        mode_output = output / m
+        hours = num_hours if num_hours is not None else (1 if m == "tinker" else 10)
+        adapter = PostTrainBenchAdapter(output_dir=mode_output, num_hours=hours, mode=m, include_target=include_target)
 
-    if all:
-        print(f"Generating all tasks to {output}/...")
-        tasks = adapter.generate_all_tasks()
-        print(f"\nGenerated {len(tasks)} tasks.")
+        if all:
+            print(f"Generating {m} tasks to {mode_output}/...")
+            tasks = adapter.generate_all_tasks()
+            total_tasks.extend(tasks)
+            print(f"  Generated {len(tasks)} {m} tasks.")
+        else:
+            if not benchmark or not model:
+                print("Either all=true or both benchmark=X and model=Y are required")
+                return
+            task_dir = adapter.generate_task(benchmark, model)
+            total_tasks.append(task_dir)
+
+    if all and total_tasks:
+        print(f"\nTotal: {len(total_tasks)} tasks.")
         print("\nTo run a task with Harbor:")
-        print(f"  harbor run --path {tasks[0]} --agent claude-code --model anthropic/claude-sonnet-4 --env modal")
+        print(f"  harbor run --path {total_tasks[0]} --agent claude-code --model anthropic/claude-sonnet-4 --env modal")
         return
 
-    if not benchmark or not model:
-        print("Either all=true or both benchmark=X and model=Y are required")
-        return
-
-    task_dir = adapter.generate_task(benchmark, model)
-    print("\nTo run this task with Harbor:")
-    print(f"  harbor run --path {task_dir} --agent claude-code --model anthropic/claude-sonnet-4 --env modal")
+    if not all and total_tasks:
+        print("\nTo run this task with Harbor:")
+        print(f"  harbor run --path {total_tasks[0]} --agent claude-code --model anthropic/claude-sonnet-4 --env modal")
 
 
 if __name__ == "__main__":

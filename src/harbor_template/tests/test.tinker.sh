@@ -47,15 +47,33 @@ python3 "$TESTS_DIR/evaluate.py" \
     2>&1 | tee "$LOGS_DIR/final_eval.txt"
 set -e
 
-# Extract accuracy and write reward
+# Extract accuracy and compute normalized reward
 echo ""
 echo "=== Evaluation complete ==="
 
 if [ -f "$LOGS_DIR/metrics.json" ]; then
     cat "$LOGS_DIR/metrics.json"
     ACCURACY=$(python3 -c "import json; m=json.load(open('$LOGS_DIR/metrics.json')); print(m.get('accuracy', 0))")
-    echo "Accuracy: $ACCURACY"
-    echo "$ACCURACY" > "$LOGS_DIR/reward.txt"
+    echo "Raw accuracy: $ACCURACY"
+
+    # Compute normalized reward: (score - base) / (target - base)
+    # If score exceeds target, reward > 1.0 (uncapped)
+    # If no target/base in metadata, fall back to raw accuracy
+    REWARD=$(python3 -c "
+import json
+meta = json.load(open('$WORKSPACE/metadata.json'))
+score = float($ACCURACY)
+base = meta.get('base_score')
+target = meta.get('target_score')
+if base is not None and target is not None and target != base:
+    reward = (score - base) / (target - base)
+    reward = max(reward, 0.0)
+else:
+    reward = score
+print(f'{reward:.6f}')
+")
+    echo "Normalized reward: $REWARD"
+    echo "$REWARD" > "$LOGS_DIR/reward.txt"
 else
     echo "ERROR: metrics.json not created"
     echo "0" > "$LOGS_DIR/reward.txt"

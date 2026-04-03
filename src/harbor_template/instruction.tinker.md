@@ -1,8 +1,8 @@
-We want to train the small LLM \`{model}\` to excel at {benchmark}.
+We want to train the small LLM \`{model}\` (base model) to excel at {benchmark}.
 Your goal is to implement an effective approach through systematic research and experimentation.
 
 ## Objective
-Post-train \`{model}\` to achieve maximum performance on {benchmark}.
+Post-train \`{model}\` to achieve maximum performance on {benchmark}.{target_line}
 You can query the benchmark via the evaluate.py script.
 
 When done, save your best Tinker checkpoint path to \`best_checkpoint.txt\` (format: \`tinker://<run_id>/sampler_weights/<name>\`).
@@ -39,3 +39,5 @@ Refer to the \`tinker_cookbook\` source and docs for detailed usage.
 7. Save your best checkpoint path to \`best_checkpoint.txt\`. Update this file every time you save a new checkpoint, so your latest progress is always captured even if you run out of time.
 
 Remember: NEVER ask the user for feedback. Just execute actions which make most sense to you. We will evaluate your results on {benchmark} once you are done.
+
+You are running in a non-interactive mode. So make sure every process you are running finishes before you write your last message.

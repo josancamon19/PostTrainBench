@@ -24,11 +24,17 @@ This adapter generates [Harbor](https://harborframework.com)-compatible tasks fo
 | llama3.2-3b | meta-llama/Llama-3.2-3B | Base | 5.8% | 0.6% | 0.0% | 23.7% | 96.0% | 0.4% | 14.0% |
 | llama3.2-1b | meta-llama/Llama-3.2-1B | Base | 3.7% | 0.0% | 0.0% | 11.4% | 22.5% | 1.4% | 5.8% |
 
-#### Reference scores (Tinker instruct models, for context)
+#### Target reference scores (official instruct versions of the same models)
 
-| Key | Model ID | Type | GSM8K | HumanEval | AIME 2025 | GPQA | BFCL | Arena-Hard | HealthBench |
-|-----|----------|------|-------|-----------|-----------|------|------|------------|-------------|
-| qwen3-4b-instruct | Qwen/Qwen3-4B-Instruct-2507 | Instruct | 82.5% | 83.5% | 16.7% | 46.2% | - | 93.2% | 55.0% |
+These are the scores Meta achieved with full post-training. They represent the upper bound of what's achievable.
+
+| Model | GSM8K | HumanEval | AIME 2025 | GPQA | BFCL | Arena-Hard | HealthBench |
+|-------|-------|-----------|-----------|------|------|------------|-------------|
+| Llama-3.1-8B-Instruct | 84.5% | 72.6% | - | 30.4% | 76.1% | 18.3% | - |
+| Llama-3.2-3B-Instruct | 77.7% | - | - | 32.8% | 67.0% | - | - |
+| Llama-3.2-1B-Instruct | 44.4% | - | - | 27.2% | 25.7% | - | - |
+
+Sources: Meta official model cards. BFCL: v1 for 8B, v2 for 3B/1B. Arena-Hard: v0.1 style-controlled winrate (LMSYS).
 
 ### GPU Mode (local vLLM, H100 required)
 
