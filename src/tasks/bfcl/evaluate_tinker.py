@@ -27,52 +27,61 @@ SYSTEM = (
 
 
 def prepare_dataset(limit: int | None = None):
-    """Load BFCL simple function calling subset with ground truth answers."""
-    from huggingface_hub import hf_hub_download
+    """Load full BFCL v3 dataset (all subsets with ground truth answers)."""
+    from huggingface_hub import hf_hub_download, HfApi
 
-    # Load questions and ground truth separately (BFCL stores them in different files)
-    q_path = hf_hub_download(
-        repo_id="gorilla-llm/Berkeley-Function-Calling-Leaderboard",
-        filename="BFCL_v3_simple.json",
-        repo_type="dataset",
+    api = HfApi()
+    all_files = api.list_repo_files("gorilla-llm/Berkeley-Function-Calling-Leaderboard", repo_type="dataset")
+    # Find all BFCL_v3 files that have corresponding ground truth
+    q_files = sorted(
+        f for f in all_files
+        if f.startswith("BFCL_v3") and "possible_answer" not in f and f"possible_answer/{f}" in all_files
     )
-    gt_path = hf_hub_download(
-        repo_id="gorilla-llm/Berkeley-Function-Calling-Leaderboard",
-        filename="possible_answer/BFCL_v3_simple.json",
-        repo_type="dataset",
-    )
-    with open(q_path) as f:
-        questions = {r["id"]: r for r in (json.loads(line) for line in f)}
-    with open(gt_path) as f:
-        answers = {r["id"]: r for r in (json.loads(line) for line in f)}
 
     examples = []
-    for qid, row in questions.items():
-        gt = answers.get(qid)
-        if not gt:
-            continue
-        question = row.get("question", [])
-        functions = row.get("function", [])
-        ground_truth = gt.get("ground_truth", [])
-        if not question or not functions or not ground_truth:
-            continue
-
-        func_schemas = (
-            json.dumps(functions, indent=2) if isinstance(functions, list) else json.dumps([functions], indent=2)
+    for q_file in q_files:
+        q_path = hf_hub_download(
+            repo_id="gorilla-llm/Berkeley-Function-Calling-Leaderboard",
+            filename=q_file,
+            repo_type="dataset",
         )
-        # question is list[list[dict]] — e.g. [[{"role": "user", "content": "..."}]]
-        q = question[0] if isinstance(question, list) else question
-        if isinstance(q, list):
-            q = q[0]
-        user_msg = q["content"] if isinstance(q, dict) else str(q)
-
-        examples.append(
-            {
-                "user_message": user_msg,
-                "function_schemas": func_schemas,
-                "ground_truth": ground_truth,
-            }
+        gt_path = hf_hub_download(
+            repo_id="gorilla-llm/Berkeley-Function-Calling-Leaderboard",
+            filename=f"possible_answer/{q_file}",
+            repo_type="dataset",
         )
+        with open(q_path) as f:
+            questions = {r["id"]: r for r in (json.loads(line) for line in f)}
+        with open(gt_path) as f:
+            answers = {r["id"]: r for r in (json.loads(line) for line in f)}
+
+        for qid, row in questions.items():
+            gt = answers.get(qid)
+            if not gt:
+                continue
+            question = row.get("question", [])
+            functions = row.get("function", [])
+            ground_truth = gt.get("ground_truth", [])
+            if not question or not functions or not ground_truth:
+                continue
+
+            func_schemas = (
+                json.dumps(functions, indent=2) if isinstance(functions, list) else json.dumps([functions], indent=2)
+            )
+            q = question[0] if isinstance(question, list) else question
+            if isinstance(q, list):
+                q = q[0]
+            user_msg = q["content"] if isinstance(q, dict) else str(q)
+
+            examples.append(
+                {
+                    "user_message": user_msg,
+                    "function_schemas": func_schemas,
+                    "ground_truth": ground_truth,
+                }
+            )
+
+    print(f"[data] Loaded {len(examples)} BFCL examples from {len(q_files)} subsets")
     if limit:
         examples = examples[:limit]
     return examples

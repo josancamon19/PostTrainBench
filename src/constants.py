@@ -124,7 +124,7 @@ BASE_SCORES: dict[tuple[str, str], float] = {
     ("meta-llama/Llama-3.1-8B", "humaneval"): 0.220,
     ("meta-llama/Llama-3.1-8B", "aime2025"): 0.0,
     ("meta-llama/Llama-3.1-8B", "gpqamain"): 0.172,
-    ("meta-llama/Llama-3.1-8B", "bfcl"): 0.783,
+    ("meta-llama/Llama-3.1-8B", "bfcl"): 0.655,
     ("meta-llama/Llama-3.1-8B", "arenahardwriting"): 0.017,
     ("meta-llama/Llama-3.1-8B", "healthbench"): 0.193,
     # Llama-3.2-3B
@@ -132,7 +132,7 @@ BASE_SCORES: dict[tuple[str, str], float] = {
     ("meta-llama/Llama-3.2-3B", "humaneval"): 0.006,
     ("meta-llama/Llama-3.2-3B", "aime2025"): 0.0,
     ("meta-llama/Llama-3.2-3B", "gpqamain"): 0.237,
-    ("meta-llama/Llama-3.2-3B", "bfcl"): 0.960,
+    ("meta-llama/Llama-3.2-3B", "bfcl"): 0.685,
     ("meta-llama/Llama-3.2-3B", "arenahardwriting"): 0.004,
     ("meta-llama/Llama-3.2-3B", "healthbench"): 0.140,
     # Llama-3.2-1B
@@ -140,7 +140,7 @@ BASE_SCORES: dict[tuple[str, str], float] = {
     ("meta-llama/Llama-3.2-1B", "humaneval"): 0.0,
     ("meta-llama/Llama-3.2-1B", "aime2025"): 0.0,
     ("meta-llama/Llama-3.2-1B", "gpqamain"): 0.114,
-    ("meta-llama/Llama-3.2-1B", "bfcl"): 0.225,
+    ("meta-llama/Llama-3.2-1B", "bfcl"): 0.142,
     ("meta-llama/Llama-3.2-1B", "arenahardwriting"): 0.014,
     ("meta-llama/Llama-3.2-1B", "healthbench"): 0.058,
 }
