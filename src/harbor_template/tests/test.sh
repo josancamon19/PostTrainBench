@@ -99,12 +99,19 @@ run_evaluation() {
 
     kill_gpu_processes
 
+    # arenahardwriting/healthbench manage their own vLLM server
+    EXTRA_ARGS=""
+    if [ "$BENCHMARK_ID" != "arenahardwriting" ] && [ "$BENCHMARK_ID" != "healthbench" ]; then
+        EXTRA_ARGS="--max-connections 64 --gpu-memory-utilization 0.9"
+    fi
+
     set +e
     python3 "$TESTS_DIR/evaluate.py" \
         --model-path "$WORKSPACE/final_model" \
         --json-output-file "$LOGS_DIR/metrics.json" \
         --templates-dir "$TESTS_DIR/templates/" \
         --limit -1 \
+        ${EXTRA_ARGS} \
         ${max_tokens_arg} \
         2>&1 | tee "$LOGS_DIR/final_eval_${EVAL_COUNTER}.txt"
     set -e
