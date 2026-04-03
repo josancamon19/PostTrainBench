@@ -60,7 +60,7 @@ class PostTrainBenchAdapter:
     def _models(self) -> dict[str, ModelInfo]:
         return TINKER_MODELS if self.mode == "tinker" else MODELS
 
-    def generate_task_toml(self, task_dir: Path, benchmark_id: str = "") -> None:
+    def generate_task_toml(self, task_dir: Path, benchmark_id: str = "", task_id: str = "") -> None:
         content = self._template("task.toml").read_text()
         if benchmark_id in ("arenahardwriting", "healthbench"):
             if "[environment.env]" in content:
@@ -70,8 +70,15 @@ class PostTrainBenchAdapter:
                     1,
                 )
             else:
-                # Insert [environment.env] after [environment] section
                 content += '\n[environment.env]\nOPENAI_API_KEY = "${OPENAI_API_KEY}"\n'
+        # Add prebuilt docker_image for GPU tasks
+        if self.mode == "gpu" and task_id:
+            image = f"ghcr.io/josancamon19/posttrainbench-gpu:{task_id}"
+            content = content.replace(
+                "[environment]",
+                f'[environment]\ndocker_image = "{image}"',
+                1,
+            )
         (task_dir / "task.toml").write_text(content)
 
     def generate_instruction(
@@ -272,7 +279,7 @@ fi
 
         print(f"Generating task: {task_id}")
 
-        self.generate_task_toml(task_dir, benchmark_id)
+        self.generate_task_toml(task_dir, benchmark_id, task_id)
         self.generate_instruction(task_dir, model_info, benchmark_info, benchmark_id)
         self.generate_environment(task_dir, benchmark_id, model_info, benchmark_info)
         self.generate_tests(task_dir, benchmark_id)

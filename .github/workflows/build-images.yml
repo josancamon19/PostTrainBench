@@ -1,4 +1,4 @@
-name: Build base images
+name: Build images
 
 on:
   push:
@@ -6,6 +6,9 @@ on:
     paths:
       - "src/harbor_template/environment/base.Dockerfile"
       - "src/harbor_template/environment/base.tinker.Dockerfile"
+      - "src/tasks/**"
+      - "src/adapter.py"
+      - "src/constants.py"
       - ".github/workflows/build-images.yml"
   workflow_dispatch:
 
@@ -14,7 +17,7 @@ env:
   REPO: ghcr.io/josancamon19/posttrainbench
 
 jobs:
-  build-gpu:
+  build-base:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -33,19 +36,6 @@ jobs:
           platforms: linux/amd64
           push: true
           tags: ${{ env.REPO }}-gpu:latest
-
-  build-tinker:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-    steps:
-      - uses: actions/checkout@v4
-      - uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
       - uses: docker/build-push-action@v6
         with:
           context: src/harbor_template/environment
@@ -53,3 +43,32 @@ jobs:
           platforms: linux/amd64
           push: true
           tags: ${{ env.REPO }}-tinker:latest
+
+  build-gpu-tasks:
+    needs: build-base
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install chz
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Export and build per-task GPU images
+        run: |
+          cd $GITHUB_WORKSPACE
+          python src/adapter.py mode=gpu all=true include_target=false
+          for task_dir in datasets/posttrainbench/gpu/*/; do
+            task_id=$(basename "$task_dir")
+            tag="${{ env.REPO }}-gpu:${task_id}"
+            echo "Building $tag..."
+            docker build --platform linux/amd64 -t "$tag" -f "$task_dir/environment/Dockerfile" "$task_dir/environment"
+            docker push "$tag"
+          done

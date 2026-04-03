@@ -1,0 +1,32 @@
+n_attempts: 1
+name: posttrainbench-gpu-runpod
+description: |
+  PostTrainBench GPU mode on RunPod H100s.
+
+datasets:
+  - path: datasets/posttrainbench/gpu
+    task_names:
+      - "gsm8k-llama3.2-1b"
+
+agents:
+  - name: claude-code
+    model_name: global.anthropic.claude-opus-4-6-v1
+    override_timeout_sec: 900
+    env:
+      CLAUDE_CODE_MAX_OUTPUT_TOKENS: "65536"
+
+environment:
+  type: runpod
+  delete: true
+  override_gpus: 1
+  kwargs:
+    gpu_type: h100
+
+orchestrator:
+  type: local
+  n_concurrent_trials: 1
+  quiet: false
+
+artifacts:
+  - source: /app
+    destination: workspace
