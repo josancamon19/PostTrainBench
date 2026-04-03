@@ -1,0 +1,55 @@
+name: Build base images
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/harbor_template/environment/base.Dockerfile"
+      - "src/harbor_template/environment/base.tinker.Dockerfile"
+      - ".github/workflows/build-images.yml"
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  REPO: ghcr.io/josancamon19/posttrainbench
+
+jobs:
+  build-gpu:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: src/harbor_template/environment
+          file: src/harbor_template/environment/base.Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ${{ env.REPO }}-gpu:latest
+
+  build-tinker:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: src/harbor_template/environment
+          file: src/harbor_template/environment/base.tinker.Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ${{ env.REPO }}-tinker:latest

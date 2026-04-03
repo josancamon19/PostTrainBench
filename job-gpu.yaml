@@ -1,0 +1,28 @@
+n_attempts: 1
+name: posttrainbench-gpu
+description: |
+  PostTrainBench GPU mode test run.
+
+datasets:
+  - path: datasets/posttrainbench/gpu
+    task_names:
+      - "gsm8k-qwen3-1.7b"
+
+agents:
+  - name: claude-code
+    model_name: global.anthropic.claude-opus-4-6-v1
+    env:
+      CLAUDE_CODE_MAX_OUTPUT_TOKENS: "65536"
+
+environment:
+  type: modal
+  delete: true
+
+orchestrator:
+  type: local
+  n_concurrent_trials: 1
+  quiet: false
+
+artifacts:
+  - source: /app
+    destination: workspace
