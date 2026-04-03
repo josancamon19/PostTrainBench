@@ -7,8 +7,12 @@ description: |
 
 datasets:
   - path: datasets/posttrainbench/tinker
-    # task_names:
-    #   - "gsm8k-*-tinker"
+    task_names:
+      - "gsm8k-llama3.2-*"
+      - "humaneval-llama3.2-*"
+      - "gpqamain-llama3.2-*"
+      - "arenahardwriting-llama3.2-*"
+      - "healthbench-llama3.2-*"
 
 agents:
   # - name: oracle
