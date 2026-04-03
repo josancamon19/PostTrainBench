@@ -301,8 +301,12 @@ fi
                     key = (model_info.model_id, benchmark_id)
                     target = INSTRUCT_BASELINES.get(key)
                     base = BASE_SCORES.get(key)
-                    # Skip if no target, or base >= target (inverted/degenerate)
-                    if target is None or base is None or base >= target:
+                    if target is None or base is None:
+                        continue
+                    if base >= target:
+                        print(f"  WARNING: Skipping {benchmark_id}/{model_info.short_name}: "
+                              f"base ({base:.3f}) >= target ({target:.3f}). "
+                              f"Check if eval datasets match between base and instruct measurements.")
                         continue
                 tasks.append(self.generate_task(benchmark_id, model_key))
         return tasks
