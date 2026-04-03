@@ -1,5 +1,4 @@
 #!/bin/bash
-set -e
 
 WORKSPACE="/app"
 TESTS_DIR="/tests"
