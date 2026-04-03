@@ -17,12 +17,12 @@ datasets:
 agents:
   # - name: oracle
   # - name: nop
-  # - name: claude-code
-  #   model_name: global.anthropic.claude-opus-4-6-v1
-  #   env:
-  #     CLAUDE_CODE_MAX_OUTPUT_TOKENS: "65536"
-  - name: gemini-cli
-    model_name: gemini/gemini-3-flash-preview
+  - name: claude-code
+    model_name: global.anthropic.claude-opus-4-6-v1
+    env:
+      CLAUDE_CODE_MAX_OUTPUT_TOKENS: "65536"
+  # - name: gemini-cli
+  #   model_name: gemini/gemini-3-flash-preview
   # - name: codex
   #   model_name: openai/gpt-5.4-2026-03-05
   # - name: gemini-cli
@@ -32,7 +32,7 @@ agents:
 
 environment:
   type: daytona
-  delete: true
+  delete: false
 
 orchestrator:
   type: local
