@@ -66,6 +66,10 @@ BENCHMARKS = {
 
 # GPU models - same as Tinker for apples-to-apples comparison
 MODELS = {
+    # "qwen3-1.7b": ModelInfo(model_id="Qwen/Qwen3-1.7B-Base", short_name="qwen3-1.7b"),
+    # "qwen3-4b": ModelInfo(model_id="Qwen/Qwen3-4B-Base", short_name="qwen3-4b"),
+    # "smollm3-3b": ModelInfo(model_id="HuggingFaceTB/SmolLM3-3B-Base", short_name="smollm3-3b"),
+    # "gemma3-4b": ModelInfo(model_id="google/gemma-3-4b-pt", short_name="gemma3-4b"),
     "llama3.1-8b": ModelInfo(model_id="meta-llama/Llama-3.1-8B", short_name="llama3.1-8b"),
     "llama3.2-3b": ModelInfo(model_id="meta-llama/Llama-3.2-3B", short_name="llama3.2-3b"),
     "llama3.2-1b": ModelInfo(model_id="meta-llama/Llama-3.2-1B", short_name="llama3.2-1b"),
