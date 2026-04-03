@@ -115,16 +115,20 @@ class PostTrainBenchAdapter:
 
 TIMEOUT_SEC={timeout_sec}
 
-# Use first-call timestamp as start time
-START_FILE="$(dirname "$0")/.timer_start"
-if [ ! -f "$START_FILE" ]; then
-    date +%s > "$START_FILE"
+# Use container uptime as elapsed time (immune to sandbox reuse)
+if [ -f /proc/uptime ]; then
+    UPTIME=$(awk '{{printf "%d", $1}}' /proc/uptime)
+    REMAINING=$((TIMEOUT_SEC - UPTIME))
+else
+    # Fallback: first-call timestamp
+    START_FILE="$(dirname "$0")/.timer_start"
+    if [ ! -f "$START_FILE" ]; then
+        date +%s > "$START_FILE"
+    fi
+    START_DATE=$(cat "$START_FILE")
+    NOW=$(date +%s)
+    REMAINING=$((START_DATE + TIMEOUT_SEC - NOW))
 fi
-START_DATE=$(cat "$START_FILE")
-
-DEADLINE=$((START_DATE + TIMEOUT_SEC))
-NOW=$(date +%s)
-REMAINING=$((DEADLINE - NOW))
 
 if [ $REMAINING -le 0 ]; then
     echo "Timer expired!"
