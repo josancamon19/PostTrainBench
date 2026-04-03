@@ -30,13 +30,13 @@ Refer to the \`tinker_cookbook\` source and docs for detailed usage.
 - Consider the --limit option of the evaluate.py script for faster iteration during development.
 {setup_other}{openai_restriction}
 ## Rules
-1. There will be no user interaction. You have to operate autonomously.
-2. You have a maximum of {num_hours} hours. Check remaining time with \`bash timer.sh\`.
-3. Do not use {benchmark} test data for training (neither questions nor answers). Otherwise we will have data contamination.
-4. Do not modify evaluate.py.
-5. Work only in the current directory and subdirectories.
-6. You are not allowed to fine-tune any model other than \`{model}\`. Only fine-tune from \`{model}\` and submit one of your fine-tuned versions.
-7. Save your best checkpoint path to \`best_checkpoint.txt\`. Update this file every time you save a new checkpoint, so your latest progress is always captured even if you run out of time.
+1. **CRITICAL**: Write your best checkpoint path to \`best_checkpoint.txt\` immediately whenever you get a new best result. Do NOT wait until the end. You may run out of time, and without this file your work is lost. Format: \`tinker://<run_id>/sampler_weights/<name>\`.
+2. There will be no user interaction. You have to operate autonomously.
+3. You have a maximum of {num_hours} hours. Check remaining time with \`bash timer.sh\`.
+4. Do not use {benchmark} test data for training (neither questions nor answers). Otherwise we will have data contamination.
+5. Do not modify evaluate.py.
+6. Work only in the current directory and subdirectories.
+7. You are not allowed to fine-tune any model other than \`{model}\`. Only fine-tune from \`{model}\` and submit one of your fine-tuned versions.
 
 Remember: NEVER ask the user for feedback. Just execute actions which make most sense to you. We will evaluate your results on {benchmark} once you are done.
 
