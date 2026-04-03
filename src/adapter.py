@@ -115,16 +115,12 @@ class PostTrainBenchAdapter:
 
 TIMEOUT_SEC={timeout_sec}
 
-# Use container boot time as the start time (synced with agent timeout)
-START_DATE=$(awk '/btime/{{print $2}}' /proc/stat 2>/dev/null)
-if [ -z "$START_DATE" ]; then
-    # Fallback for non-Linux: first-call timestamp
-    START_FILE="$(dirname "$0")/.timer_start"
-    if [ ! -f "$START_FILE" ]; then
-        date +%s > "$START_FILE"
-    fi
-    START_DATE=$(cat "$START_FILE")
+# Use first-call timestamp as start time
+START_FILE="$(dirname "$0")/.timer_start"
+if [ ! -f "$START_FILE" ]; then
+    date +%s > "$START_FILE"
 fi
+START_DATE=$(cat "$START_FILE")
 
 DEADLINE=$((START_DATE + TIMEOUT_SEC))
 NOW=$(date +%s)
@@ -301,8 +297,13 @@ fi
         models = self._models
         for benchmark_id in self._benchmarks_for_mode():
             for model_key, model_info in models.items():
-                if self.include_target and (model_info.model_id, benchmark_id) not in INSTRUCT_BASELINES:
-                    continue
+                if self.include_target:
+                    key = (model_info.model_id, benchmark_id)
+                    target = INSTRUCT_BASELINES.get(key)
+                    base = BASE_SCORES.get(key)
+                    # Skip if no target, or base >= target (inverted/degenerate)
+                    if target is None or base is None or base >= target:
+                        continue
                 tasks.append(self.generate_task(benchmark_id, model_key))
         return tasks
 
