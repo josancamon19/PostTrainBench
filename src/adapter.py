@@ -219,6 +219,7 @@ fi
 
         target = INSTRUCT_BASELINES.get((model_info.model_id, benchmark_id))
         base = BASE_SCORES.get((model_info.model_id, benchmark_id))
+        max_conn = model_info.max_connections_long if benchmark_info.long_generation else model_info.max_connections
         metadata = {
             "benchmark_id": benchmark_id,
             "benchmark_name": benchmark_info.benchmark_name,
@@ -226,6 +227,7 @@ fi
             "model_short_name": model_info.short_name,
             "num_hours": self.num_hours,
             "mode": self.mode,
+            "max_connections": max_conn,
         }
         if target is not None:
             metadata["target_score"] = target
@@ -241,6 +243,10 @@ fi
         test_sh_dst = tests_dir / "test.sh"
         shutil.copy(self._template("tests", "test.sh"), test_sh_dst)
         test_sh_dst.chmod(0o755)
+
+        verifier_src = TEMPLATE_DIR / "tests" / "verifier.py"
+        if verifier_src.exists():
+            shutil.copy(verifier_src, tests_dir / "verifier.py")
 
         if self.mode == "tinker":
             eval_src = SRC_DIR / "tasks" / benchmark_id / "evaluate_tinker.py"
@@ -310,7 +316,9 @@ fi
             solution_dir = task_dir / "solution"
             solution_dir.mkdir(parents=True, exist_ok=True)
             dst = solution_dir / "solve.sh"
-            shutil.copy(solution_src, dst)
+            content = solution_src.read_text()
+            content = content.replace("{instruct_id}", model_info.instruct_id or "")
+            dst.write_text(content)
             dst.chmod(0o755)
 
         print(f"Task generated at: {task_dir}")
@@ -378,7 +386,7 @@ def generate(
         mode: Export mode: "gpu", "tinker", "gpu-runpod", or "all" (default, exports gpu+tinker+gpu-runpod).
         include_target: Include instruct baseline target score in the instruction (tinker mode only).
     """
-    all_modes = ["tinker", "gpu", "gpu-runpod"]
+    all_modes = ["tinker", "gpu-runpod"]  # "gpu" disabled — gpu-runpod replaces it
     modes = all_modes if (mode == "all" or all) else [mode]
 
     if list:

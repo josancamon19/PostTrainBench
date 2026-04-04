@@ -1,0 +1,36 @@
+n_attempts: 1
+name: posttrainbench-baselines
+description: |
+  Run instruct model baselines via oracle solution.
+  Edit task_names below to control which baselines to run.
+  To run a different model: edit INSTRUCT_ID in the task's solution/solve.sh.
+  To run a new benchmark: export it first with `python src/adapter.py benchmark=X model=Y`.
+
+datasets:
+  - path: datasets/posttrainbench/gpu-runpod
+    task_names:
+      - "gsm8k-llama3.2-1b"
+    # - "gsm8k-llama3.2-3b"
+    # - "gsm8k-llama3.1-8b"
+    # - "humaneval-llama3.2-1b"
+
+agents:
+  - name: oracle
+    run_solution: true
+    override_timeout_sec: 3600
+
+environment:
+  type: runpod
+  delete: true
+  kwargs:
+    gpu_type: h100
+    container_disk_in_gb: 80
+
+orchestrator:
+  type: local
+  n_concurrent_trials: 3
+  quiet: false
+
+artifacts:
+  - source: /app
+    destination: workspace

@@ -12,6 +12,22 @@ dependencies = [
     "chz",
 ]
 
+[project.optional-dependencies]
+dev = [
+    "inspect-ai",
+    "inspect-evals",
+    "tinker",
+    "tinker-cookbook",
+    "openai>=2.26.0",
+    "requests",
+    "tiktoken",
+    "shortuuid",
+    "tqdm",
+    "python-dotenv",
+    "runpod",
+    "ruff",
+]
+
 [tool.ruff]
 target-version = "py313"
 line-length = 120

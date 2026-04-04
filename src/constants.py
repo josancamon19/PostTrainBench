@@ -8,13 +8,18 @@ class BenchmarkInfo:
     task_id: str
     benchmark_name: str
     setup_note: str = ""
+    long_generation: bool = False  # Uses ~16k output tokens (affects max_connections)
 
 
 @dataclass
 class ModelInfo:
     model_id: str
     short_name: str
+    instruct_id: str = ""  # HF model ID of the instruct variant (for baseline oracle)
     tinker: bool = True  # Whether available on Tinker (remote API mode)
+    # Max concurrent vLLM requests on H100 80GB (scaled by model size + KV cache)
+    max_connections: int = 64  # for short-generation benchmarks (~2k tokens)
+    max_connections_long: int = 8  # for long-generation benchmarks (~16k tokens)
 
 
 # setup_note: GPU-mode specific notes from original posttrainbench (inspect-ai warnings).
@@ -57,11 +62,13 @@ BENCHMARKS = {
         task_id="arenahardwriting",
         benchmark_name="Arena-Hard-v2.0 (Writing)",
         setup_note="",
+        long_generation=True,
     ),
     "healthbench": BenchmarkInfo(
         task_id="healthbench",
         benchmark_name="HealthBench",
         setup_note="",
+        long_generation=True,
     ),
 }
 
@@ -71,11 +78,26 @@ MODELS = {
     # "qwen3-4b": ModelInfo(model_id="Qwen/Qwen3-4B-Base", short_name="qwen3-4b", tinker=False),
     # "smollm3-3b": ModelInfo(model_id="HuggingFaceTB/SmolLM3-3B-Base", short_name="smollm3-3b", tinker=False),
     # "gemma3-4b": ModelInfo(model_id="google/gemma-3-4b-pt", short_name="gemma3-4b", tinker=False),
-    "llama3.1-8b": ModelInfo(model_id="meta-llama/Llama-3.1-8B", short_name="llama3.1-8b"),
-    "llama3.2-3b": ModelInfo(model_id="meta-llama/Llama-3.2-3B", short_name="llama3.2-3b"),
-    "llama3.2-1b": ModelInfo(model_id="meta-llama/Llama-3.2-1B", short_name="llama3.2-1b"),
-    "qwen3-8b": ModelInfo(model_id="Qwen/Qwen3-8B-Base", short_name="qwen3-8b", tinker=False),
-    "qwen3-30b-a3b": ModelInfo(model_id="Qwen/Qwen3-30B-A3B-Base", short_name="qwen3-30b-a3b", tinker=False),
+    "llama3.1-8b": ModelInfo(
+        model_id="meta-llama/Llama-3.1-8B", short_name="llama3.1-8b",
+        instruct_id="meta-llama/Llama-3.1-8B-Instruct", max_connections=64, max_connections_long=8,
+    ),
+    "llama3.2-3b": ModelInfo(
+        model_id="meta-llama/Llama-3.2-3B", short_name="llama3.2-3b",
+        instruct_id="meta-llama/Llama-3.2-3B-Instruct", max_connections=128, max_connections_long=16,
+    ),
+    "llama3.2-1b": ModelInfo(
+        model_id="meta-llama/Llama-3.2-1B", short_name="llama3.2-1b",
+        instruct_id="meta-llama/Llama-3.2-1B-Instruct", max_connections=256, max_connections_long=32,
+    ),
+    "qwen3-8b": ModelInfo(
+        model_id="Qwen/Qwen3-8B-Base", short_name="qwen3-8b",
+        instruct_id="Qwen/Qwen3-8B", tinker=False, max_connections=64, max_connections_long=8,
+    ),
+    "qwen3-30b-a3b": ModelInfo(
+        model_id="Qwen/Qwen3-30B-A3B-Base", short_name="qwen3-30b-a3b",
+        instruct_id="Qwen/Qwen3-30B-A3B", tinker=False, max_connections=16, max_connections_long=4,
+    ),
 }
 
 # Official instruct model scores (from Meta model cards) for target-setting.
