@@ -17,6 +17,7 @@ import random
 import socket
 import subprocess
 import time
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -199,56 +200,43 @@ def generate_answers(args, examples: List[HealthBenchExample]) -> List[str]:
         if vllm_api_key:
             session.headers["Authorization"] = f"Bearer {vllm_api_key}"
 
-        responses = []
         print(f"[generate] Generating answers for {len(examples)} examples")
 
-        for example in tqdm(examples, desc="Generating answers"):
-            # Build messages from conversation
+        def _generate_one(example):
             messages = example.conversation.copy()
-
             payload = {
                 "model": args.model_path,
                 "messages": messages,
                 "max_tokens": args.max_new_tokens,
             }
-
-            answer_text: Optional[str] = None
             for attempt in range(1, VLLM_GENERATION_RETRY + 1):
                 try:
-                    response = session.post(
-                        endpoint,
-                        json=payload,
-                        timeout=VLLM_REQUEST_TIMEOUT,
-                    )
-                    response.raise_for_status()
-                    completion = response.json()
-                    choices = completion.get("choices", [])
+                    resp = session.post(endpoint, json=payload, timeout=VLLM_REQUEST_TIMEOUT)
+                    resp.raise_for_status()
+                    choices = resp.json().get("choices", [])
                     if not choices:
                         raise ValueError("vLLM response missing 'choices'.")
                     message = choices[0].get("message")
                     if not message or "content" not in message:
                         raise ValueError("vLLM response missing message content.")
-                    answer_text = message["content"].strip()
-                    break
+                    return message["content"].strip()
                 except (requests.RequestException, ValueError) as err:
                     if attempt == VLLM_GENERATION_RETRY:
                         raise RuntimeError(
-                            f"Failed to generate answer for {example.example_id} after {VLLM_GENERATION_RETRY} attempts"
+                            f"Failed for {example.example_id} after {VLLM_GENERATION_RETRY} attempts"
                         ) from err
-                    backoff = 2**attempt
-                    print(f"[generate] Error (attempt {attempt}): {err}. Retrying in {backoff}s.")
-                    time.sleep(backoff)
+                    time.sleep(2**attempt)
 
-            if answer_text is None:
-                raise RuntimeError(f"No answer generated for {example.example_id}")
+        max_workers = getattr(args, "max_connections", 64)
+        # Preserve order: submit in order, collect in order
+        with ThreadPoolExecutor(max_workers=max_workers) as pool:
+            results = list(tqdm(pool.map(_generate_one, examples), total=len(examples), desc="Generating answers"))
 
-            # Strip thinking tags if present (for reasoning models)
+        responses = []
+        for answer_text in results:
             if answer_text.startswith("<think>"):
                 answer_text = answer_text.split("</think>", maxsplit=1)[-1].strip()
-
-            # Limit repetitive patterns in generated answer
             answer_text = limit_repetitions(answer_text)
-
             responses.append(answer_text)
 
         return responses
@@ -274,6 +262,7 @@ def main():
     parser = argparse.ArgumentParser(description="Run HealthBench evaluation.")
     parser.add_argument("--model-path", default="final_model", help="Hugging Face model ID or local path.")
     parser.add_argument("--max-new-tokens", type=int, default=16384)
+    parser.add_argument("--max-connections", type=int, default=64, help="Concurrent vLLM requests for generation.")
     # this is a good limit for this task, you can keep it like that (or use less in case you want faster tests)
     parser.add_argument("--limit", type=int, default=32, help="Limit number of examples for quicker runs.")
     parser.add_argument(

@@ -62,10 +62,30 @@ run_evaluation() {
 
     kill_gpu_processes
 
-    # arenahardwriting/healthbench manage their own vLLM server
-    EXTRA_ARGS=""
-    if [ "$BENCHMARK_ID" != "arenahardwriting" ] && [ "$BENCHMARK_ID" != "healthbench" ]; then
-        EXTRA_ARGS="--max-connections 64 --gpu-memory-utilization 0.9"
+    # Max connections scaled by model size for H100 80GB throughput
+    # arenahardwriting/healthbench use 16k tokens (8x more KV cache per request)
+    if [ "$BENCHMARK_ID" = "arenahardwriting" ] || [ "$BENCHMARK_ID" = "healthbench" ]; then
+        MAX_CONN=$(python3 -c "
+import re; m = '$MODEL_ID'
+sizes = [int(x) for x in re.findall(r'(?<![A-Za-z])(\d+)[Bb]', m)]
+s = max(sizes) if sizes else 0
+if s <= 1: print(32)
+elif s <= 3: print(16)
+elif s <= 8: print(8)
+else: print(4)
+")
+        EXTRA_ARGS="--max-connections $MAX_CONN"
+    else:
+        MAX_CONN=$(python3 -c "
+import re; m = '$MODEL_ID'
+sizes = [int(x) for x in re.findall(r'(?<![A-Za-z])(\d+)[Bb]', m)]
+s = max(sizes) if sizes else 0
+if s <= 1: print(256)
+elif s <= 3: print(128)
+elif s <= 8: print(64)
+else: print(16)
+")
+        EXTRA_ARGS="--max-connections $MAX_CONN --gpu-memory-utilization 0.9"
     fi
 
     set +e

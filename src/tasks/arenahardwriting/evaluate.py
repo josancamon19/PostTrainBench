@@ -329,68 +329,53 @@ def generate_answers(args) -> tuple:
         if vllm_api_key:
             session.headers["Authorization"] = f"Bearer {vllm_api_key}"
 
-        for question in tqdm(questions, desc="Generating answers"):
+        def _generate_one(question):
             payload = {
                 "model": args.model_path,
-                "messages": [
-                    {"role": "user", "content": question["prompt"]},
-                ],
+                "messages": [{"role": "user", "content": question["prompt"]}],
                 "max_tokens": args.max_new_tokens,
             }
-
-            answer_text: Optional[str] = None
             for attempt in range(1, VLLM_GENERATION_RETRY + 1):
                 try:
-                    response = session.post(
-                        endpoint,
-                        json=payload,
-                        timeout=VLLM_REQUEST_TIMEOUT,
-                    )
-                    response.raise_for_status()
-                    completion = response.json()
-                    choices = completion.get("choices", [])
+                    resp = session.post(endpoint, json=payload, timeout=VLLM_REQUEST_TIMEOUT)
+                    resp.raise_for_status()
+                    choices = resp.json().get("choices", [])
                     if not choices:
                         raise ValueError("vLLM response missing 'choices'.")
                     message = choices[0].get("message")
                     if not message or "content" not in message:
                         raise ValueError("vLLM response missing message content.")
-                    answer_text = message["content"].strip()
-                    break
+                    return question, message["content"].strip()
                 except (requests.RequestException, ValueError) as err:
                     if attempt == VLLM_GENERATION_RETRY:
                         raise RuntimeError(
-                            f"Failed to generate answer for uid {question['uid']} after {VLLM_GENERATION_RETRY} attempts"
+                            f"Failed for uid {question['uid']} after {VLLM_GENERATION_RETRY} attempts"
                         ) from err
-                    backoff = 2**attempt
-                    print(
-                        f"[generate] Error from vLLM (attempt {attempt}/{VLLM_GENERATION_RETRY}): {err}. Retrying in {backoff}s."
-                    )
-                    time.sleep(backoff)
+                    time.sleep(2**attempt)
 
-            if answer_text is None:
-                raise RuntimeError(f"No answer generated for uid {question['uid']}.")
+        max_workers = getattr(args, "max_connections", 64)
+        with ThreadPoolExecutor(max_workers=max_workers) as pool:
+            futures = {pool.submit(_generate_one, q): q for q in questions}
+            for future in tqdm(as_completed(futures), total=len(questions), desc="Generating answers"):
+                question, answer_text = future.result()
 
-            if answer_text.startswith("<think>") and ("</think>" in answer_text):
-                answer_text = answer_text.split("</think>", maxsplit=1)[1]
-                answer_text = answer_text.strip()
+                if answer_text.startswith("<think>") and ("</think>" in answer_text):
+                    answer_text = answer_text.split("</think>", maxsplit=1)[1].strip()
 
-            # Limit repetitive patterns in generated answer
-            answer_text = limit_repetitions(answer_text)
+                answer_text = limit_repetitions(answer_text)
 
-            messages = [
-                {"role": "user", "content": question["prompt"]},
-                {"role": "assistant", "content": {"answer": answer_text}},
-            ]
-
-            record = {
-                "uid": question["uid"],
-                "ans_id": shortuuid.uuid(),
-                "model": args.model_alias,
-                "messages": messages,
-                "tstamp": time.time(),
-                "metadata": _make_metadata(answer_text),
-            }
-            answers_dict[question["uid"]] = record
+                record = {
+                    "uid": question["uid"],
+                    "ans_id": shortuuid.uuid(),
+                    "model": args.model_alias,
+                    "messages": [
+                        {"role": "user", "content": question["prompt"]},
+                        {"role": "assistant", "content": {"answer": answer_text}},
+                    ],
+                    "tstamp": time.time(),
+                    "metadata": _make_metadata(answer_text),
+                }
+                answers_dict[question["uid"]] = record
 
         if args.store_outputs:
             output_dir.mkdir(parents=True, exist_ok=True)
@@ -693,6 +678,7 @@ def main():
     parser = argparse.ArgumentParser(description="Run Arena-Hard evaluation for local or Hugging Face models.")
     parser.add_argument("--model-path", required=True, help="Hugging Face model ID or local path.")
     parser.add_argument("--max-new-tokens", type=int, default=16384)
+    parser.add_argument("--max-connections", type=int, default=64, help="Concurrent vLLM requests for generation.")
     # this is a good limit for this task, just keep it like that (or use less in case you want faster tests)
     parser.add_argument("--limit", type=int, default=32, help="Limit number of questions for quicker runs.")
     parser.add_argument(
