@@ -14,6 +14,7 @@ class BenchmarkInfo:
 class ModelInfo:
     model_id: str
     short_name: str
+    tinker: bool = True  # Whether available on Tinker (remote API mode)
 
 
 # setup_note: GPU-mode specific notes from original posttrainbench (inspect-ai warnings).
@@ -64,27 +65,17 @@ BENCHMARKS = {
     ),
 }
 
-# GPU models - same as Tinker for apples-to-apples comparison
 MODELS = {
-    # "qwen3-1.7b": ModelInfo(model_id="Qwen/Qwen3-1.7B-Base", short_name="qwen3-1.7b"),
-    # "qwen3-4b": ModelInfo(model_id="Qwen/Qwen3-4B-Base", short_name="qwen3-4b"),
-    # "smollm3-3b": ModelInfo(model_id="HuggingFaceTB/SmolLM3-3B-Base", short_name="smollm3-3b"),
-    # "gemma3-4b": ModelInfo(model_id="google/gemma-3-4b-pt", short_name="gemma3-4b"),
+    # commented due to base not being available on tinker
+    # "qwen3-1.7b": ModelInfo(model_id="Qwen/Qwen3-1.7B-Base", short_name="qwen3-1.7b", tinker=False),
+    # "qwen3-4b": ModelInfo(model_id="Qwen/Qwen3-4B-Base", short_name="qwen3-4b", tinker=False),
+    # "smollm3-3b": ModelInfo(model_id="HuggingFaceTB/SmolLM3-3B-Base", short_name="smollm3-3b", tinker=False),
+    # "gemma3-4b": ModelInfo(model_id="google/gemma-3-4b-pt", short_name="gemma3-4b", tinker=False),
     "llama3.1-8b": ModelInfo(model_id="meta-llama/Llama-3.1-8B", short_name="llama3.1-8b"),
     "llama3.2-3b": ModelInfo(model_id="meta-llama/Llama-3.2-3B", short_name="llama3.2-3b"),
     "llama3.2-1b": ModelInfo(model_id="meta-llama/Llama-3.2-1B", short_name="llama3.2-1b"),
-}
-
-TINKER_MODELS = {
-    "llama3.1-8b": ModelInfo(
-        model_id="meta-llama/Llama-3.1-8B", short_name="llama3.1-8b"
-    ),
-    "llama3.2-3b": ModelInfo(
-        model_id="meta-llama/Llama-3.2-3B", short_name="llama3.2-3b"
-    ),
-    "llama3.2-1b": ModelInfo(
-        model_id="meta-llama/Llama-3.2-1B", short_name="llama3.2-1b"
-    ),
+    "qwen3-8b": ModelInfo(model_id="Qwen/Qwen3-8B-Base", short_name="qwen3-8b", tinker=False),
+    "qwen3-30b-a3b": ModelInfo(model_id="Qwen/Qwen3-30B-A3B-Base", short_name="qwen3-30b-a3b", tinker=False),
 }
 
 # Official instruct model scores (from Meta model cards) for target-setting.

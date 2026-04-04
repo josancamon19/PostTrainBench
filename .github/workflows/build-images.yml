@@ -6,7 +6,6 @@ on:
     paths:
       - "src/harbor_template/environment/base/gpu.Dockerfile"
       - "src/harbor_template/environment/base/tinker.Dockerfile"
-      - "src/harbor_template/environment/runpod-ssh.gpu.Dockerfile"
       - "src/tasks/**"
       - "src/adapter.py"
       - "src/constants.py"
@@ -71,47 +70,5 @@ jobs:
             tag="${{ env.REPO }}-gpu:${task_id}"
             echo "Building $tag..."
             docker build --platform linux/amd64 -t "$tag" -f "$task_dir/environment/Dockerfile" "$task_dir/environment"
-            docker push "$tag"
-          done
-
-  build-runpod:
-    needs: build-gpu-tasks
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.13"
-      - run: pip install chz
-      - uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build RunPod SSH variants
-        run: |
-          RUNPOD_DF="src/harbor_template/environment/runpod-ssh.gpu.Dockerfile"
-
-          # Base RunPod variant
-          docker build --platform linux/amd64 \
-            --build-arg BASE_IMAGE="${{ env.REPO }}-gpu:latest" \
-            -t "${{ env.REPO }}-gpu:latest-runpod" \
-            -f "$RUNPOD_DF" src/harbor_template/environment
-          docker push "${{ env.REPO }}-gpu:latest-runpod"
-
-          # Per-task RunPod variants
-          cd $GITHUB_WORKSPACE
-          python src/adapter.py mode=gpu all=true include_target=false
-          for task_dir in datasets/posttrainbench/gpu/*/; do
-            task_id=$(basename "$task_dir")
-            tag="${{ env.REPO }}-gpu:${task_id}-runpod"
-            echo "Building $tag..."
-            docker build --platform linux/amd64 \
-              --build-arg BASE_IMAGE="${{ env.REPO }}-gpu:${task_id}" \
-              -t "$tag" \
-              -f "$RUNPOD_DF" src/harbor_template/environment
             docker push "$tag"
           done

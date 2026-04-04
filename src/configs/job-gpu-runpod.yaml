@@ -4,7 +4,7 @@ description: |
   PostTrainBench GPU mode on RunPod H100s.
 
 datasets:
-  - path: datasets/posttrainbench/runpod
+  - path: datasets/posttrainbench/gpu-runpod
     task_names:
       - "gsm8k-llama3.2-1b"
 
@@ -22,6 +22,7 @@ environment:
   environment_build_timeout_multiplier: 3.0
   kwargs:
     gpu_type: h100
+    container_disk_in_gb: 80
 
 orchestrator:
   type: local

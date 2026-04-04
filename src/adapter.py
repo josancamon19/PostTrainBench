@@ -12,7 +12,6 @@ from constants import (
     BENCHMARKS,
     INSTRUCT_BASELINES,
     MODELS,
-    TINKER_MODELS,
     BenchmarkInfo,
     ModelInfo,
 )
@@ -27,7 +26,7 @@ class PostTrainBenchAdapter:
     def __init__(self, output_dir: Path, num_hours: float = 10, mode: str = "gpu", include_target: bool = False):
         self.output_dir = Path(output_dir)
         self.num_hours = num_hours
-        self.mode = mode  # "gpu", "tinker", or "runpod"
+        self.mode = mode  # "gpu", "tinker", or "gpu-runpod"
         self.include_target = include_target
 
     def _read_benchmark_name(self, benchmark_id: str) -> str:
@@ -42,16 +41,13 @@ class PostTrainBenchAdapter:
         """Resolve a template path, using .tinker variant when in tinker mode.
 
         E.g. ("task.toml") -> "task.tinker.toml", ("instruction.md") -> "instruction.tinker.md".
-        RunPod mode shares GPU templates (no variant suffix).
+        gpu-runpod shares GPU templates (no variant suffix).
         """
         if self._template_mode == "tinker":
             filename = parts[-1]
             name, dot, ext = filename.rpartition(".")
-            if dot:
-                tinker_filename = f"{name}.tinker.{ext}"
-            else:
-                tinker_filename = f"{filename}.tinker"
-            prefixed = list(parts[:-1]) + [tinker_filename]
+            tinker_filename = f"{name}.tinker.{ext}" if dot else f"{filename}.tinker"
+            prefixed = [*list(parts[:-1]), tinker_filename]
             candidate = TEMPLATE_DIR / Path(*prefixed)
             if candidate.exists():
                 return candidate
@@ -59,12 +55,14 @@ class PostTrainBenchAdapter:
 
     @property
     def _models(self) -> dict[str, ModelInfo]:
-        return TINKER_MODELS if self.mode == "tinker" else MODELS
+        if self.mode == "tinker":
+            return {k: v for k, v in MODELS.items() if v.tinker}
+        return MODELS
 
     @property
     def _template_mode(self) -> str:
-        """The template mode to use — runpod shares GPU templates."""
-        return "gpu" if self.mode == "runpod" else self.mode
+        """The template mode to use — gpu-runpod shares GPU templates."""
+        return "gpu" if self.mode == "gpu-runpod" else self.mode
 
     def generate_task_toml(self, task_dir: Path, benchmark_id: str = "", task_id: str = "") -> None:
         content = self._template("task.toml").read_text()
@@ -78,9 +76,11 @@ class PostTrainBenchAdapter:
             else:
                 content += '\n[environment.env]\nOPENAI_API_KEY = "${OPENAI_API_KEY}"\n'
         # Add prebuilt docker_image for GPU and RunPod tasks
-        if self.mode in ("gpu", "runpod") and task_id:
-            suffix = "-runpod" if self.mode == "runpod" else ""
-            image = f"ghcr.io/josancamon19/posttrainbench-gpu:{task_id}{suffix}"
+        if self.mode in ("gpu", "gpu-runpod") and task_id:
+            if self.mode == "gpu-runpod":
+                image = "runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404"
+            else:
+                image = f"ghcr.io/josancamon19/posttrainbench-gpu:{task_id}"
             content = content.replace(
                 "[environment]",
                 f'[environment]\ndocker_image = "{image}"',
@@ -109,7 +109,10 @@ class PostTrainBenchAdapter:
         target = INSTRUCT_BASELINES.get((model_info.model_id, benchmark_id))
         if self.include_target and target is not None:
             target_pct = f"{target * 100:.1f}%"
-            content = content.replace("{target_line}", f" Aim for at least **{target_pct}**. Keep iterating until you reach it or run out of time.")
+            content = content.replace(
+                "{target_line}",
+                f" Aim for at least **{target_pct}**. Keep iterating until you reach it or run out of time.",
+            )
         else:
             content = content.replace("{target_line}", "")
 
@@ -163,8 +166,10 @@ fi
         env_dir = task_dir / "environment"
         env_dir.mkdir(parents=True, exist_ok=True)
 
-        # RunPod uses prebuilt GHCR images — no Dockerfile needed
-        if self.mode != "runpod":
+        if self.mode == "gpu-runpod":
+            # No Dockerfile — use setup.sh to install packages at runtime
+            shutil.copy(TEMPLATE_DIR / "environment" / "setup.sh", env_dir / "setup.sh")
+        else:
             dockerfile_name = "tinker.Dockerfile" if self.mode == "tinker" else "gpu.Dockerfile"
             shutil.copy(TEMPLATE_DIR / "environment" / dockerfile_name, env_dir / "Dockerfile")
             dockerignore_src = TEMPLATE_DIR / "environment" / ".dockerignore"
@@ -257,6 +262,11 @@ fi
         if eval_code_src.is_dir():
             shutil.copytree(eval_code_src, tests_dir / "evaluation_code", dirs_exist_ok=True)
 
+        # Copy metadata into tests/ so the verifier reads a tamper-proof copy
+        env_metadata = task_dir / "environment" / "metadata.json"
+        if env_metadata.exists():
+            shutil.copy(env_metadata, tests_dir / "metadata.json")
+
         judge_src = TEMPLATE_DIR / "judge" / "contamination_judge.py"
         if judge_src.exists():
             shutil.copy(judge_src, tests_dir / "contamination_judge.py")
@@ -307,10 +317,7 @@ fi
 
     def _benchmarks_for_mode(self) -> list[str]:
         if self._template_mode == "tinker":
-            return [
-                bid for bid in BENCHMARKS
-                if (SRC_DIR / "tasks" / bid / "evaluate_tinker.py").exists()
-            ]
+            return [bid for bid in BENCHMARKS if (SRC_DIR / "tasks" / bid / "evaluate_tinker.py").exists()]
         return list(BENCHMARKS)
 
     def generate_all_tasks(self) -> list[Path]:
@@ -318,33 +325,31 @@ fi
         models = self._models
         for benchmark_id in self._benchmarks_for_mode():
             for model_key, model_info in models.items():
-                if self.include_target:
-                    key = (model_info.model_id, benchmark_id)
-                    target = INSTRUCT_BASELINES.get(key)
-                    base = BASE_SCORES.get(key)
-                    if target is None or base is None:
-                        continue
-                    if base >= target:
-                        print(f"  WARNING: Skipping {benchmark_id}/{model_info.short_name}: "
-                              f"base ({base:.3f}) >= target ({target:.3f}). "
-                              f"Check if eval datasets match between base and instruct measurements.")
-                        continue
+                key = (model_info.model_id, benchmark_id)
+                target = INSTRUCT_BASELINES.get(key)
+                base = BASE_SCORES.get(key)
+                # Skip benchmarks without baseline scores or zero target
+                if target is None or base is None or target == 0:
+                    continue
+                if self.include_target and base >= target:
+                    print(
+                        f"  WARNING: Skipping {benchmark_id}/{model_info.short_name}: "
+                        f"base ({base:.3f}) >= target ({target:.3f}). "
+                        f"Check if eval datasets match between base and instruct measurements."
+                    )
+                    continue
                 tasks.append(self.generate_task(benchmark_id, model_key))
         return tasks
 
 
 def list_available_tasks(mode: str = "gpu") -> list[str]:
-    models = TINKER_MODELS if mode == "tinker" else MODELS
+    models = {k: v for k, v in MODELS.items() if v.tinker} if mode == "tinker" else MODELS
     suffix = "-tinker" if mode == "tinker" else ""
     if mode == "tinker":
         benchmarks = [bid for bid in BENCHMARKS if (SRC_DIR / "tasks" / bid / "evaluate_tinker.py").exists()]
     else:
         benchmarks = list(BENCHMARKS)
     return [f"{bid}-{models[mk].short_name}{suffix}" for bid in benchmarks for mk in models]
-
-
-# Valid modes for the CLI
-VALID_MODES = ("gpu", "tinker", "runpod", "all")
 
 
 # --- CLI ---
@@ -369,14 +374,15 @@ def generate(
         num_hours: Number of hours for the training task. Defaults to 10 for gpu mode, 1 for tinker mode.
         all: Generate tasks for all benchmark + model combinations.
         list: List available benchmarks and models.
-        mode: Export mode: "gpu", "tinker", "runpod", or "all" (default, exports all three).
+        mode: Export mode: "gpu", "tinker", "gpu-runpod", or "all" (default, exports gpu+tinker+gpu-runpod).
         include_target: Include instruct baseline target score in the instruction (tinker mode only).
     """
-    modes = ["tinker", "gpu", "runpod"] if mode == "all" else [mode]
+    all_modes = ["tinker", "gpu", "gpu-runpod"]
+    modes = all_modes if (mode == "all" or all) else [mode]
 
     if list:
         for m in modes:
-            models = TINKER_MODELS if m == "tinker" else MODELS
+            models = {k: v for k, v in MODELS.items() if v.tinker} if m == "tinker" else MODELS
             print(f"Mode: {m}")
             print("\nAvailable benchmarks:")
             for bm_id, bm_info in BENCHMARKS.items():

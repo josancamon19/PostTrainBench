@@ -29,7 +29,7 @@ if [ -z "$CHECKPOINT" ]; then
 fi
 
 # Read metadata
-META=$(python3 -c "import json; print(json.dumps(json.load(open('$WORKSPACE/metadata.json'))))")
+META=$(python3 -c "import json; print(json.dumps(json.load(open('$TESTS_DIR/metadata.json'))))")
 BENCHMARK_ID=$(echo "$META" | python3 -c "import sys,json; print(json.load(sys.stdin)['benchmark_id'])")
 MODEL_ID=$(echo "$META" | python3 -c "import sys,json; print(json.load(sys.stdin)['model_id'])")
 echo "Benchmark: $BENCHMARK_ID | Model: $MODEL_ID"
@@ -61,7 +61,7 @@ if [ -f "$LOGS_DIR/metrics.json" ]; then
     # If no target/base in metadata, fall back to raw accuracy
     REWARD=$(python3 -c "
 import json
-meta = json.load(open('$WORKSPACE/metadata.json'))
+meta = json.load(open('$TESTS_DIR/metadata.json'))
 score = float($ACCURACY)
 base = meta.get('base_score')
 target = meta.get('target_score')

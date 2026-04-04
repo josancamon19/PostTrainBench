@@ -33,7 +33,7 @@ PHASE3_TOKENS = {
 
 def read_metadata() -> dict:
     """Read benchmark/model metadata, return dict with benchmark_id, benchmark_name, model_id."""
-    meta_path = WORKSPACE / "metadata.json"
+    meta_path = TESTS_DIR / "metadata.json"
     if not meta_path.exists():
         return {"benchmark_id": "", "benchmark_name": "Unknown", "model_id": "Unknown"}
     with open(meta_path) as f:

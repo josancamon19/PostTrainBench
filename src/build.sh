@@ -5,7 +5,6 @@ REPO="ghcr.io/josancamon19/posttrainbench"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ENV_DIR="$SCRIPT_DIR/harbor_template/environment"
 ROOT_DIR="$(dirname "$SCRIPT_DIR")"
-RUNPOD_DF="$ENV_DIR/runpod-ssh.gpu.Dockerfile"
 
 echo "=== Building base images ==="
 docker build --platform linux/amd64 -t "$REPO-gpu:latest" -f "$ENV_DIR/base/gpu.Dockerfile" "$ENV_DIR" &
@@ -45,42 +44,6 @@ for task_dir in "$ROOT_DIR/datasets/posttrainbench/gpu"/*/; do
     task_id=$(basename "$task_dir")
     tag="$REPO-gpu:$task_id"
     docker push "$tag" &
-    PIDS+=($!)
-done
-
-for pid in "${PIDS[@]}"; do
-    wait $pid || echo "WARNING: push $pid failed"
-done
-
-echo "=== Building RunPod variants (SSH-enabled) ==="
-# Base RunPod variant
-docker build --platform linux/amd64 --build-arg BASE_IMAGE="$REPO-gpu:latest" \
-    -t "$REPO-gpu:latest-runpod" -f "$RUNPOD_DF" "$ENV_DIR" &
-PID_BASE=$!
-
-# Per-task RunPod variants
-PIDS=()
-for task_dir in "$ROOT_DIR/datasets/posttrainbench/gpu"/*/; do
-    task_id=$(basename "$task_dir")
-    tag="$REPO-gpu:$task_id-runpod"
-    echo "Building $tag..."
-    docker build --platform linux/amd64 --build-arg BASE_IMAGE="$REPO-gpu:$task_id" \
-        -t "$tag" -f "$RUNPOD_DF" "$ENV_DIR" &
-    PIDS+=($!)
-done
-
-wait $PID_BASE && echo "RunPod base built." || echo "WARNING: RunPod base build failed"
-for pid in "${PIDS[@]}"; do
-    wait $pid || echo "WARNING: runpod build $pid failed"
-done
-
-echo "Pushing RunPod variants..."
-PIDS=()
-docker push "$REPO-gpu:latest-runpod" &
-PIDS+=($!)
-for task_dir in "$ROOT_DIR/datasets/posttrainbench/gpu"/*/; do
-    task_id=$(basename "$task_dir")
-    docker push "$REPO-gpu:$task_id-runpod" &
     PIDS+=($!)
 done
 
