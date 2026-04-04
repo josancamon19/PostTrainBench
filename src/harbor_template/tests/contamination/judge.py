@@ -9,7 +9,7 @@ import argparse
 import sys
 from pathlib import Path
 
-JUDGE_PROMPT_TEMPLATE = (Path(__file__).parent / "contamination_judge_prompt.txt").read_text()
+JUDGE_PROMPT_TEMPLATE = (Path(__file__).parent / "prompt.txt").read_text()
 
 
 def get_other_allowed_data(benchmark: str) -> str:

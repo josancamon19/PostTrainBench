@@ -18,9 +18,10 @@ RUN apt-get update && apt-get install -y \
 RUN ln -sf /usr/bin/python3.10 /usr/bin/python3 && \
     ln -sf /usr/bin/python3.10 /usr/bin/python
 
-# Install Node.js for npm (needed by agent CLI tools)
+# Node.js + codex CLI (for contamination judge)
 RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
-    apt-get install -y nodejs
+    apt-get install -y nodejs && \
+    npm install -g @openai/codex
 
 # uv
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh

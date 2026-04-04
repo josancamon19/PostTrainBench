@@ -267,12 +267,13 @@ fi
         if env_metadata.exists():
             shutil.copy(env_metadata, tests_dir / "metadata.json")
 
-        judge_src = TEMPLATE_DIR / "judge" / "contamination_judge.py"
-        if judge_src.exists():
-            shutil.copy(judge_src, tests_dir / "contamination_judge.py")
-        judge_prompt_src = TEMPLATE_DIR / "judge" / "contamination_judge_prompt.txt"
-        if judge_prompt_src.exists():
-            shutil.copy(judge_prompt_src, tests_dir / "contamination_judge_prompt.txt")
+        # Contamination judge + shared runner
+        contam_src = TEMPLATE_DIR / "tests" / "contamination"
+        if contam_src.is_dir():
+            shutil.copytree(contam_src, tests_dir / "contamination", dirs_exist_ok=True)
+        contam_sh = TEMPLATE_DIR / "tests" / "contamination.sh"
+        if contam_sh.exists():
+            shutil.copy(contam_sh, tests_dir / "contamination.sh")
 
     def generate_task(self, benchmark_id: str, model_key: str) -> Path:
         models = self._models

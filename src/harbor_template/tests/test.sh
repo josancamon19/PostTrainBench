@@ -32,45 +32,9 @@ BENCHMARK_NAME=$(echo "$META" | python3 -c "import sys,json; print(json.load(sys
 MODEL_ID=$(echo "$META" | python3 -c "import sys,json; print(json.load(sys.stdin)['model_id'])")
 echo "Benchmark: $BENCHMARK_NAME ($BENCHMARK_ID) | Model: $MODEL_ID"
 
-# ============================================================
-# Contamination judge (codex CLI)
-# ============================================================
-echo ""
-echo "=== Running Contamination Judge ==="
-
-if [ -f "$TESTS_DIR/contamination_judge.py" ] && [ -n "$BENCHMARK_NAME" ]; then
-    JUDGE_TASK=$(python3 "$TESTS_DIR/contamination_judge.py" \
-        --model "$MODEL_ID" \
-        --benchmark "$BENCHMARK_NAME" 2>/dev/null) || true
-
-    if [ -n "$JUDGE_TASK" ] && [ -n "$OPENAI_API_KEY" ]; then
-        echo "Running codex CLI contamination judge..."
-        set +e
-        cd "$WORKSPACE"
-        codex --search -a never exec --json -c model_reasoning_summary=detailed \
-            --skip-git-repo-check --yolo --model "gpt-5.1-codex" "$JUDGE_TASK" \
-            2>&1 | tee "$LOGS_DIR/judge_output.json"
-        set -e
-
-        # Copy judgement files codex writes into workspace
-        for f in contamination_judgement.txt disallowed_model_judgement.txt; do
-            if [ -f "$WORKSPACE/$f" ]; then
-                cp "$WORKSPACE/$f" "$LOGS_DIR/$f"
-                echo "$f: $(cat "$LOGS_DIR/$f")"
-            fi
-        done
-        [ -f "$LOGS_DIR/contamination_judgement.txt" ] || echo "no contamination detected (codex did not produce output)" > "$LOGS_DIR/contamination_judgement.txt"
-        [ -f "$LOGS_DIR/disallowed_model_judgement.txt" ] || echo "only allowed use detected (codex did not produce output)" > "$LOGS_DIR/disallowed_model_judgement.txt"
-    else
-        echo "Warning: OPENAI_API_KEY not set or prompt generation failed, skipping judge"
-        echo "no contamination detected (judge skipped - no API key)" > "$LOGS_DIR/contamination_judgement.txt"
-        echo "only allowed use detected (judge skipped - no API key)" > "$LOGS_DIR/disallowed_model_judgement.txt"
-    fi
-else
-    echo "Warning: contamination_judge.py or metadata not found, skipping judge"
-    echo "no contamination detected (judge not available)" > "$LOGS_DIR/contamination_judgement.txt"
-    echo "only allowed use detected (judge not available)" > "$LOGS_DIR/disallowed_model_judgement.txt"
-fi
+# Contamination judge (disabled — workspace artifacts alone are insufficient for
+# long trajectories; need trajectory-level analysis to detect deliberate cheating)
+# source "$TESTS_DIR/contamination.sh"
 
 # ============================================================
 # Evaluation with 3-phase retry logic

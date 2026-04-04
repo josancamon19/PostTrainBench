@@ -31,8 +31,13 @@ fi
 # Read metadata
 META=$(python3 -c "import json; print(json.dumps(json.load(open('$TESTS_DIR/metadata.json'))))")
 BENCHMARK_ID=$(echo "$META" | python3 -c "import sys,json; print(json.load(sys.stdin)['benchmark_id'])")
+BENCHMARK_NAME=$(echo "$META" | python3 -c "import sys,json; print(json.load(sys.stdin)['benchmark_name'])")
 MODEL_ID=$(echo "$META" | python3 -c "import sys,json; print(json.load(sys.stdin)['model_id'])")
-echo "Benchmark: $BENCHMARK_ID | Model: $MODEL_ID"
+echo "Benchmark: $BENCHMARK_NAME ($BENCHMARK_ID) | Model: $MODEL_ID"
+
+# Contamination judge (disabled — workspace artifacts alone are insufficient for
+# long trajectories; need trajectory-level analysis to detect deliberate cheating)
+# source "$TESTS_DIR/contamination.sh"
 
 # Run evaluation
 echo ""
