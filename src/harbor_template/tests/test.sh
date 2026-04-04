@@ -113,8 +113,23 @@ echo "=== Evaluation complete (${EVAL_COUNTER} total attempts) ==="
 if [ -f "$LOGS_DIR/metrics.json" ]; then
     cat "$LOGS_DIR/metrics.json"
     ACCURACY=$(python3 "$TESTS_DIR/verifier.py" accuracy "$LOGS_DIR/metrics.json")
-    echo "Accuracy: $ACCURACY"
-    echo "$ACCURACY" > "$LOGS_DIR/reward.txt"
+    echo "Raw accuracy: $ACCURACY"
+
+    # Compute normalized reward: (score - base) / (target - base)
+    REWARD=$(python3 -c "
+import json
+meta = json.load(open('$TESTS_DIR/metadata.json'))
+score = float($ACCURACY)
+base = meta.get('base_score')
+target = meta.get('target_score')
+if base is not None and target is not None and target != base:
+    reward = max((score - base) / (target - base), 0.0)
+else:
+    reward = score
+print(f'{reward:.6f}')
+")
+    echo "Normalized reward: $REWARD"
+    echo "$REWARD" > "$LOGS_DIR/reward.txt"
 else
     echo "ERROR: metrics.json not created after all evaluation attempts"
     echo "0" > "$LOGS_DIR/reward.txt"
