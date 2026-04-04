@@ -9,7 +9,8 @@ RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y openssh-server && \
     rm -rf /var/lib/apt/lists/* && \
     mkdir -p /var/run/sshd /root/.ssh && \
-    chmod 700 -R /root/.ssh
+    chmod 700 -R /root/.ssh && \
+    rm -f /etc/ssh/ssh_host_*
 
 COPY <<'HARBOR_START' /harbor-start.sh
 #!/bin/bash
