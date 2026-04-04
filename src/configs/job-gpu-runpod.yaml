@@ -4,7 +4,7 @@ description: |
   PostTrainBench GPU mode on RunPod H100s.
 
 datasets:
-  - path: datasets/posttrainbench/gpu
+  - path: datasets/posttrainbench/runpod
     task_names:
       - "gsm8k-llama3.2-1b"
 

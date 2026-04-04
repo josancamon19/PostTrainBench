@@ -4,9 +4,9 @@ on:
   push:
     branches: [main]
     paths:
-      - "src/harbor_template/environment/base.Dockerfile"
-      - "src/harbor_template/environment/base.tinker.Dockerfile"
-      - "src/harbor_template/environment/runpod-ssh.Dockerfile"
+      - "src/harbor_template/environment/base/gpu.Dockerfile"
+      - "src/harbor_template/environment/base/tinker.Dockerfile"
+      - "src/harbor_template/environment/runpod-ssh.gpu.Dockerfile"
       - "src/tasks/**"
       - "src/adapter.py"
       - "src/constants.py"
@@ -33,14 +33,14 @@ jobs:
       - uses: docker/build-push-action@v6
         with:
           context: src/harbor_template/environment
-          file: src/harbor_template/environment/base.Dockerfile
+          file: src/harbor_template/environment/base/gpu.Dockerfile
           platforms: linux/amd64
           push: true
           tags: ${{ env.REPO }}-gpu:latest
       - uses: docker/build-push-action@v6
         with:
           context: src/harbor_template/environment
-          file: src/harbor_template/environment/base.tinker.Dockerfile
+          file: src/harbor_template/environment/base/tinker.Dockerfile
           platforms: linux/amd64
           push: true
           tags: ${{ env.REPO }}-tinker:latest
@@ -93,7 +93,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build RunPod SSH variants
         run: |
-          RUNPOD_DF="src/harbor_template/environment/runpod-ssh.Dockerfile"
+          RUNPOD_DF="src/harbor_template/environment/runpod-ssh.gpu.Dockerfile"
 
           # Base RunPod variant
           docker build --platform linux/amd64 \
