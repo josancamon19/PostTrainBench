@@ -23,7 +23,12 @@ RUN uv pip install --system --no-cache \
     tinker \
     tinker-cookbook \
     datasets \
-    openai
+    openai \
+    python-dotenv \
+    requests \
+    shortuuid \
+    tiktoken \
+    tqdm
 
 # Setup workspace
 RUN mkdir -p /app

@@ -44,8 +44,13 @@ RUN uv pip install --system --no-cache \
     packaging \
     pandas \
     peft \
+    python-dotenv \
+    requests \
     scikit-learn \
+    shortuuid \
+    tiktoken \
     transformers \
+    tqdm \
     trl
 
 # Setup workspace
