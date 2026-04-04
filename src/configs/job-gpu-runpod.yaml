@@ -19,6 +19,7 @@ environment:
   type: runpod
   delete: true
   override_gpus: 1
+  environment_build_timeout_multiplier: 3.0
   kwargs:
     gpu_type: h100
 
