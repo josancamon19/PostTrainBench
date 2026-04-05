@@ -41,13 +41,33 @@ def run_tests(code: str, test: str, entry_point: str, timeout: int = 10) -> bool
         return False
 
 
+def fix_indent(content: str, prompt: str) -> str:
+    """Auto-indent response to match function body level if needed."""
+    # Find first non-empty code line (skip thinking content)
+    first_code = ""
+    for line in content.split("\n"):
+        if line.strip() and not line.strip().startswith(("```", "#")):
+            first_code = line
+            break
+
+    # Already indented — leave as-is
+    if not first_code or first_code.startswith("    "):
+        return content
+
+    # Needs indentation — add 4 spaces to each non-empty line
+    return "\n".join("    " + line if line.strip() else line for line in content.split("\n"))
+
+
 def make_score_fn(dataset_list):
     """Create a score function with access to test cases."""
 
     def score(content: str, example: dict) -> bool:
-        # Combine prompt + completion
         full_code = example["prompt"] + content
-        return run_tests(full_code, example["test"], example["entry_point"])
+        # If syntax error from bad indent, try with fix
+        if not run_tests(full_code, example["test"], example["entry_point"]):
+            fixed = example["prompt"] + fix_indent(content, example["prompt"])
+            return run_tests(fixed, example["test"], example["entry_point"])
+        return True
 
     return score
 

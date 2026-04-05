@@ -115,100 +115,80 @@ MODELS = {
     ),
 }
 
-# Instruct model scores (targets for normalized reward).
-# Keys: (base_model_id, benchmark_id) -> score as float (0-1 scale).
-# Source: Meta model cards for Llama, GPU oracle baselines for others.
-# TODO: fill remaining from GPU oracle baseline runs
-INSTRUCT_BASELINES: dict[tuple[str, str], float] = {
-    # Llama-3.1-8B-Instruct (GPU oracle where available, Meta model card otherwise)
-    ("meta-llama/Llama-3.1-8B", "gsm8k"): 0.845,
-    ("meta-llama/Llama-3.1-8B", "humaneval"): 0.659,
-    ("meta-llama/Llama-3.1-8B", "gpqamain"): 0.304,
-    ("meta-llama/Llama-3.1-8B", "bfcl"): 0.761,
-    ("meta-llama/Llama-3.1-8B", "arenahardwriting"): 0.467,
-    ("meta-llama/Llama-3.1-8B", "healthbench"): 0.234,
-    ("meta-llama/Llama-3.1-8B", "aime2025"): 0.04,
-    # Llama-3.2-3B-Instruct
-    ("meta-llama/Llama-3.2-3B", "gsm8k"): 0.777,
-    ("meta-llama/Llama-3.2-3B", "humaneval"): 0.524,
-    ("meta-llama/Llama-3.2-3B", "aime2025"): 0.0,
-    ("meta-llama/Llama-3.2-3B", "gpqamain"): 0.328,
-    ("meta-llama/Llama-3.2-3B", "bfcl"): 0.670,
-    ("meta-llama/Llama-3.2-3B", "arenahardwriting"): 0.433,
-    ("meta-llama/Llama-3.2-3B", "healthbench"): 0.256,
-    # Llama-3.2-1B-Instruct
-    ("meta-llama/Llama-3.2-1B", "gsm8k"): 0.466,
-    ("meta-llama/Llama-3.2-1B", "humaneval"): 0.354,
-    ("meta-llama/Llama-3.2-1B", "aime2025"): 0.0,
-    ("meta-llama/Llama-3.2-1B", "gpqamain"): 0.225,
-    ("meta-llama/Llama-3.2-1B", "bfcl"): 0.257,  # Meta model card
-    ("meta-llama/Llama-3.2-1B", "arenahardwriting"): 0.200,
-    ("meta-llama/Llama-3.2-1B", "healthbench"): 0.139,
-    # following 2 have no public instruct variant
-    # Qwen3-8B (Qwen/Qwen3-8B instruct, measured via Tinker, temp=0)
-    ("Qwen/Qwen3-8B-Base", "gsm8k"): 0.875,  # /no_think (0.331 with thinking)
-    ("Qwen/Qwen3-8B-Base", "humaneval"): 0.037,
-    ("Qwen/Qwen3-8B-Base", "aime2025"): 0.400,
-    ("Qwen/Qwen3-8B-Base", "gpqamain"): 0.534,
-    ("Qwen/Qwen3-8B-Base", "bfcl"): 0.899,  # /no_think (0.807 with thinking)
-    ("Qwen/Qwen3-8B-Base", "arenahardwriting"): 0.820,
-    ("Qwen/Qwen3-8B-Base", "healthbench"): 0.542,
-    # Qwen3-30B-A3B (Qwen/Qwen3-30B-A3B instruct, measured via Tinker, temp=0)
-    ("Qwen/Qwen3-30B-A3B-Base", "gsm8k"): 0.895,  # /no_think (0.385 with thinking)
-    ("Qwen/Qwen3-30B-A3B-Base", "humaneval"): 0.585,
-    ("Qwen/Qwen3-30B-A3B-Base", "aime2025"): 0.500,
-    ("Qwen/Qwen3-30B-A3B-Base", "gpqamain"): 0.580,
-    ("Qwen/Qwen3-30B-A3B-Base", "bfcl"): 0.813,
-    ("Qwen/Qwen3-30B-A3B-Base", "arenahardwriting"): 0.860,
-    ("Qwen/Qwen3-30B-A3B-Base", "healthbench"): 0.580,
+# Baseline scores per model. Base measured via Tinker (temp=0). Target = instruct model scores.
+# Llama instruct: GPU oracle + Meta model cards. Qwen instruct: Tinker (temp=0, /no_think for gsm8k+bfcl).
+# fmt: off
+SCORES: dict[str, dict] = {
+    "meta-llama/Llama-3.1-8B": {
+        "instruct_id": "meta-llama/Llama-3.1-8B-Instruct",
+        "benchmarks": {
+            #                    base    target
+            "gsm8k":           (0.033,  0.845),
+            "humaneval":       (0.213,  0.659),
+            # target = 1/30, real instruct score is 0.0, kinda an impossible task.
+            "aime2025":        (0.0,    0.033),
+            "gpqamain":        (0.181,  0.304),
+            # "bfcl":            (0.655,  0.761),
+            "arenahardwriting":(0.017,  0.467),
+            "healthbench":     (0.214,  0.234),
+        },
+    },
+    "meta-llama/Llama-3.2-3B": {
+        "instruct_id": "meta-llama/Llama-3.2-3B-Instruct",
+        "benchmarks": {
+            "gsm8k":           (0.061,  0.777), # ✅
+            "humaneval":       (0.006,  0.524), # ✅
+            # "aime2025":        (0.0,    0.0),
+            "gpqamain":        (0.252,  0.328), # ✅
+            # "bfcl":            (0.684,  0.670),  # base > target
+            "arenahardwriting":(0.005,  0.433), # ✅
+            "healthbench":     (0.134,  0.256), # ✅
+        },
+    },
+    "meta-llama/Llama-3.2-1B": {
+        "instruct_id": "meta-llama/Llama-3.2-1B-Instruct",
+        "benchmarks": {
+            "gsm8k":           (0.036,  0.466), # ✅
+            "humaneval":       (0.0,    0.354), # ✅
+            # "aime2025":        (0.0,    0.0),
+            "gpqamain":        (0.132,  0.225), # ✅
+            # "bfcl":            (0.141,  0.257),
+            "arenahardwriting":(0.0,    0.200), # ✅
+            "healthbench":     (0.054,  0.139), # ✅
+        },
+    },
+    "Qwen/Qwen3-8B-Base": {
+        "instruct_id": "Qwen/Qwen3-8B",
+        "benchmarks": {
+            # "gsm8k":           (0.913,  0.875),  # base > target (instruct /no_think)
+            "humaneval":       (0.024,  0.457),
+            "aime2025":        (0.167,  0.400),
+            "gpqamain":        (0.388,  0.534),
+            # "bfcl":            (0.890,  0.899),  # instruct /no_think
+            "arenahardwriting":(0.341,  0.820),
+            "healthbench":     (0.287,  0.542),
+        },
+    },
+    "Qwen/Qwen3-30B-A3B-Base": {
+        "instruct_id": "Qwen/Qwen3-30B-A3B",
+        "benchmarks": {
+            # "gsm8k":           (0.908,  0.895),  # base > target (instruct /no_think)
+            "humaneval":       (0.006,  0.720),
+            "aime2025":        (0.100,  0.500),
+            "gpqamain":        (0.462,  0.580),
+            # "bfcl":            (0.815,  0.813),  # base > target
+            "arenahardwriting":(0.475,  0.860),
+            "healthbench":     (0.301,  0.580),
+        },
+    },
+}
+# fmt: on
+
+# Backward-compatible flat dicts (used by adapter.py and verifier)
+BASE_SCORES: dict[tuple[str, str], float] = {
+    (model_id, bid): scores[0] for model_id, data in SCORES.items() for bid, scores in data["benchmarks"].items()
 }
 
-# - check we got baselines correct now, check, if not retry, what's missing
-# - check remaining 7 tasks tinker ran correctly, merge trials into main one.
-# - run 1 task gpu in modal, check exec 30 min, is it correct? everything lgtm, then we can run the initial 10
-# - analysis current runs
-# - continue notebook tasks
-
-# Base model scores (measured via Tinker evaluation, temp=0.0).
-BASE_SCORES: dict[tuple[str, str], float] = {
-    # Llama-3.1-8B
-    ("meta-llama/Llama-3.1-8B", "gsm8k"): 0.033,
-    ("meta-llama/Llama-3.1-8B", "humaneval"): 0.195,
-    ("meta-llama/Llama-3.1-8B", "aime2025"): 0.0,
-    ("meta-llama/Llama-3.1-8B", "gpqamain"): 0.181,
-    ("meta-llama/Llama-3.1-8B", "bfcl"): 0.655,
-    ("meta-llama/Llama-3.1-8B", "arenahardwriting"): 0.017,
-    ("meta-llama/Llama-3.1-8B", "healthbench"): 0.214,
-    # Llama-3.2-3B
-    ("meta-llama/Llama-3.2-3B", "gsm8k"): 0.061,
-    ("meta-llama/Llama-3.2-3B", "humaneval"): 0.006,
-    ("meta-llama/Llama-3.2-3B", "aime2025"): 0.0,
-    ("meta-llama/Llama-3.2-3B", "gpqamain"): 0.252,
-    ("meta-llama/Llama-3.2-3B", "bfcl"): 0.684,
-    ("meta-llama/Llama-3.2-3B", "arenahardwriting"): 0.005,
-    ("meta-llama/Llama-3.2-3B", "healthbench"): 0.134,
-    # Llama-3.2-1B
-    ("meta-llama/Llama-3.2-1B", "gsm8k"): 0.036,
-    ("meta-llama/Llama-3.2-1B", "humaneval"): 0.0,
-    ("meta-llama/Llama-3.2-1B", "aime2025"): 0.0,
-    ("meta-llama/Llama-3.2-1B", "gpqamain"): 0.132,
-    ("meta-llama/Llama-3.2-1B", "bfcl"): 0.141,
-    ("meta-llama/Llama-3.2-1B", "arenahardwriting"): 0.0,
-    ("meta-llama/Llama-3.2-1B", "healthbench"): 0.054,
-    # Qwen3-8B-Base
-    ("Qwen/Qwen3-8B-Base", "gsm8k"): 0.913,
-    ("Qwen/Qwen3-8B-Base", "humaneval"): 0.024,
-    ("Qwen/Qwen3-8B-Base", "aime2025"): 0.167,
-    ("Qwen/Qwen3-8B-Base", "gpqamain"): 0.388,
-    ("Qwen/Qwen3-8B-Base", "bfcl"): 0.890,
-    ("Qwen/Qwen3-8B-Base", "healthbench"): 0.287,
-    ("Qwen/Qwen3-8B-Base", "arenahardwriting"): 0.341,
-    # Qwen3-30B-A3B-Base
-    ("Qwen/Qwen3-30B-A3B-Base", "gsm8k"): 0.908,
-    ("Qwen/Qwen3-30B-A3B-Base", "humaneval"): 0.006,
-    ("Qwen/Qwen3-30B-A3B-Base", "aime2025"): 0.100,
-    ("Qwen/Qwen3-30B-A3B-Base", "gpqamain"): 0.462,
-    ("Qwen/Qwen3-30B-A3B-Base", "bfcl"): 0.815,
-    ("Qwen/Qwen3-30B-A3B-Base", "arenahardwriting"): 0.475,
-    ("Qwen/Qwen3-30B-A3B-Base", "healthbench"): 0.301,
+INSTRUCT_BASELINES: dict[tuple[str, str], float] = {
+    (model_id, bid): scores[1] for model_id, data in SCORES.items() for bid, scores in data["benchmarks"].items()
 }
