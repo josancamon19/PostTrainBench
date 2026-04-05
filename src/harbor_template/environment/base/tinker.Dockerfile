@@ -24,6 +24,7 @@ RUN uv pip install --system --no-cache \
     tinker-cookbook \
     datasets \
     openai \
+    boto3 \
     python-dotenv \
     requests \
     shortuuid \

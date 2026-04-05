@@ -113,6 +113,9 @@ def batch_evaluate(
             result = future.result()
             parsed, _ = ctx.renderer.parse_response(result.sequences[0].tokens)
             content = parsed["content"]
+            # Strip thinking content from instruct models (e.g. Qwen3)
+            if "</think>" in content:
+                content = content.split("</think>", 1)[1].strip()
             if score_fn(content, example):
                 correct += 1
         except Exception as e:

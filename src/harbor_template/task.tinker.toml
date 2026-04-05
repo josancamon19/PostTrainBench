@@ -18,7 +18,7 @@ TINKER_API_KEY = "${TINKER_API_KEY}"
 HF_TOKEN = "${HF_TOKEN}"
 
 [verifier]
-timeout_sec = 900.0
+timeout_sec = 1800.0
 
 [verifier.env]
 TINKER_API_KEY = "${TINKER_API_KEY}"

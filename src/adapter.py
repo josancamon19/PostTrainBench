@@ -75,12 +75,9 @@ class PostTrainBenchAdapter:
                 )
             else:
                 content += '\n[environment.env]\nOPENAI_API_KEY = "${OPENAI_API_KEY}"\n'
-        # Add prebuilt docker_image for GPU and RunPod tasks
-        if self.mode in ("gpu", "gpu-runpod") and task_id:
-            if self.mode == "gpu-runpod":
-                image = "runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404"
-            else:
-                image = f"ghcr.io/josancamon19/posttrainbench-gpu:{task_id}"
+        # Add prebuilt docker_image for RunPod tasks (GPU mode uses Dockerfile directly)
+        if self.mode == "gpu-runpod" and task_id:
+            image = "runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404"
             content = content.replace(
                 "[environment]",
                 f'[environment]\ndocker_image = "{image}"',
@@ -337,10 +334,11 @@ fi
                 key = (model_info.model_id, benchmark_id)
                 target = INSTRUCT_BASELINES.get(key)
                 base = BASE_SCORES.get(key)
-                # Skip benchmarks without baseline scores or zero target
-                if target is None or base is None or target == 0:
-                    continue
-                if self.include_target and base >= target:
+                # TODO: re-enable once all baselines are populated
+                # if target is None or base is None or target == 0:
+                #     continue
+                # if self.include_target and base >= target:
+                if False:
                     print(
                         f"  WARNING: Skipping {benchmark_id}/{model_info.short_name}: "
                         f"base ({base:.3f}) >= target ({target:.3f}). "
@@ -386,7 +384,7 @@ def generate(
         mode: Export mode: "gpu", "tinker", "gpu-runpod", or "all" (default, exports gpu+tinker+gpu-runpod).
         include_target: Include instruct baseline target score in the instruction (tinker mode only).
     """
-    all_modes = ["tinker", "gpu-runpod"]  # "gpu" disabled — gpu-runpod replaces it
+    all_modes = ["tinker", "gpu", "gpu-runpod"]
     modes = all_modes if (mode == "all" or all) else [mode]
 
     if list:

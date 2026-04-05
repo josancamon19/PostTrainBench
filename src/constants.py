@@ -79,24 +79,39 @@ MODELS = {
     # "smollm3-3b": ModelInfo(model_id="HuggingFaceTB/SmolLM3-3B-Base", short_name="smollm3-3b", tinker=False),
     # "gemma3-4b": ModelInfo(model_id="google/gemma-3-4b-pt", short_name="gemma3-4b", tinker=False),
     "llama3.1-8b": ModelInfo(
-        model_id="meta-llama/Llama-3.1-8B", short_name="llama3.1-8b",
-        instruct_id="meta-llama/Llama-3.1-8B-Instruct", max_connections=64, max_connections_long=8,
+        model_id="meta-llama/Llama-3.1-8B",
+        short_name="llama3.1-8b",
+        instruct_id="meta-llama/Llama-3.1-8B-Instruct",
+        max_connections=64,
+        max_connections_long=8,
     ),
     "llama3.2-3b": ModelInfo(
-        model_id="meta-llama/Llama-3.2-3B", short_name="llama3.2-3b",
-        instruct_id="meta-llama/Llama-3.2-3B-Instruct", max_connections=128, max_connections_long=16,
+        model_id="meta-llama/Llama-3.2-3B",
+        short_name="llama3.2-3b",
+        instruct_id="meta-llama/Llama-3.2-3B-Instruct",
+        max_connections=128,
+        max_connections_long=16,
     ),
     "llama3.2-1b": ModelInfo(
-        model_id="meta-llama/Llama-3.2-1B", short_name="llama3.2-1b",
-        instruct_id="meta-llama/Llama-3.2-1B-Instruct", max_connections=256, max_connections_long=32,
+        model_id="meta-llama/Llama-3.2-1B",
+        short_name="llama3.2-1b",
+        instruct_id="meta-llama/Llama-3.2-1B-Instruct",
+        max_connections=256,
+        max_connections_long=32,
     ),
     "qwen3-8b": ModelInfo(
-        model_id="Qwen/Qwen3-8B-Base", short_name="qwen3-8b",
-        instruct_id="Qwen/Qwen3-8B", max_connections=64, max_connections_long=8,
+        model_id="Qwen/Qwen3-8B-Base",
+        short_name="qwen3-8b",
+        instruct_id="Qwen/Qwen3-8B",
+        max_connections=64,
+        max_connections_long=8,
     ),
     "qwen3-30b-a3b": ModelInfo(
-        model_id="Qwen/Qwen3-30B-A3B-Base", short_name="qwen3-30b-a3b",
-        instruct_id="Qwen/Qwen3-30B-A3B", max_connections=16, max_connections_long=4,
+        model_id="Qwen/Qwen3-30B-A3B-Base",
+        short_name="qwen3-30b-a3b",
+        instruct_id="Qwen/Qwen3-30B-A3B",
+        max_connections=16,
+        max_connections_long=4,
     ),
 }
 
@@ -105,32 +120,54 @@ MODELS = {
 # Source: Meta model cards for Llama, GPU oracle baselines for others.
 # TODO: fill remaining from GPU oracle baseline runs
 INSTRUCT_BASELINES: dict[tuple[str, str], float] = {
-    # Llama-3.1-8B-Instruct
+    # Llama-3.1-8B-Instruct (GPU oracle where available, Meta model card otherwise)
     ("meta-llama/Llama-3.1-8B", "gsm8k"): 0.845,
-    ("meta-llama/Llama-3.1-8B", "humaneval"): 0.726,
+    ("meta-llama/Llama-3.1-8B", "humaneval"): 0.659,
     ("meta-llama/Llama-3.1-8B", "gpqamain"): 0.304,
     ("meta-llama/Llama-3.1-8B", "bfcl"): 0.761,
-    ("meta-llama/Llama-3.1-8B", "arenahardwriting"): 0.507,
+    ("meta-llama/Llama-3.1-8B", "arenahardwriting"): 0.467,
     ("meta-llama/Llama-3.1-8B", "healthbench"): 0.234,
+    ("meta-llama/Llama-3.1-8B", "aime2025"): 0.0,  # TODO: true?
     # Llama-3.2-3B-Instruct
     ("meta-llama/Llama-3.2-3B", "gsm8k"): 0.777,
-    ("meta-llama/Llama-3.2-3B", "humaneval"): 0.506,
+    ("meta-llama/Llama-3.2-3B", "humaneval"): 0.524,
+    ("meta-llama/Llama-3.2-3B", "aime2025"): 0.0,
     ("meta-llama/Llama-3.2-3B", "gpqamain"): 0.328,
     ("meta-llama/Llama-3.2-3B", "bfcl"): 0.670,
     ("meta-llama/Llama-3.2-3B", "arenahardwriting"): 0.433,
     ("meta-llama/Llama-3.2-3B", "healthbench"): 0.256,
     # Llama-3.2-1B-Instruct
-    ("meta-llama/Llama-3.2-1B", "gsm8k"): 0.444,
-    ("meta-llama/Llama-3.2-1B", "humaneval"): 0.348,
-    ("meta-llama/Llama-3.2-1B", "gpqamain"): 0.272,
-    ("meta-llama/Llama-3.2-1B", "bfcl"): 0.257,
+    ("meta-llama/Llama-3.2-1B", "gsm8k"): 0.466,
+    ("meta-llama/Llama-3.2-1B", "humaneval"): 0.354,
+    ("meta-llama/Llama-3.2-1B", "aime2025"): 0.0,
+    ("meta-llama/Llama-3.2-1B", "gpqamain"): 0.225,
+    ("meta-llama/Llama-3.2-1B", "bfcl"): 0.257,  # Meta model card
     ("meta-llama/Llama-3.2-1B", "arenahardwriting"): 0.200,
-    ("meta-llama/Llama-3.2-1B", "healthbench"): 0.129,
-    # Qwen3-8B (instruct) — TODO: measure via GPU oracle
-    # Qwen3-30B-A3B (instruct) — TODO: measure via GPU oracle
-    # arenahardwriting-llama3.2-3b GPU oracle: 0.342
-    # aime2025 — all models score 0.0 on instruct, skipping
+    ("meta-llama/Llama-3.2-1B", "healthbench"): 0.139,
+    # Qwen3-8B (Qwen/Qwen3-8B instruct, measured via Tinker, temp=0)
+    ("Qwen/Qwen3-8B-Base", "gsm8k"): 0.331,
+    ("Qwen/Qwen3-8B-Base", "humaneval"): 0.037,
+    ("Qwen/Qwen3-8B-Base", "aime2025"): 0.400,
+    ("Qwen/Qwen3-8B-Base", "gpqamain"): 0.534,
+    ("Qwen/Qwen3-8B-Base", "bfcl"): 0.807,
+    ("Qwen/Qwen3-8B-Base", "arenahardwriting"): 0.820,
+    ("Qwen/Qwen3-8B-Base", "healthbench"): 0.542,
+    # Qwen3-30B-A3B (Qwen/Qwen3-30B-A3B instruct, measured via Tinker, temp=0)
+    ("Qwen/Qwen3-30B-A3B-Base", "gsm8k"): 0.385,
+    ("Qwen/Qwen3-30B-A3B-Base", "humaneval"): 0.585,
+    ("Qwen/Qwen3-30B-A3B-Base", "aime2025"): 0.500,
+    ("Qwen/Qwen3-30B-A3B-Base", "gpqamain"): 0.580,
+    ("Qwen/Qwen3-30B-A3B-Base", "bfcl"): 0.813,
+    ("Qwen/Qwen3-30B-A3B-Base", "arenahardwriting"): 0.860,
+    ("Qwen/Qwen3-30B-A3B-Base", "healthbench"): 0.580,
 }
+
+# - check we got baselines correct now, check, if not retry, what's missing
+# - check remaining 7 tasks tinker ran correctly, merge trials into main one.
+# - run 1 task gpu in modal, check exec 30 min, is it correct? everything lgtm, then we can run the initial 10
+# - analysis current runs
+# - remove baselines files, + remove runpod option for now. keep only job-gpu.
+# - continue notebook tasks
 
 # Base model scores (measured via Tinker evaluation, temp=0.0).
 BASE_SCORES: dict[tuple[str, str], float] = {
@@ -140,67 +177,38 @@ BASE_SCORES: dict[tuple[str, str], float] = {
     ("meta-llama/Llama-3.1-8B", "aime2025"): 0.0,
     ("meta-llama/Llama-3.1-8B", "gpqamain"): 0.181,
     ("meta-llama/Llama-3.1-8B", "bfcl"): 0.655,
-    # ("meta-llama/Llama-3.1-8B", "arenahardwriting"):  # TODO: missing dep
-    # ("meta-llama/Llama-3.1-8B", "healthbench"):  # TODO: crashed
+    ("meta-llama/Llama-3.1-8B", "arenahardwriting"): 0.017,
+    ("meta-llama/Llama-3.1-8B", "healthbench"): 0.214,
     # Llama-3.2-3B
-    # ("meta-llama/Llama-3.2-3B", "gsm8k"):  # TODO: crashed
+    ("meta-llama/Llama-3.2-3B", "gsm8k"): 0.061,
     ("meta-llama/Llama-3.2-3B", "humaneval"): 0.006,
     ("meta-llama/Llama-3.2-3B", "aime2025"): 0.0,
     ("meta-llama/Llama-3.2-3B", "gpqamain"): 0.252,
-    # ("meta-llama/Llama-3.2-3B", "bfcl"):  # TODO: crashed
-    # ("meta-llama/Llama-3.2-3B", "arenahardwriting"):  # TODO: missing dep
-    # ("meta-llama/Llama-3.2-3B", "healthbench"):  # TODO: crashed
+    ("meta-llama/Llama-3.2-3B", "bfcl"): 0.684,
+    ("meta-llama/Llama-3.2-3B", "arenahardwriting"): 0.005,
+    ("meta-llama/Llama-3.2-3B", "healthbench"): 0.134,
     # Llama-3.2-1B
-    # ("meta-llama/Llama-3.2-1B", "gsm8k"):  # TODO: crashed
-    # ("meta-llama/Llama-3.2-1B", "humaneval"):  # TODO: crashed
+    ("meta-llama/Llama-3.2-1B", "gsm8k"): 0.036,
+    ("meta-llama/Llama-3.2-1B", "humaneval"): 0.0,
     ("meta-llama/Llama-3.2-1B", "aime2025"): 0.0,
     ("meta-llama/Llama-3.2-1B", "gpqamain"): 0.132,
     ("meta-llama/Llama-3.2-1B", "bfcl"): 0.141,
-    # ("meta-llama/Llama-3.2-1B", "arenahardwriting"):  # TODO: missing dep
+    ("meta-llama/Llama-3.2-1B", "arenahardwriting"): 0.0,
     ("meta-llama/Llama-3.2-1B", "healthbench"): 0.054,
     # Qwen3-8B-Base
+    ("Qwen/Qwen3-8B-Base", "gsm8k"): 0.913,
+    ("Qwen/Qwen3-8B-Base", "humaneval"): 0.024,
     ("Qwen/Qwen3-8B-Base", "aime2025"): 0.167,
     ("Qwen/Qwen3-8B-Base", "gpqamain"): 0.388,
     ("Qwen/Qwen3-8B-Base", "bfcl"): 0.890,
     ("Qwen/Qwen3-8B-Base", "healthbench"): 0.287,
-    # ("Qwen/Qwen3-8B-Base", "gsm8k"):  # TODO: crashed
-    # ("Qwen/Qwen3-8B-Base", "humaneval"):  # TODO: crashed
-    # ("Qwen/Qwen3-8B-Base", "arenahardwriting"):  # TODO: missing dep
+    ("Qwen/Qwen3-8B-Base", "arenahardwriting"): 0.341,
     # Qwen3-30B-A3B-Base
-    ("Qwen/Qwen3-30B-A3B-Base", "aime2025"): 0.100,
     ("Qwen/Qwen3-30B-A3B-Base", "gsm8k"): 0.908,
     ("Qwen/Qwen3-30B-A3B-Base", "humaneval"): 0.006,
+    ("Qwen/Qwen3-30B-A3B-Base", "aime2025"): 0.100,
     ("Qwen/Qwen3-30B-A3B-Base", "gpqamain"): 0.462,
     ("Qwen/Qwen3-30B-A3B-Base", "bfcl"): 0.815,
-    # ("Qwen/Qwen3-30B-A3B-Base", "arenahardwriting"):  # TODO: missing dep
-    # ("Qwen/Qwen3-30B-A3B-Base", "healthbench"):  # TODO: crashed
+    ("Qwen/Qwen3-30B-A3B-Base", "arenahardwriting"): 0.475,
+    ("Qwen/Qwen3-30B-A3B-Base", "healthbench"): 0.301,
 }
-
-# Base model scores (measured via GPU/vLLM evaluation, temp=0.6 from model generation_config).
-# For comparison with Tinker scores (temp=0.0) above.
-# BASE_SCORES_GPU: dict[tuple[str, str], float] = {
-#     # Llama-3.1-8B
-#     ("meta-llama/Llama-3.1-8B", "gsm8k"): 0.041,
-#     ("meta-llama/Llama-3.1-8B", "humaneval"): 0.091,
-#     # ("meta-llama/Llama-3.1-8B", "aime2025"): 0.0,
-#     ("meta-llama/Llama-3.1-8B", "gpqamain"): 0.062,
-#     ("meta-llama/Llama-3.1-8B", "bfcl"): 0.288,
-#     ("meta-llama/Llama-3.1-8B", "arenahardwriting"): 0.0,
-#     ("meta-llama/Llama-3.1-8B", "healthbench"): 0.196,
-#     # Llama-3.2-3B
-#     ("meta-llama/Llama-3.2-3B", "gsm8k"): 0.040,
-#     ("meta-llama/Llama-3.2-3B", "humaneval"): 0.213,
-#     # ("meta-llama/Llama-3.2-3B", "aime2025"): 0.0,
-#     ("meta-llama/Llama-3.2-3B", "gpqamain"): 0.004,
-#     ("meta-llama/Llama-3.2-3B", "bfcl"): 0.238,
-#     ("meta-llama/Llama-3.2-3B", "arenahardwriting"): 0.001,
-#     ("meta-llama/Llama-3.2-3B", "healthbench"): 0.149,
-#     # Llama-3.2-1B
-#     ("meta-llama/Llama-3.2-1B", "gsm8k"): 0.021,
-#     ("meta-llama/Llama-3.2-1B", "humaneval"): 0.085,
-#     # ("meta-llama/Llama-3.2-1B", "aime2025"): 0.0,
-#     ("meta-llama/Llama-3.2-1B", "gpqamain"): 0.0,
-#     ("meta-llama/Llama-3.2-1B", "bfcl"): 0.273,
-#     ("meta-llama/Llama-3.2-1B", "arenahardwriting"): 0.0,
-#     ("meta-llama/Llama-3.2-1B", "healthbench"): 0.059,
-# }
