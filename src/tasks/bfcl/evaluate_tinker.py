@@ -89,7 +89,7 @@ def prepare_dataset(limit: int | None = None):
 
 def build_messages(example):
     return [
-        {"role": "system", "content": SYSTEM + f"\n\nAvailable functions:\n{example['function_schemas']}"},
+        {"role": "system", "content": "/no_think\n" + SYSTEM + f"\n\nAvailable functions:\n{example['function_schemas']}"},
         {"role": "user", "content": example["user_message"]},
     ]
 

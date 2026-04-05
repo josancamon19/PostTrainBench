@@ -44,7 +44,7 @@ def extract_gold(answer_text: str) -> str:
 
 def build_messages(example):
     return [
-        {"role": "system", "content": SYSTEM},
+        {"role": "system", "content": "/no_think\n" + SYSTEM},
         {"role": "user", "content": example["question"]},
     ]
 

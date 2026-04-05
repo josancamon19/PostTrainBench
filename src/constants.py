@@ -127,7 +127,7 @@ INSTRUCT_BASELINES: dict[tuple[str, str], float] = {
     ("meta-llama/Llama-3.1-8B", "bfcl"): 0.761,
     ("meta-llama/Llama-3.1-8B", "arenahardwriting"): 0.467,
     ("meta-llama/Llama-3.1-8B", "healthbench"): 0.234,
-    ("meta-llama/Llama-3.1-8B", "aime2025"): 0.0,  # TODO: true?
+    ("meta-llama/Llama-3.1-8B", "aime2025"): 0.04,
     # Llama-3.2-3B-Instruct
     ("meta-llama/Llama-3.2-3B", "gsm8k"): 0.777,
     ("meta-llama/Llama-3.2-3B", "humaneval"): 0.524,
@@ -144,16 +144,17 @@ INSTRUCT_BASELINES: dict[tuple[str, str], float] = {
     ("meta-llama/Llama-3.2-1B", "bfcl"): 0.257,  # Meta model card
     ("meta-llama/Llama-3.2-1B", "arenahardwriting"): 0.200,
     ("meta-llama/Llama-3.2-1B", "healthbench"): 0.139,
+    # following 2 have no public instruct variant
     # Qwen3-8B (Qwen/Qwen3-8B instruct, measured via Tinker, temp=0)
-    ("Qwen/Qwen3-8B-Base", "gsm8k"): 0.331,
+    ("Qwen/Qwen3-8B-Base", "gsm8k"): 0.875,  # /no_think (0.331 with thinking)
     ("Qwen/Qwen3-8B-Base", "humaneval"): 0.037,
     ("Qwen/Qwen3-8B-Base", "aime2025"): 0.400,
     ("Qwen/Qwen3-8B-Base", "gpqamain"): 0.534,
-    ("Qwen/Qwen3-8B-Base", "bfcl"): 0.807,
+    ("Qwen/Qwen3-8B-Base", "bfcl"): 0.899,  # /no_think (0.807 with thinking)
     ("Qwen/Qwen3-8B-Base", "arenahardwriting"): 0.820,
     ("Qwen/Qwen3-8B-Base", "healthbench"): 0.542,
     # Qwen3-30B-A3B (Qwen/Qwen3-30B-A3B instruct, measured via Tinker, temp=0)
-    ("Qwen/Qwen3-30B-A3B-Base", "gsm8k"): 0.385,
+    ("Qwen/Qwen3-30B-A3B-Base", "gsm8k"): 0.895,  # /no_think (0.385 with thinking)
     ("Qwen/Qwen3-30B-A3B-Base", "humaneval"): 0.585,
     ("Qwen/Qwen3-30B-A3B-Base", "aime2025"): 0.500,
     ("Qwen/Qwen3-30B-A3B-Base", "gpqamain"): 0.580,
@@ -166,7 +167,6 @@ INSTRUCT_BASELINES: dict[tuple[str, str], float] = {
 # - check remaining 7 tasks tinker ran correctly, merge trials into main one.
 # - run 1 task gpu in modal, check exec 30 min, is it correct? everything lgtm, then we can run the initial 10
 # - analysis current runs
-# - remove baselines files, + remove runpod option for now. keep only job-gpu.
 # - continue notebook tasks
 
 # Base model scores (measured via Tinker evaluation, temp=0.0).
