@@ -334,11 +334,9 @@ fi
                 key = (model_info.model_id, benchmark_id)
                 target = INSTRUCT_BASELINES.get(key)
                 base = BASE_SCORES.get(key)
-                # TODO: re-enable once all baselines are populated
-                # if target is None or base is None or target == 0:
-                #     continue
-                # if self.include_target and base >= target:
-                if False:
+                if target is None or base is None:
+                    continue
+                if self.include_target and base >= target:
                     print(
                         f"  WARNING: Skipping {benchmark_id}/{model_info.short_name}: "
                         f"base ({base:.3f}) >= target ({target:.3f}). "
@@ -384,7 +382,7 @@ def generate(
         mode: Export mode: "gpu", "tinker", "gpu-runpod", or "all" (default, exports gpu+tinker+gpu-runpod).
         include_target: Include instruct baseline target score in the instruction (tinker mode only).
     """
-    all_modes = ["tinker", "gpu", "gpu-runpod"]
+    all_modes = ["tinker", "gpu"]  # "gpu-runpod" disabled for now
     modes = all_modes if (mode == "all" or all) else [mode]
 
     if list:
