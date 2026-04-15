@@ -5,6 +5,7 @@ Derived metrics are computed per-GPU then aggregated. Missing file → writes
 an empty stub (so downstream summary code can still count on compute.json
 existing without branching).
 """
+
 from __future__ import annotations
 
 import argparse
@@ -117,10 +118,7 @@ def main() -> int:
     out_path = Path(args.output)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(json.dumps(out, indent=2))
-    print(
-        f"compute.json: {out['status']}, {out.get('samples', 0)} samples, "
-        f"active_ratio={out.get('active_ratio', 0)}"
-    )
+    print(f"compute.json: {out['status']}, {out.get('samples', 0)} samples, active_ratio={out.get('active_ratio', 0)}")
     return 0
 
 

@@ -32,10 +32,6 @@ BENCHMARK_NAME=$(echo "$META" | python3 -c "import sys,json; print(json.load(sys
 MODEL_ID=$(echo "$META" | python3 -c "import sys,json; print(json.load(sys.stdin)['model_id'])")
 echo "Benchmark: $BENCHMARK_NAME ($BENCHMARK_ID) | Model: $MODEL_ID"
 
-# Contamination judge (disabled — workspace artifacts alone are insufficient for
-# long trajectories; need trajectory-level analysis to detect deliberate cheating)
-# source "$TESTS_DIR/contamination.sh"
-
 # ============================================================
 # Evaluation with 3-phase retry logic
 # ============================================================

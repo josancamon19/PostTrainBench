@@ -215,9 +215,6 @@ fi
                 else:
                     shutil.copy(item, dst)
 
-        # NOTE: contamination judge files are copied into tests/ (not environment/)
-        # so the agent cannot read or tamper with the judge logic.
-
         self.generate_timer_sh(env_dir)
 
         target = INSTRUCT_BASELINES.get((model_info.model_id, benchmark_id))
@@ -313,14 +310,6 @@ fi
         env_metadata = task_dir / "environment" / "metadata.json"
         if env_metadata.exists():
             shutil.copy(env_metadata, tests_dir / "metadata.json")
-
-        # Contamination judge + shared runner
-        contam_src = TEMPLATE_DIR / "tests" / "contamination"
-        if contam_src.is_dir():
-            shutil.copytree(contam_src, tests_dir / "contamination", dirs_exist_ok=True)
-        contam_sh = TEMPLATE_DIR / "tests" / "contamination.sh"
-        if contam_sh.exists():
-            shutil.copy(contam_sh, tests_dir / "contamination.sh")
 
     def generate_task(self, benchmark_id: str, model_key: str) -> Path:
         models = self._models
