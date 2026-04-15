@@ -43,3 +43,11 @@ uv pip install --system --no-cache \
     trl
 
 mkdir -p /app
+
+# Start background GPU sampler — runs for container lifetime.
+# Silently skipped if nvidia-smi is unavailable (e.g. tinker mode, CPU runners).
+if command -v nvidia-smi >/dev/null 2>&1 && [ -f "$(dirname "$0")/gpu_sampler.sh" ]; then
+    chmod +x "$(dirname "$0")/gpu_sampler.sh"
+    nohup bash "$(dirname "$0")/gpu_sampler.sh" >/dev/null 2>&1 &
+    echo "started gpu_sampler.sh (pid=$!)"
+fi

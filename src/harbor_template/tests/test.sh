@@ -136,6 +136,17 @@ else
 fi
 
 # ============================================================
+# Compute utilization: parse samples collected during the agent phase.
+# Best-effort — no impact on reward. Silently writes status=no_samples if
+# the sampler didn't run (tinker mode, CPU-only, or pre-built GPU images).
+# ============================================================
+if [ -f "$TESTS_DIR/compute_parser.py" ]; then
+    python3 "$TESTS_DIR/compute_parser.py" \
+        --input /logs/compute_samples.csv \
+        --output "$LOGS_DIR/compute.json" 2>&1 | tee -a "$LOGS_DIR/compute_parser.log" || true
+fi
+
+# ============================================================
 # Regression suite: run other benchmarks against final_model to detect
 # catastrophic forgetting and domain generalization. Best-effort; a failure
 # here does NOT affect the primary reward written above.

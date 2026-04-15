@@ -168,6 +168,10 @@ fi
         if self.mode == "gpu-runpod":
             # No Dockerfile — use setup.sh to install packages at runtime
             shutil.copy(TEMPLATE_DIR / "environment" / "setup.sh", env_dir / "setup.sh")
+            # Background GPU sampler, started from setup.sh
+            sampler_src = TEMPLATE_DIR / "environment" / "gpu_sampler.sh"
+            if sampler_src.exists():
+                shutil.copy(sampler_src, env_dir / "gpu_sampler.sh")
         else:
             dockerfile_name = "tinker.Dockerfile" if self.mode == "tinker" else "gpu.Dockerfile"
             shutil.copy(TEMPLATE_DIR / "environment" / dockerfile_name, env_dir / "Dockerfile")
@@ -297,6 +301,9 @@ fi
             regression_runner = TEMPLATE_DIR / "tests" / "regression_suite.py"
             if regression_runner.exists():
                 shutil.copy(regression_runner, tests_dir / "regression_suite.py")
+            compute_parser = TEMPLATE_DIR / "tests" / "compute_parser.py"
+            if compute_parser.exists():
+                shutil.copy(compute_parser, tests_dir / "compute_parser.py")
 
         eval_code_src = SRC_DIR / "tasks" / benchmark_id / "evaluation_code"
         if eval_code_src.is_dir():
