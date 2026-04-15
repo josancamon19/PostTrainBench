@@ -2,6 +2,9 @@ test*.err
 test*.out
 test*.log
 
+.DS_Store
+**/.DS_Store
+
 # Agent auth tokens
 agents/*/auth.json
 agents/*/oauth_token
