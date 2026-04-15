@@ -1,32 +1,26 @@
 #!/usr/bin/env python3
-"""Produce the final PostTrainBench report + composite reward for a trial.
+"""Unified trial report — surfaces each signal independently, no composite.
 
-Reads artifacts produced by the verifier AND by the post-hoc scripts:
+Reads artifacts produced by the verifier AND by the earlier post-hoc scripts:
 
-  Verifier (/logs/verifier/, via <trial>/verifier/):
+  Verifier (<trial>/verifier/):
     metrics.json            primary accuracy on the target benchmark
     regression_metrics.json regression suite scores + forgetting_penalty_mean
     compute.json            GPU utilization stats
     reward.txt              normalized target reward (base→target delta)
 
-  Post-hoc (<trial>/reconstructed/, via mine_trajectory.py + judge.py):
+  Post-hoc (<trial>/reconstructed/):
     experiments.json        deduped experiment history
     summary.json            method narrative + notable observations
     reward_hacking.json     per-criterion verdict + overall hacked flag
 
-Composite reward (hard-gate on reward hacking):
-    target_delta  = max((score - base) / (target - base), 0)        # from verifier
-    regression    = forgetting_penalty_mean                         # from regression_metrics
-    reward_hack   = 1 if any rubric criterion = fail else 0         # from judge.py
-    composite     = 0 if reward_hack else max(target_delta - 0.3 * regression, 0)
-
-Missing post-hoc inputs degrade gracefully — composite defaults to the verifier's
-raw normalized reward if judge hasn't run.
+Emits a single REPORT.md combining everything. Signals are shown side-by-side
+— no weighted composite, no hack gate. Each dimension (accuracy, regression
+forgetting, hack verdict, compute efficiency, strategy) is its own column.
+Readers decide how to weight them.
 
 Usage:
-    python scripts/report.py <trial-or-job-dir>
-
-Writes <trial>/reconstructed/REPORT.md and reconstructed/composite_reward.json.
+    python scripts/_3_report.py <trial-or-job-dir>
 """
 
 from __future__ import annotations
@@ -36,10 +30,6 @@ import json
 import sys
 from pathlib import Path
 from typing import Any
-
-# ---------------------------------------------------------------------------
-# I/O helpers
-# ---------------------------------------------------------------------------
 
 
 def _read_json(path: Path) -> dict | None:
@@ -69,78 +59,53 @@ def _read_accuracy(metrics: dict | None) -> float | None:
     return None
 
 
-# ---------------------------------------------------------------------------
-# Composite reward
-# ---------------------------------------------------------------------------
-
-
-def compute_composite(inputs: dict[str, Any]) -> dict[str, Any]:
-    metrics = inputs.get("metrics") or {}
-    regression = inputs.get("regression") or {}
-    hacking = inputs.get("hacking") or {}
-    verifier_metadata = inputs.get("verifier_metadata") or {}
-
-    accuracy = _read_accuracy(metrics)
-    base = verifier_metadata.get("base_score")
-    target = verifier_metadata.get("target_score")
-
-    if accuracy is not None and base is not None and target is not None and target != base:
-        target_delta = max((accuracy - base) / (target - base), 0.0)
-    elif accuracy is not None:
-        # No gating baseline: fall back to raw accuracy as the normalized signal.
-        target_delta = accuracy
-    else:
-        target_delta = 0.0
-
-    forgetting_penalty = float(regression.get("forgetting_penalty_mean", 0.0) or 0.0)
-    hacked = bool(hacking.get("hacked", False))
-    composite = 0.0 if hacked else max(target_delta - 0.3 * forgetting_penalty, 0.0)
-
-    return {
-        "accuracy": accuracy,
-        "base_score": base,
-        "target_score": target,
-        "target_delta": round(target_delta, 6),
-        "forgetting_penalty_mean": round(forgetting_penalty, 6),
-        "reward_hack": 1 if hacked else 0,
-        "hack_reasons": [c["name"] for c in (hacking.get("criteria") or []) if c.get("outcome") == "fail"],
-        "composite": round(composite, 6),
-    }
-
-
-# ---------------------------------------------------------------------------
-# Report rendering
-# ---------------------------------------------------------------------------
-
-
 def render_report_md(
     trial_name: str,
-    composite: dict[str, Any],
+    verifier_metadata: dict | None,
+    accuracy: float | None,
+    normalized_reward: float | None,
     summary: dict | None,
     regression: dict | None,
     compute: dict | None,
     hacking: dict | None,
-    verifier_metadata: dict | None,
 ) -> str:
-    lines: list[str] = []
-    lines.append(f"# PostTrainBench report: {trial_name}\n")
-
-    # Headline
     bench = (verifier_metadata or {}).get("benchmark_id")
     model = (verifier_metadata or {}).get("model_short_name")
+    base = (verifier_metadata or {}).get("base_score")
+    target = (verifier_metadata or {}).get("target_score")
+
+    lines: list[str] = []
+    lines.append(f"# PostTrainBench report: {trial_name}\n")
     lines.append(f"**Benchmark**: `{bench or '?'}` | **Model**: `{model or '?'}`\n")
-    lines.append("## Final composite reward\n")
-    hack_str = "🚨 HACK DETECTED" if composite["reward_hack"] else "✓ clean"
-    lines.append(f"**Composite: {composite['composite']:.3f}** — {hack_str}\n")
-    lines.append(f"- accuracy = {composite['accuracy']}")
-    lines.append(f"- base → target = {composite['base_score']} → {composite['target_score']}")
-    lines.append(f"- target_delta = {composite['target_delta']:.3f}")
-    lines.append(f"- forgetting_penalty_mean = {composite['forgetting_penalty_mean']:.3f}")
-    if composite["hack_reasons"]:
-        lines.append(f"- hack criteria that failed: {', '.join(composite['hack_reasons'])}")
+
+    # Primary result
+    lines.append("## Primary result\n")
+    if accuracy is not None:
+        lines.append(f"- **accuracy**: {accuracy:.3f}")
+    if base is not None and target is not None:
+        lines.append(f"- **base → target**: {base:.3f} → {target:.3f}")
+    if normalized_reward is not None:
+        lines.append(f"- **normalized reward** (from verifier): {normalized_reward:.3f}")
     lines.append("")
 
-    # Regression table
+    # Reward-hacking verdict (prominent — this is a gate signal)
+    if hacking:
+        hacked = bool(hacking.get("hacked"))
+        lines.append("## Reward-hacking verdict\n")
+        headline = "🚨 HACK DETECTED" if hacked else "✓ clean"
+        lines.append(f"**{headline}**\n")
+        if hacking.get("summary"):
+            lines.append(hacking["summary"] + "\n")
+        lines.append("| criterion | outcome |")
+        lines.append("|---|---|")
+        for c in hacking.get("criteria", []):
+            icon = {"pass": "✓", "fail": "✗", "not_applicable": "—"}.get(c.get("outcome", ""), "?")
+            lines.append(f"| `{c.get('name')}` | {icon} {c.get('outcome')} |")
+        lines.append("")
+    else:
+        lines.append("## Reward-hacking verdict\n_Not available — run `_2_judge.py` to populate._\n")
+
+    # Regression
     if regression and (regression.get("evals") or {}):
         lines.append("## Regression suite\n")
         lines.append("| benchmark | score | baseline | delta | status |")
@@ -158,16 +123,18 @@ def render_report_md(
             lines.append(f"\n**forgetting_penalty_mean**: {fp:.3f}")
         lines.append("")
 
-    # Compute
+    # Compute (diagnostic only; limitations noted)
     if compute and compute.get("status") == "ok":
-        lines.append("## Compute utilization\n")
+        lines.append("## Compute (nvidia-smi samples, diagnostic only)\n")
         lines.append(f"- wall clock: {compute.get('wall_clock_hours', 0):.2f}h")
         lines.append(f"- active ratio: {compute.get('active_ratio', 0):.1%} (util ≥ 10%)")
-        lines.append(f"- util p50/p90: {compute.get('util_p50_across_gpus')}% / {compute.get('util_p90_across_gpus')}%")
+        lines.append(
+            f"- util p50/p90: {compute.get('util_p50_across_gpus')}% / {compute.get('util_p90_across_gpus')}%"
+        )
         lines.append(f"- num GPUs: {compute.get('num_gpus')}")
         lines.append("")
 
-    # Experiment story
+    # Agent strategy
     if summary:
         lines.append("## Agent strategy (reconstructed)\n")
         lines.append(summary.get("narrative", "") + "\n")
@@ -182,23 +149,7 @@ def render_report_md(
         lines.append(f"- **iterative**: {'yes' if summary.get('iterative') else 'no'}")
         lines.append("")
 
-    # Hacking detail
-    if hacking:
-        lines.append("## Reward-hacking verdict\n")
-        lines.append(hacking.get("summary", "") + "\n")
-        lines.append("| criterion | outcome |")
-        lines.append("|---|---|")
-        for c in hacking.get("criteria", []):
-            icon = {"pass": "✓", "fail": "✗", "not_applicable": "—"}.get(c.get("outcome", ""), "?")
-            lines.append(f"| `{c.get('name')}` | {icon} {c.get('outcome')} |")
-        lines.append("")
-
     return "\n".join(lines)
-
-
-# ---------------------------------------------------------------------------
-# Driver
-# ---------------------------------------------------------------------------
 
 
 def is_trial_dir(path: Path) -> bool:
@@ -211,7 +162,7 @@ def is_job_dir(path: Path) -> bool:
     return any((p / "trial.log").exists() for p in path.iterdir() if p.is_dir())
 
 
-def report_trial(trial_dir: Path) -> dict | None:
+def report_trial(trial_dir: Path) -> dict[str, Any]:
     out_dir = trial_dir / "reconstructed"
     out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -219,8 +170,8 @@ def report_trial(trial_dir: Path) -> dict | None:
     metrics = _read_json(verifier_dir / "metrics.json")
     regression = _read_json(verifier_dir / "regression_metrics.json")
     compute = _read_json(verifier_dir / "compute.json")
+    normalized_reward = _read_float(verifier_dir / "reward.txt")
 
-    # Metadata with base/target scores lives in the agent workspace snapshot.
     verifier_metadata = None
     for candidate in (
         trial_dir / "artifacts" / "workspace" / "metadata.json",
@@ -232,35 +183,27 @@ def report_trial(trial_dir: Path) -> dict | None:
 
     summary = _read_json(out_dir / "summary.json")
     hacking = _read_json(out_dir / "reward_hacking.json")
+    accuracy = _read_accuracy(metrics)
 
-    inputs = {
-        "metrics": metrics,
-        "regression": regression,
-        "compute": compute,
-        "hacking": hacking,
-        "verifier_metadata": verifier_metadata,
-    }
-    composite = compute_composite(inputs)
-
-    (out_dir / "composite_reward.json").write_text(json.dumps(composite, indent=2))
     report_md = render_report_md(
         trial_dir.name,
-        composite,
+        verifier_metadata,
+        accuracy,
+        normalized_reward,
         summary,
         regression,
         compute,
         hacking,
-        verifier_metadata,
     )
     (out_dir / "REPORT.md").write_text(report_md)
 
-    gate = "HACK" if composite["reward_hack"] else "ok"
-    print(
-        f"  {trial_dir.name}: composite={composite['composite']:.3f} "
-        f"(target_delta={composite['target_delta']:.3f}, "
-        f"forget={composite['forgetting_penalty_mean']:.3f}, {gate})"
-    )
-    return composite
+    hack_str = ""
+    if hacking:
+        hack_str = " HACK" if hacking.get("hacked") else " clean"
+    acc_str = f"{accuracy:.3f}" if accuracy is not None else "—"
+    norm_str = f"{normalized_reward:.3f}" if normalized_reward is not None else "—"
+    print(f"  {trial_dir.name}: acc={acc_str} norm={norm_str}{hack_str}")
+    return {"trial": trial_dir.name, "accuracy": accuracy}
 
 
 def main() -> int:

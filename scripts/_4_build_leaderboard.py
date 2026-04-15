@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
 """Build a PostTrainBench leaderboard across trials.
 
-Walks a job directory (or a directory of job dirs) and emits one row per trial
-combining the composite reward, reward-hacking verdict, and agent-strategy
-signals. Prefers reconstructed/composite_reward.json (produced by report.py)
-but falls back to verifier/reward.txt for trials that haven't been post-hoc
-processed yet.
+Walks a job directory (or a root of multiple job dirs with --all) and emits
+one row per trial with the independent signals: accuracy, normalized reward,
+forgetting penalty, hack verdict, method signatures, compute stats.
+
+No composite score — readers/paper tables decide how to weight them.
 
 Usage:
-    python scripts/build_leaderboard.py <job-dir>            # one job
-    python scripts/build_leaderboard.py <dir-of-jobs> --all  # multi-job sweep
+    python scripts/_4_build_leaderboard.py <job-dir>
+    python scripts/_4_build_leaderboard.py <dir-of-jobs> --all
 
-Writes <root>/leaderboard.csv and <root>/leaderboard.md sorted by composite desc.
+Writes <root>/leaderboard.csv and <root>/leaderboard.md sorted by accuracy desc.
 """
 
 from __future__ import annotations
@@ -26,9 +26,8 @@ COLUMNS = [
     "trial",
     "benchmark",
     "model",
-    "composite",
     "accuracy",
-    "target_delta",
+    "normalized_reward",
     "forgetting_penalty",
     "hacked",
     "hack_reasons",
@@ -51,13 +50,22 @@ def _read_json(path: Path) -> dict | None:
         return None
 
 
-def _read_reward_txt(path: Path) -> float | None:
+def _read_float(path: Path) -> float | None:
     if not path.exists():
         return None
     try:
         return float(path.read_text().strip())
     except Exception:
         return None
+
+
+def _read_accuracy(metrics: dict | None) -> float | None:
+    if not metrics:
+        return None
+    for key in ("accuracy", "pass@1", "score", "exact_match"):
+        if key in metrics and isinstance(metrics[key], (int, float)):
+            return float(metrics[key])
+    return None
 
 
 def _is_trial_dir(path: Path) -> bool:
@@ -71,10 +79,12 @@ def _is_job_dir(path: Path) -> bool:
 
 
 def extract_row(trial_dir: Path) -> dict:
-    composite = _read_json(trial_dir / "reconstructed" / "composite_reward.json")
+    metrics = _read_json(trial_dir / "verifier" / "metrics.json")
+    regression = _read_json(trial_dir / "verifier" / "regression_metrics.json")
+    compute = _read_json(trial_dir / "verifier" / "compute.json")
     summary = _read_json(trial_dir / "reconstructed" / "summary.json")
     hacking = _read_json(trial_dir / "reconstructed" / "reward_hacking.json")
-    compute = _read_json(trial_dir / "verifier" / "compute.json")
+
     metadata = None
     for candidate in (
         trial_dir / "artifacts" / "workspace" / "metadata.json",
@@ -84,22 +94,20 @@ def extract_row(trial_dir: Path) -> dict:
         if metadata is not None:
             break
 
-    # Composite reward, falling back to raw verifier reward.txt
-    raw_reward = _read_reward_txt(trial_dir / "verifier" / "reward.txt")
-    composite_val = composite.get("composite") if composite else raw_reward
-    accuracy = composite.get("accuracy") if composite else None
-    target_delta = composite.get("target_delta") if composite else raw_reward
-    forgetting = composite.get("forgetting_penalty_mean") if composite else None
-    hacked = bool(composite.get("reward_hack")) if composite else bool(hacking.get("hacked") if hacking else False)
-    hack_reasons = ",".join(composite.get("hack_reasons", [])) if composite else ""
+    accuracy = _read_accuracy(metrics)
+    normalized_reward = _read_float(trial_dir / "verifier" / "reward.txt")
+    forgetting = (regression or {}).get("forgetting_penalty_mean")
+    hacked = bool((hacking or {}).get("hacked", False))
+    hack_reasons = ",".join(
+        c["name"] for c in ((hacking or {}).get("criteria") or []) if c.get("outcome") == "fail"
+    )
 
     return {
         "trial": trial_dir.name,
         "benchmark": (metadata or {}).get("benchmark_id", ""),
         "model": (metadata or {}).get("model_short_name", ""),
-        "composite": composite_val,
         "accuracy": accuracy,
-        "target_delta": target_delta,
+        "normalized_reward": normalized_reward,
         "forgetting_penalty": forgetting,
         "hacked": int(hacked),
         "hack_reasons": hack_reasons,
@@ -131,14 +139,14 @@ def write_csv(rows: list[dict], out_path: Path) -> None:
 
 def write_md(rows: list[dict], out_path: Path) -> None:
     header = (
-        "| # | trial | benchmark | model | composite | target_delta | forget | "
+        "| # | trial | benchmark | model | accuracy | norm | forget | "
         "hacked | methods | experiments | active |"
     )
     divider = "|---|---|---|---|---|---|---|---|---|---|---|"
     lines = [
         f"# PostTrainBench leaderboard ({len(rows)} trial{'s' if len(rows) != 1 else ''})\n",
-        "Sorted by composite reward (descending). `hacked=1` means the judge flagged "
-        "reward hacking — composite is zero-gated.\n",
+        "Sorted by raw accuracy (descending). Each column is an independent signal — "
+        "no weighted composite is computed here.\n",
         header,
         divider,
     ]
@@ -147,8 +155,9 @@ def write_md(rows: list[dict], out_path: Path) -> None:
         active = f"{r['active_ratio']:.0%}" if isinstance(r.get("active_ratio"), (int, float)) else "—"
         lines.append(
             f"| {i} | `{r['trial']}` | {r['benchmark'] or '—'} | {r['model'] or '—'} | "
-            f"**{_fmt(r['composite'])}** | {_fmt(r['target_delta'])} | {_fmt(r['forgetting_penalty'])} | "
-            f"{hack_cell} | {r['methods'] or '—'} | {_fmt(r['num_experiments'])} | {active} |"
+            f"**{_fmt(r['accuracy'])}** | {_fmt(r['normalized_reward'])} | "
+            f"{_fmt(r['forgetting_penalty'])} | {hack_cell} | "
+            f"{r['methods'] or '—'} | {_fmt(r['num_experiments'])} | {active} |"
         )
     out_path.write_text("\n".join(lines) + "\n")
 
@@ -184,7 +193,7 @@ def main() -> int:
         return 1
 
     rows = [extract_row(t) for t in trials]
-    rows.sort(key=lambda r: (-(r.get("composite") or 0.0), r["trial"]))
+    rows.sort(key=lambda r: (-(r.get("accuracy") or 0.0), r["trial"]))
 
     out_csv = path / "leaderboard.csv"
     out_md = path / "leaderboard.md"
