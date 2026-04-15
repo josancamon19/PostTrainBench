@@ -26,6 +26,7 @@ dev = [
     "python-dotenv",
     "runpod",
     "ruff",
+    "matplotlib",
 ]
 
 [tool.ruff]
