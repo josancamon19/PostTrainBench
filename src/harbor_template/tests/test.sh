@@ -135,5 +135,24 @@ else
     echo "0" > "$LOGS_DIR/reward.txt"
 fi
 
+# ============================================================
+# Regression suite: run other benchmarks against final_model to detect
+# catastrophic forgetting and domain generalization. Best-effort; a failure
+# here does NOT affect the primary reward written above.
+# ============================================================
+if [ -f "$LOGS_DIR/metrics.json" ] && [ -f "$TESTS_DIR/regression_suite.py" ]; then
+    echo ""
+    echo "=== Running regression suite ==="
+    kill_gpu_processes
+    set +e
+    python3 "$TESTS_DIR/regression_suite.py" \
+        --model-path "$WORKSPACE/final_model" \
+        --tests-dir "$TESTS_DIR" \
+        --logs-dir "$LOGS_DIR" \
+        --metadata "$TESTS_DIR/metadata.json" \
+        2>&1 | tee "$LOGS_DIR/regression_suite.log"
+    set -e
+fi
+
 echo "=== Verification complete ==="
 ls -la "$LOGS_DIR/"

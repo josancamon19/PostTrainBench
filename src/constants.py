@@ -192,3 +192,19 @@ BASE_SCORES: dict[tuple[str, str], float] = {
 INSTRUCT_BASELINES: dict[tuple[str, str], float] = {
     (model_id, bid): scores[1] for model_id, data in SCORES.items() for bid, scores in data["benchmarks"].items()
 }
+
+# Regression suite: evals the verifier runs against final_model to detect catastrophic
+# forgetting and domain generalization. Not training targets. Two layers:
+#   Layer A (breadth, orthogonal to the STEM targets): mmlu, ifeval, truthfulqa
+#   Layer B (cross-target check on existing cheap benchmarks): gsm8k, humaneval, gpqamain, bfcl
+# Long-gen OpenAI-graded benchmarks (arenahardwriting, healthbench) are excluded due to
+# cost + latency per trial.
+REGRESSION_EVALS: list[str] = [
+    "mmlu",
+    "ifeval",
+    "truthfulqa",
+    "gsm8k",
+    "humaneval",
+    "gpqamain",
+    "bfcl",
+]

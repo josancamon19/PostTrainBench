@@ -12,6 +12,7 @@ from constants import (
     BENCHMARKS,
     INSTRUCT_BASELINES,
     MODELS,
+    REGRESSION_EVALS,
     BenchmarkInfo,
     ModelInfo,
 )
@@ -129,11 +130,11 @@ class PostTrainBenchAdapter:
 
 TIMEOUT_SEC={timeout_sec}
 
-# Use container uptime as elapsed time (immune to sandbox reuse)
-if [ -f /proc/uptime ]; then
-    UPTIME=$(awk '{{printf "%d", $1}}' /proc/uptime)
-    REMAINING=$((TIMEOUT_SEC - UPTIME))
-else
+# Container age from pid 1's elapsed time. /proc/uptime is NOT namespaced
+# in RunPod/Docker, so it reports host uptime (days/weeks) and would
+# immediately fire "Timer expired!".
+ELAPSED=$(ps -o etimes= -p 1 2>/dev/null | tr -d ' ')
+if ! [[ "$ELAPSED" =~ ^[0-9]+$ ]]; then
     # Fallback: first-call timestamp
     START_FILE="$(dirname "$0")/.timer_start"
     if [ ! -f "$START_FILE" ]; then
@@ -141,8 +142,9 @@ else
     fi
     START_DATE=$(cat "$START_FILE")
     NOW=$(date +%s)
-    REMAINING=$((START_DATE + TIMEOUT_SEC - NOW))
+    ELAPSED=$((NOW - START_DATE))
 fi
+REMAINING=$((TIMEOUT_SEC - ELAPSED))
 
 if [ $REMAINING -le 0 ]; then
     echo "Timer expired!"
@@ -230,6 +232,17 @@ fi
             metadata["target_score"] = target
         if base is not None:
             metadata["base_score"] = base
+
+        # Regression suite: evals the verifier runs on final_model, excluding the target.
+        # Only for GPU modes (tinker mode has a different eval flow).
+        if self.mode != "tinker":
+            regression_ids = [bid for bid in REGRESSION_EVALS if bid != benchmark_id]
+            metadata["regression_benchmarks"] = regression_ids
+            metadata["regression_baselines"] = {
+                bid: BASE_SCORES.get((model_info.model_id, bid))
+                for bid in regression_ids
+            }
+
         (env_dir / "metadata.json").write_text(json.dumps(metadata, indent=2))
 
     def generate_tests(self, task_dir: Path, benchmark_id: str) -> None:
@@ -260,6 +273,25 @@ fi
             templates_src = TEMPLATE_DIR / "environment" / "templates"
             if templates_src.exists():
                 shutil.copytree(templates_src, tests_dir / "templates", dirs_exist_ok=True)
+
+            # Regression suite evaluators. Each lives under tests/regression/<id>/evaluate.py
+            # so regression_suite.py can invoke them without touching the target's evaluate.py.
+            regression_root = tests_dir / "regression"
+            for reg_id in REGRESSION_EVALS:
+                if reg_id == benchmark_id:
+                    continue
+                src = SRC_DIR / "tasks" / reg_id / "evaluate.py"
+                if not src.exists():
+                    continue
+                dst_dir = regression_root / reg_id
+                dst_dir.mkdir(parents=True, exist_ok=True)
+                shutil.copy(src, dst_dir / "evaluate.py")
+                reg_code = SRC_DIR / "tasks" / reg_id / "evaluation_code"
+                if reg_code.is_dir():
+                    shutil.copytree(reg_code, dst_dir / "evaluation_code", dirs_exist_ok=True)
+            regression_runner = TEMPLATE_DIR / "tests" / "regression_suite.py"
+            if regression_runner.exists():
+                shutil.copy(regression_runner, tests_dir / "regression_suite.py")
 
         eval_code_src = SRC_DIR / "tasks" / benchmark_id / "evaluation_code"
         if eval_code_src.is_dir():
@@ -382,8 +414,8 @@ def generate(
         mode: Export mode: "gpu", "tinker", "gpu-runpod", or "all" (default, exports gpu+tinker+gpu-runpod).
         include_target: Include instruct baseline target score in the instruction (tinker mode only).
     """
-    all_modes = ["tinker", "gpu"]  # "gpu-runpod" disabled for now
-    modes = all_modes if (mode == "all" or all) else [mode]
+    all_modes = ["tinker", "gpu", "gpu-runpod"]
+    modes = all_modes if mode == "all" else [mode]
 
     if list:
         for m in modes:
