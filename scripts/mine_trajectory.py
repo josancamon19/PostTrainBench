@@ -241,6 +241,295 @@ def build_progress(events: list[dict]) -> dict:
     return {"points": points, "final_best": best, "num_evals": len(points)}
 
 
+# ---------------------------------------------------------------------------
+# Higher-level aggregations: experiments, checkpoints, summary
+# ---------------------------------------------------------------------------
+
+_CHECKPOINT_DIR_PATTERN = re.compile(
+    r"\b(/app/[\w./_-]*?(?:final_model|checkpoint[\w_-]*|model[_-]?v?\d+|trained[\w_-]*)/?)"
+)
+_SAVE_PATTERN = re.compile(r"\b(?:save_pretrained|trainer\.save_model)\(\s*[\"']([^\"']+)[\"']")
+_SCRIPT_NAME_PATTERN = re.compile(r"python3?\s+(\S+\.py)")
+
+
+def _hp_fingerprint(hp: dict[str, Any]) -> str:
+    return ";".join(f"{k}={v}" for k, v in sorted(hp.items()))
+
+
+def _script_name(cmd: str) -> str | None:
+    m = _SCRIPT_NAME_PATTERN.search(cmd)
+    return m.group(1) if m else None
+
+
+def aggregate_experiments(events: list[dict]) -> list[dict]:
+    """Collapse repeated train invocations into distinct experiments.
+
+    Heuristic: an experiment = (script_name, hyperparam_fingerprint). Repeated
+    invocations of the same combination are treated as retries / continued
+    training and merged. Methods and hyperparams are backfilled from the
+    Write event that created the script (if any). Datasets are backfilled
+    from data_load events that happened before the experiment's first kick.
+    Each experiment is paired with the next eval score after its last kick.
+    """
+    # Backfill index: script basename -> {methods, hyperparams, datasets} from Write events
+    script_meta: dict[str, dict] = {}
+    for e in events:
+        if e.get("kind") != "script_write":
+            continue
+        path = e.get("path", "")
+        if not path.endswith(".py"):
+            continue
+        basename = path.rsplit("/", 1)[-1]
+        meta = script_meta.setdefault(basename, {"methods": set(), "hyperparams": {}, "datasets": set()})
+        for m in e.get("methods", []) or []:
+            meta["methods"].add(m)
+        for d in e.get("datasets", []) or []:
+            meta["datasets"].add(d)
+        for k, v in (e.get("hyperparams") or {}).items():
+            meta["hyperparams"].setdefault(k, v)
+
+    # Data loads in time order, for "datasets seen before time T" lookups.
+    data_loads = sorted(
+        [
+            (e["ts"], e.get("datasets", []) or [])
+            for e in events
+            if e.get("kind") == "data_load" and e.get("ts")
+        ],
+        key=lambda p: p[0],
+    )
+
+    def datasets_before(ts: str) -> list[str]:
+        out: set[str] = set()
+        for dts, ds in data_loads:
+            if dts <= ts:
+                out.update(ds)
+        return sorted(out)
+
+    experiments: dict[tuple[str, str], dict] = {}
+    order: list[tuple[str, str]] = []
+
+    for e in events:
+        if e.get("kind") != "train":
+            continue
+        script = _script_name(e.get("command", "")) or "<unknown>"
+        hp = dict(e.get("hyperparams", {}) or {})
+        # Backfill missing hyperparams from the Write event that created this script.
+        backfill = script_meta.get(script.rsplit("/", 1)[-1], {})
+        for k, v in (backfill.get("hyperparams") or {}).items():
+            hp.setdefault(k, v)
+        key = (script, _hp_fingerprint(hp))
+        if key not in experiments:
+            experiments[key] = {
+                "script": script,
+                "hyperparams": hp,
+                "first_ts": e["ts"],
+                "last_ts": e["ts"],
+                "kicks": 0,
+                "methods": set(backfill.get("methods", set())),
+                "datasets": set(backfill.get("datasets", set())),
+            }
+            order.append(key)
+        exp = experiments[key]
+        exp["kicks"] += 1
+        exp["last_ts"] = e["ts"]
+        for m in e.get("methods", []) or []:
+            exp["methods"].add(m)
+        for d in e.get("datasets", []) or []:
+            exp["datasets"].add(d)
+
+    # Pair each experiment with the next eval after its last kick.
+    eval_points = sorted(
+        [(e["ts"], e.get("score")) for e in events if e.get("kind") == "eval" and e.get("ts")],
+        key=lambda p: p[0],
+    )
+
+    def next_eval_after(ts: str) -> float | None:
+        for ets, score in eval_points:
+            if ets > ts and score is not None:
+                return score
+        return None
+
+    out = []
+    for key in order:
+        exp = experiments[key]
+        # If still no datasets attached, fall back to "all datasets loaded before this kick".
+        datasets = sorted(exp["datasets"]) or datasets_before(exp["first_ts"])
+        out.append(
+            {
+                "script": exp["script"],
+                "hyperparams": exp["hyperparams"],
+                "methods": sorted(exp["methods"]),
+                "datasets": datasets,
+                "first_ts": exp["first_ts"],
+                "last_ts": exp["last_ts"],
+                "kicks": exp["kicks"],
+                "next_eval_score": next_eval_after(exp["last_ts"]),
+            }
+        )
+    return out
+
+
+def extract_checkpoints(events: list[dict], trajectory: dict) -> list[str]:
+    """Scan trajectory observations + write paths for checkpoint dirs."""
+    found: set[str] = set()
+    for e in events:
+        # Write paths under /app/ that look like model dirs
+        path = e.get("path", "")
+        if path:
+            for m in _CHECKPOINT_DIR_PATTERN.finditer(path):
+                found.add(m.group(1).rstrip("/"))
+        # save_pretrained / trainer.save_model in script content or commands
+        for field in ("preview", "command"):
+            text = e.get(field, "")
+            for m in _SAVE_PATTERN.finditer(text):
+                found.add(m.group(1).rstrip("/"))
+
+    # Sweep observations of all steps for paths printed by ls/find/checkpoint logs.
+    for step in trajectory.get("steps", []):
+        obs = step.get("observation")
+        if not isinstance(obs, dict):
+            continue
+        for r in obs.get("results", []) or []:
+            text = r.get("content", "")
+            if not isinstance(text, str):
+                continue
+            for m in _CHECKPOINT_DIR_PATTERN.finditer(text):
+                found.add(m.group(1).rstrip("/"))
+
+    return sorted(found)
+
+
+def compute_summary(
+    events: list[dict],
+    trajectory: dict,
+    experiments: list[dict],
+    progress: dict,
+    checkpoints: list[str],
+) -> dict:
+    """High-level stats that surface what actually happened."""
+    methods: set[str] = set()
+    datasets: set[str] = set()
+    distinct_scripts: set[str] = set()
+    pip_installs: set[str] = set()
+
+    for e in events:
+        for m in e.get("methods", []) or []:
+            methods.add(m)
+        for d in e.get("datasets", []) or []:
+            datasets.add(d)
+        if e.get("kind") == "script_write" and e.get("path", "").endswith(".py"):
+            distinct_scripts.add(e["path"])
+        if e.get("kind") == "pip_install":
+            for tok in (e.get("command", "") or "").split()[2:]:
+                if tok and not tok.startswith("-"):
+                    pip_installs.add(tok)
+
+    steps = trajectory.get("steps", [])
+    duration_hours: float | None = None
+    if len(steps) >= 2:
+        try:
+            t0 = datetime.fromisoformat(steps[0]["timestamp"].replace("Z", "+00:00"))
+            t1 = datetime.fromisoformat(steps[-1]["timestamp"].replace("Z", "+00:00"))
+            duration_hours = (t1 - t0).total_seconds() / 3600
+        except Exception:
+            pass
+
+    final_metrics = trajectory.get("final_metrics", {}) or {}
+
+    return {
+        "methods_used": sorted(methods),
+        "datasets_used": sorted(datasets),
+        "num_experiments": len(experiments),
+        "num_train_kicks": sum(1 for e in events if e.get("kind") == "train"),
+        "num_evals": progress["num_evals"],
+        "best_eval_score": progress["final_best"],
+        "distinct_training_scripts": sorted(distinct_scripts),
+        "pip_installs": sorted(pip_installs),
+        "checkpoint_dirs": checkpoints,
+        "trajectory_duration_hours": duration_hours,
+        "trajectory_step_count": len(steps),
+        "agent_total_steps": final_metrics.get("total_steps"),
+        "agent_total_prompt_tokens": final_metrics.get("total_prompt_tokens"),
+        "agent_total_completion_tokens": final_metrics.get("total_completion_tokens"),
+    }
+
+
+def write_summary_md(
+    out_dir: Path,
+    trial_name: str,
+    summary: dict,
+    experiments: list[dict],
+    progress: dict,
+    llm_result: dict | None,
+) -> None:
+    """Human-readable Markdown report. Embeds progress.png as a relative link."""
+    lines: list[str] = []
+    lines.append(f"# Trajectory reconstruction: {trial_name}\n")
+
+    dh = summary["trajectory_duration_hours"]
+    lines.append("## Headline numbers\n")
+    lines.append(f"- **Best eval score during run**: {summary['best_eval_score']:.3f}")
+    lines.append(
+        f"- **Distinct experiments**: {summary['num_experiments']} "
+        f"(from {summary['num_train_kicks']} training kicks)"
+    )
+    lines.append(f"- **Evaluations performed**: {summary['num_evals']}")
+    lines.append(
+        f"- **Trajectory duration**: {dh:.2f}h" if dh is not None else "- Trajectory duration: unknown"
+    )
+    lines.append(f"- **Methods detected**: {', '.join(summary['methods_used']) or '(none)'}")
+    lines.append(f"- **Datasets seen**: {', '.join(summary['datasets_used']) or '(none)'}")
+    lines.append(f"- **Checkpoint dirs**: {', '.join(summary['checkpoint_dirs']) or '(none)'}")
+    prompt_tok = summary.get("agent_total_prompt_tokens")
+    compl_tok = summary.get("agent_total_completion_tokens")
+    lines.append(f"- **Agent tokens**: {prompt_tok} prompt / {compl_tok} completion\n")
+
+    if (out_dir / "progress.png").exists():
+        lines.append("## Progress over time\n")
+        lines.append("![progress](progress.png)\n")
+
+    lines.append("## Experiments (deduped)\n")
+    if not experiments:
+        lines.append("_No training kicks detected._\n")
+    else:
+        lines.append("| # | script | methods | datasets | hyperparams | kicks | next eval |")
+        lines.append("|---|---|---|---|---|---|---|")
+        for i, exp in enumerate(experiments, 1):
+            hp = ", ".join(f"{k}={v}" for k, v in exp["hyperparams"].items()) or "-"
+            score = f"{exp['next_eval_score']:.3f}" if exp["next_eval_score"] is not None else "—"
+            lines.append(
+                f"| {i} | `{exp['script']}` | {','.join(exp['methods']) or '-'} | "
+                f"{','.join(exp['datasets']) or '-'} | {hp} | {exp['kicks']} | {score} |"
+            )
+        lines.append("")
+
+    lines.append("## Eval score timeline\n")
+    if progress["points"]:
+        lines.append("| step | timestamp | score | best so far |")
+        lines.append("|---|---|---|---|")
+        for p in progress["points"]:
+            lines.append(f"| {p['step_id']} | {p['ts']} | {p['score']:.3f} | {p['best_so_far']:.3f} |")
+        lines.append("")
+
+    if llm_result:
+        ms = llm_result.get("method_summary", {})
+        lines.append("## LLM-reconstructed narrative\n")
+        if ms.get("narrative"):
+            lines.append(ms["narrative"] + "\n")
+        if ms.get("final_method"):
+            lines.append(f"- **Final method**: {ms['final_method']}")
+        if ms.get("methods_used"):
+            lines.append(f"- **Methods (LLM)**: {', '.join(ms['methods_used'])}")
+        lines.append("")
+
+    lines.append("## Pip installs detected\n")
+    pi = summary.get("pip_installs", [])
+    lines.append(", ".join(f"`{x}`" for x in pi[:30]) if pi else "_(none)_")
+    lines.append("")
+
+    (out_dir / "summary.md").write_text("\n".join(lines))
+
+
 def render_progress_plot(progress: dict, out_path: Path) -> None:
     """Render progress.png. Silently skips if matplotlib is unavailable or no points."""
     points = progress.get("points") or []
@@ -363,10 +652,27 @@ _OUTPUT_SCHEMA: dict[str, Any] = {
 
 
 async def reconstruct_with_llm(trial_dir: Path, model: str, verbose: bool) -> dict | None:
-    """Run claude_agent_sdk against the trial dir. Returns None on failure."""
-    if not os.environ.get("ANTHROPIC_API_KEY"):
-        print("ANTHROPIC_API_KEY not set; skipping LLM reconstruction", file=sys.stderr)
+    """Run claude_agent_sdk against the trial dir. Returns None on failure.
+
+    Supports either ANTHROPIC_API_KEY (direct) or AWS_BEARER_TOKEN_BEDROCK
+    (Bedrock). For Bedrock, the env vars are passed through the SDK's env hook.
+    """
+    has_anthropic = bool(os.environ.get("ANTHROPIC_API_KEY"))
+    has_bedrock = bool(os.environ.get("AWS_BEARER_TOKEN_BEDROCK"))
+    if not (has_anthropic or has_bedrock):
+        print(
+            "Neither ANTHROPIC_API_KEY nor AWS_BEARER_TOKEN_BEDROCK set; skipping LLM reconstruction",
+            file=sys.stderr,
+        )
         return None
+
+    if not has_anthropic and has_bedrock:
+        # harbor's query_agent hard-checks ANTHROPIC_API_KEY. Bypass by calling
+        # the SDK directly with env passthrough for Bedrock.
+        return await _query_via_sdk(
+            trial_dir, model, verbose, use_bedrock=True
+        )
+
     try:
         from harbor.analyze.backend import query_agent
     except ImportError as e:
@@ -387,6 +693,63 @@ async def reconstruct_with_llm(trial_dir: Path, model: str, verbose: bool) -> di
         return None
 
     return result if isinstance(result, dict) else None
+
+
+async def _query_via_sdk(
+    trial_dir: Path, model: str, verbose: bool, use_bedrock: bool
+) -> dict | None:
+    """Direct claude_agent_sdk call with optional Bedrock env passthrough."""
+    try:
+        from claude_agent_sdk import (
+            AssistantMessage,
+            ClaudeAgentOptions,
+            ResultMessage,
+            ToolUseBlock,
+            query,
+        )
+    except ImportError as e:
+        print(f"claude_agent_sdk unavailable: {e}", file=sys.stderr)
+        return None
+
+    env: dict[str, str] = {}
+    if use_bedrock:
+        env["CLAUDE_CODE_USE_BEDROCK"] = "1"
+        for k in ("AWS_BEARER_TOKEN_BEDROCK", "AWS_REGION", "AWS_DEFAULT_REGION"):
+            if v := os.environ.get(k):
+                env[k] = v
+        # Bedrock model IDs differ from the short names; map common cases.
+        bedrock_aliases = {
+            "haiku": "global.anthropic.claude-haiku-4-5-v1",
+            "sonnet": "global.anthropic.claude-sonnet-4-6-v1",
+            "opus": "global.anthropic.claude-opus-4-6-v1",
+        }
+        model = bedrock_aliases.get(model, model)
+
+    options = ClaudeAgentOptions(
+        permission_mode="bypassPermissions",
+        allowed_tools=["Read", "Glob", "Grep"],
+        cwd=str(trial_dir),
+        model=model,
+        env=env or None,
+        output_format={"type": "json_schema", "schema": _OUTPUT_SCHEMA},
+        max_thinking_tokens=10000,
+    )
+
+    structured: dict | None = None
+    try:
+        async for message in query(prompt=_RECONSTRUCT_PROMPT, options=options):
+            if isinstance(message, AssistantMessage):
+                for block in message.content:
+                    if isinstance(block, ToolUseBlock) and block.name == "StructuredOutput":
+                        structured = block.input
+            if isinstance(message, ResultMessage) and message.structured_output is not None:
+                structured = message.structured_output
+            if verbose:
+                print(message, file=sys.stderr)
+    except Exception as e:
+        print(f"Bedrock LLM call failed: {e}", file=sys.stderr)
+        return None
+    return structured
 
 
 # ---------------------------------------------------------------------------
@@ -414,32 +777,42 @@ def mine_trial(trial_dir: Path, *, run_llm: bool, model: str, verbose: bool) -> 
     trajectory = json.loads(traj_path.read_text())
     events = extract_events(trajectory)
     progress = build_progress(events)
+    experiments = aggregate_experiments(events)
+    checkpoints = extract_checkpoints(events, trajectory)
+    summary = compute_summary(events, trajectory, experiments, progress, checkpoints)
 
     (out_dir / "extracted_events.json").write_text(json.dumps(events, indent=2))
     (out_dir / "progress.json").write_text(json.dumps(progress, indent=2))
+    (out_dir / "experiments.json").write_text(json.dumps(experiments, indent=2))
+    (out_dir / "summary.json").write_text(json.dumps(summary, indent=2))
     render_progress_plot(progress, out_dir / "progress.png")
 
-    train_count = sum(1 for e in events if e.get("kind") == "train")
     print(
-        f"  {trial_dir.name}: {len(events)} events, {train_count} train kicks, "
-        f"{progress['num_evals']} evals, best={progress['final_best']:.3f}"
+        f"  {trial_dir.name}: {summary['num_experiments']} experiments / "
+        f"{summary['num_train_kicks']} train kicks / {summary['num_evals']} evals, "
+        f"best={summary['best_eval_score']:.3f}, "
+        f"methods={summary['methods_used'] or 'none'}, "
+        f"datasets={len(summary['datasets_used'])}"
     )
 
+    llm_result: dict | None = None
     if run_llm:
-        result = asyncio.run(reconstruct_with_llm(trial_dir, model, verbose))
-        if result is not None:
+        llm_result = asyncio.run(reconstruct_with_llm(trial_dir, model, verbose))
+        if llm_result is not None:
             (out_dir / "experiment_history.json").write_text(
-                json.dumps(result.get("experiments", []), indent=2)
+                json.dumps(llm_result.get("experiments", []), indent=2)
             )
             (out_dir / "method_summary.json").write_text(
-                json.dumps(result.get("method_summary", {}), indent=2)
+                json.dumps(llm_result.get("method_summary", {}), indent=2)
             )
-            ms = result.get("method_summary", {})
+            ms = llm_result.get("method_summary", {})
             print(
                 f"    LLM: methods={ms.get('methods_used')}, "
                 f"final={ms.get('final_method')}, "
                 f"experiments={ms.get('num_experiments')}"
             )
+
+    write_summary_md(out_dir, trial_dir.name, summary, experiments, progress, llm_result)
 
 
 def main() -> int:
