@@ -1,1 +1,0 @@
-MMLU (Massive Multitask Language Understanding, 0-shot)
