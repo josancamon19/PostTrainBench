@@ -13,19 +13,22 @@ nvidia-smi 2>&1 | tee "$LOGS_DIR/gpu_check.txt" || echo "nvidia-smi failed"
 
 # Validate final_model
 VALIDATE=$(python3 "$TESTS_DIR/verifier.py" validate 2>&1)
+MISSING_FINAL_MODEL=0
 if [ "$VALIDATE" != "ok" ]; then
-    echo "ERROR: $VALIDATE"
+    echo "WARN: $VALIDATE (skipping primary + regression eval, keeping diagnostics)"
     ls -la "$WORKSPACE" > "$LOGS_DIR/workspace_listing.txt" 2>&1
     echo "{\"error\": \"$VALIDATE\", \"accuracy\": 0}" > "$LOGS_DIR/metrics.json"
     echo "0" > "$LOGS_DIR/reward.txt"
-    exit 0
+    MISSING_FINAL_MODEL=1
 fi
 
-echo "Contents of final_model:"
-ls -la "$WORKSPACE/final_model" | tee "$LOGS_DIR/final_model_listing.txt"
-cat "$WORKSPACE/final_model/config.json" | head -50 | tee "$LOGS_DIR/model_config.txt"
+if [ "$MISSING_FINAL_MODEL" = "0" ]; then
+    echo "Contents of final_model:"
+    ls -la "$WORKSPACE/final_model" | tee "$LOGS_DIR/final_model_listing.txt"
+    cat "$WORKSPACE/final_model/config.json" | head -50 | tee "$LOGS_DIR/model_config.txt"
+fi
 
-# Read metadata
+# Read metadata (always — needed for compute/regression regardless of final_model)
 META=$(python3 "$TESTS_DIR/verifier.py" metadata)
 BENCHMARK_ID=$(echo "$META" | python3 -c "import sys,json; print(json.load(sys.stdin)['benchmark_id'])")
 BENCHMARK_NAME=$(echo "$META" | python3 -c "import sys,json; print(json.load(sys.stdin)['benchmark_name'])")
@@ -33,10 +36,9 @@ MODEL_ID=$(echo "$META" | python3 -c "import sys,json; print(json.load(sys.stdin
 echo "Benchmark: $BENCHMARK_NAME ($BENCHMARK_ID) | Model: $MODEL_ID"
 
 # ============================================================
-# Evaluation with 3-phase retry logic
+# Evaluation with 3-phase retry logic (skipped if final_model missing)
 # ============================================================
 echo ""
-echo "=== Running evaluation on final_model ==="
 cd "$TESTS_DIR"
 
 EVAL_COUNTER=0
@@ -88,17 +90,21 @@ run_phase() {
     done
 }
 
-PHASE2_TOKENS=$(python3 "$TESTS_DIR/verifier.py" token-args "$BENCHMARK_ID" 2)
-PHASE3_TOKENS=$(python3 "$TESTS_DIR/verifier.py" token-args "$BENCHMARK_ID" 3)
+if [ "$MISSING_FINAL_MODEL" = "0" ]; then
+    echo "=== Running evaluation on final_model ==="
 
-echo "--- Phase 1: default token limits (up to 4 attempts) ---"
-run_phase 4 ""
+    PHASE2_TOKENS=$(python3 "$TESTS_DIR/verifier.py" token-args "$BENCHMARK_ID" 2)
+    PHASE3_TOKENS=$(python3 "$TESTS_DIR/verifier.py" token-args "$BENCHMARK_ID" 3)
 
-echo "--- Phase 2: reduced tokens [${PHASE2_TOKENS}] (up to 3 attempts) ---"
-run_phase 3 "$PHASE2_TOKENS"
+    echo "--- Phase 1: default token limits (up to 4 attempts) ---"
+    run_phase 4 ""
 
-echo "--- Phase 3: further reduced tokens [${PHASE3_TOKENS}] (up to 2 attempts) ---"
-run_phase 2 "$PHASE3_TOKENS"
+    echo "--- Phase 2: reduced tokens [${PHASE2_TOKENS}] (up to 3 attempts) ---"
+    run_phase 3 "$PHASE2_TOKENS"
+
+    echo "--- Phase 3: further reduced tokens [${PHASE3_TOKENS}] (up to 2 attempts) ---"
+    run_phase 2 "$PHASE3_TOKENS"
+fi
 
 # ============================================================
 # Extract accuracy and write reward
@@ -106,7 +112,7 @@ run_phase 2 "$PHASE3_TOKENS"
 echo ""
 echo "=== Evaluation complete (${EVAL_COUNTER} total attempts) ==="
 
-if [ -f "$LOGS_DIR/metrics.json" ]; then
+if [ -f "$LOGS_DIR/metrics.json" ] && [ "$MISSING_FINAL_MODEL" = "0" ]; then
     cat "$LOGS_DIR/metrics.json"
     ACCURACY=$(python3 "$TESTS_DIR/verifier.py" accuracy "$LOGS_DIR/metrics.json")
     echo "Raw accuracy: $ACCURACY"
@@ -147,7 +153,7 @@ fi
 # catastrophic forgetting and domain generalization. Best-effort; a failure
 # here does NOT affect the primary reward written above.
 # ============================================================
-if [ -f "$LOGS_DIR/metrics.json" ] && [ -f "$TESTS_DIR/regression_suite.py" ]; then
+if [ "$MISSING_FINAL_MODEL" = "0" ] && [ -f "$LOGS_DIR/metrics.json" ] && [ -f "$TESTS_DIR/regression_suite.py" ]; then
     echo ""
     echo "=== Running regression suite ==="
     kill_gpu_processes
