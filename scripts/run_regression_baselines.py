@@ -42,12 +42,12 @@ def run_one(eval_id: str, base_model: str, limit: int) -> dict | None:
         str(script),
         "--base-model",
         base_model,
-        "--limit",
-        str(limit),
         "--json-output-file",
         str(tmp),
     ]
-    print(f"→ {base_model} / {eval_id} (limit={limit})", flush=True)
+    if limit > 0:
+        cmd.extend(["--limit", str(limit)])
+    print(f"→ {base_model} / {eval_id} (limit={'full' if limit <= 0 else limit})", flush=True)
     try:
         subprocess.run(cmd, check=True, cwd=str(REPO_ROOT))
     except subprocess.CalledProcessError as e:
@@ -61,7 +61,7 @@ def run_one(eval_id: str, base_model: str, limit: int) -> dict | None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--limit", type=int, default=200)
+    parser.add_argument("--limit", type=int, default=0, help="0 or negative = full dataset")
     parser.add_argument("--model", type=str, default=None, help="One of MODELS keys; default = all tinker-compatible")
     parser.add_argument("--eval", type=str, default=None, help="One of 'mmlu'/'truthfulqa'; default = all")
     args = parser.parse_args()

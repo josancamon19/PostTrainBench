@@ -198,32 +198,43 @@ REGRESSION_EVALS: list[str] = [
 ]
 
 # Baselines for Layer A regression evals, measured via Tinker (0-shot chat,
-# temp=0, limit=300 per benchmark). Used for forgetting_penalty computation.
+# temp=0, full test/validation sets: MMLU=14,042, TruthfulQA MC1=817 samples).
+# Used for forgetting_penalty computation.
 #
 # Caveat: Llama base models under-perform at 0-shot chat format (they weren't
 # trained on it), so the MMLU numbers here are noticeably lower than Meta's
-# reported 8-shot completion-style baselines. These numbers are nonetheless
-# what matters for THIS benchmark, because the verifier evaluates trained
-# models in the same 0-shot chat format — apples-to-apples.
+# reported 8-shot completion-style baselines. These numbers are what matters
+# for THIS benchmark, because the verifier evaluates trained models in the
+# same 0-shot chat format — apples-to-apples.
 #
-# IFEval needs the google/instruction_following_eval validator package, which
-# doesn't resolve on Python 3.13; measured on GPU as a follow-up. Entry
-# omitted here for now (the regression suite skips evals without baselines
-# in the forgetting computation, rather than counting them as 0).
+# Llama-3.2-1B on TruthfulQA @ 0.938 still looks suspicious at full 817
+# samples — the 1B model evidently outputs a fixed letter that correlates
+# with TruthfulQA's truthful-answer positions. Shuffling choice positions
+# per sample would correct this; left as follow-up. For now the high
+# baseline just means forgetting is easy to flag on that row — a trained
+# model that actually answers the questions will score lower, and that
+# drop would show up as forgetting penalty even though semantically the
+# post-training is *improving* the model. Handle with care when reading
+# leaderboard for this model/benchmark combo.
+#
+# IFEval needs google/instruction_following_eval (not resolvable on 3.13);
+# will be measured on GPU in a follow-up pass. Entry omitted here so the
+# regression suite skips it in the forgetting calculation instead of
+# counting as 0.
 #
 # Layer B (gsm8k, humaneval, gpqamain) baselines reuse BASE_SCORES — not
 # duplicated here.
 # fmt: off
 REGRESSION_BASE_SCORES: dict[tuple[str, str], float] = {
-    ("Qwen/Qwen3-30B-A3B-Base", "mmlu"):       0.753,
-    ("Qwen/Qwen3-30B-A3B-Base", "truthfulqa"): 0.590,
-    ("Qwen/Qwen3-8B-Base",      "mmlu"):       0.690,
-    ("Qwen/Qwen3-8B-Base",      "truthfulqa"): 0.740,
-    ("meta-llama/Llama-3.1-8B", "mmlu"):       0.087,
-    ("meta-llama/Llama-3.1-8B", "truthfulqa"): 0.510,
-    ("meta-llama/Llama-3.2-3B", "mmlu"):       0.187,
-    ("meta-llama/Llama-3.2-3B", "truthfulqa"): 0.610,
-    ("meta-llama/Llama-3.2-1B", "mmlu"):       0.180,
-    ("meta-llama/Llama-3.2-1B", "truthfulqa"): 0.947,  # suspicious — likely position bias on 300-sample slice; re-measure with shuffled choices
+    ("Qwen/Qwen3-30B-A3B-Base", "mmlu"):       0.771,
+    ("Qwen/Qwen3-30B-A3B-Base", "truthfulqa"): 0.606,
+    ("Qwen/Qwen3-8B-Base",      "mmlu"):       0.723,
+    ("Qwen/Qwen3-8B-Base",      "truthfulqa"): 0.752,
+    ("meta-llama/Llama-3.1-8B", "mmlu"):       0.107,
+    ("meta-llama/Llama-3.1-8B", "truthfulqa"): 0.494,
+    ("meta-llama/Llama-3.2-3B", "mmlu"):       0.219,
+    ("meta-llama/Llama-3.2-3B", "truthfulqa"): 0.632,
+    ("meta-llama/Llama-3.2-1B", "mmlu"):       0.199,
+    ("meta-llama/Llama-3.2-1B", "truthfulqa"): 0.938,  # position-bias artifact (see note)
 }
 # fmt: on
