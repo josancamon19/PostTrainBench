@@ -204,15 +204,75 @@ def _hours_since(ts: str, base_t: datetime) -> float:
     return (datetime.fromisoformat(ts.replace("Z", "+00:00")) - base_t).total_seconds() / 3600
 
 
+# Hyperparams we promote when picking what to show on the plot (first exp gets
+# these absolute values; subsequent exps only show them when they change).
+_HP_PRIORITY: tuple[str, ...] = ("lr", "epochs", "loss", "batch_size", "lora_r", "neftune_alpha")
+
+
+def _short_dataset(name: str) -> str:
+    """Strip org prefix, drop common boilerplate suffixes."""
+    tail = name.rsplit("/", 1)[-1]
+    return tail.replace("-CoT", "").replace("-Instruct", "").replace("-cot", "")
+
+
+def _dataset_label(datasets: list[str]) -> str:
+    short = [_short_dataset(d) for d in datasets]
+    if len(short) <= 2:
+        return "+".join(short)
+    return f"{short[0]}+{short[1]} (+{len(short) - 2})"
+
+
+def _hp_label(curr: dict, prev: dict | None) -> str:
+    """For the first experiment, show a few salient hyperparams.
+    For later ones, show only what changed vs. the prior experiment."""
+    if prev is None:
+        return " ".join(f"{k}={curr[k]}" for k in _HP_PRIORITY if k in curr)[:60]
+
+    deltas: list[str] = []
+    for k in sorted(set(curr) | set(prev)):
+        cv, pv = curr.get(k), prev.get(k)
+        if cv == pv:
+            continue
+        if pv is None:
+            deltas.append(f"+{k}={cv}")
+        elif cv is None:
+            deltas.append(f"-{k}")
+        else:
+            deltas.append(f"{k}:{pv}→{cv}")
+    return " ".join(deltas[:3])[:60] if deltas else "same hp"
+
+
+def _annotation_text(exp: Experiment | None, prev_exp: Experiment | None) -> str:
+    if exp is None:
+        return ""
+    ds_curr = _dataset_label(exp.datasets) if exp.datasets else ""
+    if prev_exp is None:
+        ds_line = ds_curr
+    else:
+        ds_prev = _dataset_label(prev_exp.datasets) if prev_exp.datasets else ""
+        ds_line = ds_curr if ds_curr != ds_prev else ""
+    hp_line = _hp_label(exp.hyperparams or {}, prev_exp.hyperparams if prev_exp else None)
+    parts = [f"v{exp.sequence}"]
+    if ds_line:
+        parts.append(ds_line)
+    if hp_line:
+        parts.append(hp_line)
+    return "\n".join(parts)
+
+
 def render_progress_plot(rec: Reconstruction, target_benchmark: str | None, out_path: Path) -> None:
     if not rec.progress:
         return
 
     points = sorted(rec.progress, key=lambda p: p.timestamp)
     base_t = datetime.fromisoformat(points[0].timestamp.replace("Z", "+00:00"))
-    method_by_exp: dict[int, str] = {e.sequence: e.method for e in rec.experiments}
+    exp_by_seq: dict[int, Experiment] = {e.sequence: e for e in rec.experiments}
+    experiments_in_order = sorted(rec.experiments, key=lambda e: e.sequence)
+    prev_by_seq: dict[int, Experiment | None] = {}
+    for i, e in enumerate(experiments_in_order):
+        prev_by_seq[e.sequence] = experiments_in_order[i - 1] if i > 0 else None
 
-    fig, ax = plt.subplots(figsize=(10, 5))
+    fig, ax = plt.subplots(figsize=(12, 6))
 
     # Thin chronological trace per benchmark, for context.
     by_bench: dict[str, list[ProgressPoint]] = {}
@@ -221,26 +281,38 @@ def render_progress_plot(rec: Reconstruction, target_benchmark: str | None, out_
     for bench, pts in by_bench.items():
         xs = [_hours_since(p.timestamp, base_t) for p in pts]
         ys = [p.score for p in pts]
-        ax.plot(xs, ys, "-", alpha=0.25, linewidth=1, label=f"{bench} trace")
+        ax.plot(xs, ys, "-", alpha=0.2, linewidth=1, label=f"{bench} trace")
 
-    # Method-colored scatter, one marker per eval.
+    # Method-colored scatter with diff annotation per dot.
     seen_methods: set[str] = set()
     for p in points:
-        method = method_by_exp.get(p.experiment_sequence or -1, "other")
+        exp = exp_by_seq.get(p.experiment_sequence) if p.experiment_sequence is not None else None
+        method = exp.method if exp else "other"
         marker, color = _METHOD_STYLE.get(method, _METHOD_STYLE["other"])
         label = method if method not in seen_methods else None
         seen_methods.add(method)
+        x = _hours_since(p.timestamp, base_t)
         ax.scatter(
-            _hours_since(p.timestamp, base_t),
-            p.score,
-            marker=marker,
-            color=color,
-            s=70,
-            edgecolors="black",
-            linewidths=0.5,
-            label=label,
-            zorder=3,
+            x, p.score, marker=marker, color=color, s=90, edgecolors="black", linewidths=0.5, label=label, zorder=3
         )
+
+        ann = _annotation_text(exp, prev_by_seq.get(exp.sequence) if exp else None)
+        if ann:
+            ax.annotate(
+                ann,
+                xy=(x, p.score),
+                xytext=(6, 8),
+                textcoords="offset points",
+                fontsize=6.5,
+                color="black",
+                bbox={
+                    "boxstyle": "round,pad=0.2",
+                    "facecolor": "white",
+                    "edgecolor": color,
+                    "linewidth": 0.7,
+                    "alpha": 0.85,
+                },
+            )
 
     # Best-so-far line on the target benchmark.
     target_pts = by_bench.get(target_benchmark) if target_benchmark else None
@@ -258,9 +330,9 @@ def render_progress_plot(rec: Reconstruction, target_benchmark: str | None, out_
     ax.set_ylabel("Score")
     ax.set_title(f"Experiment progress ({len(points)} evals, methods: {', '.join(sorted(seen_methods))})")
     ax.grid(True, alpha=0.3)
-    ax.legend(loc="best", fontsize=8)
+    ax.legend(loc="lower right", fontsize=8)
     fig.tight_layout()
-    fig.savefig(out_path, dpi=120)
+    fig.savefig(out_path, dpi=140)
     plt.close(fig)
 
 
