@@ -12,6 +12,7 @@ from constants import (
     BENCHMARKS,
     INSTRUCT_BASELINES,
     MODELS,
+    REGRESSION_BASE_SCORES,
     REGRESSION_EVALS,
     BenchmarkInfo,
     ModelInfo,
@@ -239,8 +240,17 @@ fi
         if self.mode != "tinker":
             regression_ids = [bid for bid in REGRESSION_EVALS if bid != benchmark_id]
             metadata["regression_benchmarks"] = regression_ids
+            # Layer B (cross-target: gsm8k/humaneval/gpqamain/aime2025) reuses BASE_SCORES;
+            # Layer A (mmlu/ifeval/truthfulqa) uses REGRESSION_BASE_SCORES. IFEval has no
+            # measured baseline yet (tinker harness gap) so it gets None → regression_suite
+            # skips it in the forgetting penalty rather than counting as 0.
             metadata["regression_baselines"] = {
-                bid: BASE_SCORES.get((model_info.model_id, bid)) for bid in regression_ids
+                bid: (
+                    REGRESSION_BASE_SCORES.get((model_info.model_id, bid))
+                    if (model_info.model_id, bid) in REGRESSION_BASE_SCORES
+                    else BASE_SCORES.get((model_info.model_id, bid))
+                )
+                for bid in regression_ids
             }
 
         (env_dir / "metadata.json").write_text(json.dumps(metadata, indent=2))

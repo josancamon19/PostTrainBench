@@ -1,0 +1,22 @@
+{
+  "meta-llama/Llama-3.2-1B": {
+    "mmlu": 0.18,
+    "truthfulqa": 0.9466666666666667
+  },
+  "meta-llama/Llama-3.1-8B": {
+    "mmlu": 0.08666666666666667,
+    "truthfulqa": 0.51
+  },
+  "meta-llama/Llama-3.2-3B": {
+    "mmlu": 0.18666666666666668,
+    "truthfulqa": 0.61
+  },
+  "Qwen/Qwen3-8B-Base": {
+    "mmlu": 0.69,
+    "truthfulqa": 0.74
+  },
+  "Qwen/Qwen3-30B-A3B-Base": {
+    "mmlu": 0.7533333333333333,
+    "truthfulqa": 0.59
+  }
+}

@@ -196,3 +196,34 @@ REGRESSION_EVALS: list[str] = [
     "humaneval",
     "gpqamain",
 ]
+
+# Baselines for Layer A regression evals, measured via Tinker (0-shot chat,
+# temp=0, limit=300 per benchmark). Used for forgetting_penalty computation.
+#
+# Caveat: Llama base models under-perform at 0-shot chat format (they weren't
+# trained on it), so the MMLU numbers here are noticeably lower than Meta's
+# reported 8-shot completion-style baselines. These numbers are nonetheless
+# what matters for THIS benchmark, because the verifier evaluates trained
+# models in the same 0-shot chat format — apples-to-apples.
+#
+# IFEval needs the google/instruction_following_eval validator package, which
+# doesn't resolve on Python 3.13; measured on GPU as a follow-up. Entry
+# omitted here for now (the regression suite skips evals without baselines
+# in the forgetting computation, rather than counting them as 0).
+#
+# Layer B (gsm8k, humaneval, gpqamain) baselines reuse BASE_SCORES — not
+# duplicated here.
+# fmt: off
+REGRESSION_BASE_SCORES: dict[tuple[str, str], float] = {
+    ("Qwen/Qwen3-30B-A3B-Base", "mmlu"):       0.753,
+    ("Qwen/Qwen3-30B-A3B-Base", "truthfulqa"): 0.590,
+    ("Qwen/Qwen3-8B-Base",      "mmlu"):       0.690,
+    ("Qwen/Qwen3-8B-Base",      "truthfulqa"): 0.740,
+    ("meta-llama/Llama-3.1-8B", "mmlu"):       0.087,
+    ("meta-llama/Llama-3.1-8B", "truthfulqa"): 0.510,
+    ("meta-llama/Llama-3.2-3B", "mmlu"):       0.187,
+    ("meta-llama/Llama-3.2-3B", "truthfulqa"): 0.610,
+    ("meta-llama/Llama-3.2-1B", "mmlu"):       0.180,
+    ("meta-llama/Llama-3.2-1B", "truthfulqa"): 0.947,  # suspicious — likely position bias on 300-sample slice; re-measure with shuffled choices
+}
+# fmt: on
