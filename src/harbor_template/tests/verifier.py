@@ -12,7 +12,6 @@ LOGS_DIR = Path("/logs/verifier")
 PHASE2_TOKENS = {
     "aime2025": "--max-tokens 12000",
     "arenahardwriting": "--max-new-tokens 12288",
-    "bfcl": "--max-tokens 12000",
     "gpqamain": "--max-tokens 12000",
     "gsm8k": "--max-tokens 3000",
     "healthbench": "--max-new-tokens 12288",
@@ -22,7 +21,6 @@ PHASE2_TOKENS = {
 PHASE3_TOKENS = {
     "aime2025": "--max-tokens 8000",
     "arenahardwriting": "--max-new-tokens 8192",
-    "bfcl": "--max-tokens 8000",
     "gpqamain": "--max-tokens 8000",
     "gsm8k": "--max-tokens 2000",
     "healthbench": "--max-new-tokens 8192",

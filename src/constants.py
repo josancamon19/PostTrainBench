@@ -52,12 +52,6 @@ BENCHMARKS = {
         setup_note="- A final note: the evaluate.py script sometimes outputs ERROR warnings. "
         "Do not be alarmed by this, this is normal behavior for inspect-ai.\n",
     ),
-    "bfcl": BenchmarkInfo(
-        task_id="bfcl",
-        benchmark_name="Berkeley Function Calling Leaderboard",
-        setup_note="- A final note: the evaluate.py script sometimes outputs ERROR warnings. "
-        "Do not be alarmed by this, this is normal behavior for inspect-ai.\n",
-    ),
     "arenahardwriting": BenchmarkInfo(
         task_id="arenahardwriting",
         benchmark_name="Arena-Hard-v2.0 (Writing)",
@@ -116,7 +110,7 @@ MODELS = {
 }
 
 # Baseline scores per model. Base measured via Tinker (temp=0). Target = instruct model scores.
-# Llama instruct: GPU oracle + Meta model cards. Qwen instruct: Tinker (temp=0, /no_think for gsm8k+bfcl).
+# Llama instruct: GPU oracle + Meta model cards. Qwen instruct: Tinker (temp=0, /no_think for gsm8k).
 # fmt: off
 SCORES: dict[str, dict] = {
     "meta-llama/Llama-3.1-8B": {
@@ -128,7 +122,6 @@ SCORES: dict[str, dict] = {
             # target = 1/30, real instruct score is 0.0, kinda an impossible task.
             "aime2025":        (0.0,    0.033),
             "gpqamain":        (0.181,  0.304),
-            # "bfcl":            (0.655,  0.761),
             "arenahardwriting":(0.017,  0.467),
             "healthbench":     (0.214,  0.234),
         },
@@ -140,7 +133,6 @@ SCORES: dict[str, dict] = {
             "humaneval":       (0.006,  0.524), # ✅
             # "aime2025":        (0.0,    0.0),
             "gpqamain":        (0.252,  0.328), # ✅
-            # "bfcl":            (0.684,  0.670),  # base > target
             "arenahardwriting":(0.005,  0.433), # ✅
             "healthbench":     (0.134,  0.256), # ✅
         },
@@ -152,7 +144,6 @@ SCORES: dict[str, dict] = {
             "humaneval":       (0.0,    0.354), # ✅
             # "aime2025":        (0.0,    0.0),
             "gpqamain":        (0.132,  0.225), # ✅
-            # "bfcl":            (0.141,  0.257),
             "arenahardwriting":(0.0,    0.200), # ✅
             "healthbench":     (0.054,  0.139), # ✅
         },
@@ -164,7 +155,6 @@ SCORES: dict[str, dict] = {
             "humaneval":       (0.024,  0.457),
             "aime2025":        (0.167,  0.400),
             "gpqamain":        (0.388,  0.534),
-            # "bfcl":            (0.890,  0.899),  # instruct /no_think
             "arenahardwriting":(0.341,  0.820),
             "healthbench":     (0.287,  0.542),
         },
@@ -176,7 +166,6 @@ SCORES: dict[str, dict] = {
             "humaneval":       (0.006,  0.720),
             "aime2025":        (0.100,  0.500),
             "gpqamain":        (0.462,  0.580),
-            # "bfcl":            (0.815,  0.813),  # base > target
             "arenahardwriting":(0.475,  0.860),
             "healthbench":     (0.301,  0.580),
         },
@@ -196,7 +185,7 @@ INSTRUCT_BASELINES: dict[tuple[str, str], float] = {
 # Regression suite: evals the verifier runs against final_model to detect catastrophic
 # forgetting and domain generalization. Not training targets. Two layers:
 #   Layer A (breadth, orthogonal to the STEM targets): mmlu, ifeval, truthfulqa
-#   Layer B (cross-target check on existing cheap benchmarks): gsm8k, humaneval, gpqamain, bfcl
+#   Layer B (cross-target check on existing cheap benchmarks): gsm8k, humaneval, gpqamain
 # Long-gen OpenAI-graded benchmarks (arenahardwriting, healthbench) are excluded due to
 # cost + latency per trial.
 REGRESSION_EVALS: list[str] = [
@@ -206,5 +195,4 @@ REGRESSION_EVALS: list[str] = [
     "gsm8k",
     "humaneval",
     "gpqamain",
-    "bfcl",
 ]

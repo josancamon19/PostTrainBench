@@ -28,7 +28,6 @@ _LIMIT_OVERRIDES: dict[str, int | None] = {
     "gsm8k": 150,
     "humaneval": 150,
     "gpqamain": 150,
-    "bfcl": 150,
 }
 
 
