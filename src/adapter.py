@@ -300,6 +300,9 @@ fi
             compute_parser = TEMPLATE_DIR / "tests" / "compute_parser.py"
             if compute_parser.exists():
                 shutil.copy(compute_parser, tests_dir / "compute_parser.py")
+            hf_upload = TEMPLATE_DIR / "tests" / "hf_upload.py"
+            if hf_upload.exists():
+                shutil.copy(hf_upload, tests_dir / "hf_upload.py")
 
         eval_code_src = SRC_DIR / "tasks" / benchmark_id / "evaluation_code"
         if eval_code_src.is_dir():

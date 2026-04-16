@@ -23,13 +23,35 @@ from datetime import datetime
 from pathlib import Path
 from typing import Literal
 
+import matplotlib
+from claude_agent_sdk import (
+    AssistantMessage,
+    ClaudeAgentOptions,
+    ResultMessage,
+    ToolUseBlock,
+    query,
+)
 from pydantic import BaseModel, Field
+
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
 
 # ---------------------------------------------------------------------------
 # Output schema (Pydantic → JSON schema for the SDK's output_format)
 # ---------------------------------------------------------------------------
 
-Method = Literal["sft", "dpo", "grpo", "ppo", "rloo", "rejection_sampling", "lora", "qlora", "distillation", "other"]
+Method = Literal[
+    "sft",
+    "dpo",
+    "grpo",
+    "ppo",
+    "rloo",
+    "rejection_sampling",
+    "lora",
+    "qlora",
+    "distillation",
+    "other",
+]
 
 
 class Experiment(BaseModel):
@@ -52,6 +74,11 @@ class ProgressPoint(BaseModel):
     timestamp: str = Field(description="ISO8601 timestamp")
     benchmark: str = Field(description="Benchmark id (e.g. gsm8k, mmlu)")
     score: float
+    experiment_sequence: int | None = Field(
+        default=None,
+        description="If this score came from evaluating an experiment's checkpoint, that experiment's sequence. "
+        "None for the final verifier eval or any eval that doesn't map to a specific experiment.",
+    )
     notes: str | None = None
 
 
@@ -66,7 +93,8 @@ class MethodSummary(BaseModel):
     iterative: bool = Field(description="True if experiments built on each other; False if it was effectively one-shot")
     narrative: str = Field(description="3-5 sentence summary of the agent's overall strategy")
     notable_observations: list[str] = Field(
-        default_factory=list, description="Anything surprising or noteworthy (e.g. peaked early, regressed at hour N)"
+        default_factory=list,
+        description="Anything surprising or noteworthy (e.g. peaked early, regressed at hour N)",
     )
 
 
@@ -77,59 +105,10 @@ class Reconstruction(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# Prompt
+# Prompt (text lives in scripts/prompts/ so non-coders can iterate)
 # ---------------------------------------------------------------------------
 
-_PROMPT = """\
-You are reconstructing what an agent did during a 10h post-training trial. The agent
-was NOT instructed to log its experiments — you must infer everything from the
-trajectory and artifacts left behind.
-
-You're sitting in the trial directory. Read these files (Read/Glob/Grep available):
-
-  result.json                              Trial outcome, reward, timing
-  agent/trajectory.json                    Full agent action history (Bash/Write/Read/Edit tool calls)
-  artifacts/manifest.json                  Inventory of artifacts the agent produced
-  artifacts/workspace/                     Snapshot of /app — training scripts, configs, datasets
-  verifier/metrics.json                    Final eval score on the target benchmark
-  verifier/regression_metrics.json         Cross-benchmark eval scores (if present)
-  verifier/test-stdout.txt                 Verifier output
-
-The trial may be in one of two modes (visible from artifacts/workspace/metadata.json):
-  - "gpu" or "gpu-runpod": agent trained locally with vLLM/transformers, evaluated via
-    `python evaluate.py`, and submitted weights at /app/final_model/
-  - "tinker": agent used the Tinker remote training API (tinker SDK), evaluated via
-    `python evaluate_tinker.py`, and the submitted checkpoint is a Tinker URI (no local weights)
-
-Do NOT assume one mode. Read metadata.json first to find out.
-
-What to reconstruct:
-
-1. **experiments[]** — every distinct training attempt (one row per attempt, NOT per script
-   invocation; group repeated runs of the same script + same hyperparams as one attempt).
-   For each: method, dataset, hyperparams, the eval score it produced, the checkpoint dir.
-   Set `builds_on_sequence` if an experiment loaded weights from a previous experiment's
-   checkpoint (continued training).
-
-2. **progress[]** — every eval score the agent observed during training, in chronological
-   order. Pull the score values from the agent's evaluate.py / evaluate_tinker.py tool
-   call outputs in trajectory.json. Include the final verifier scores too. This is what
-   the user will plot — get timestamps and benchmark labels right.
-
-3. **summary** — methods used, datasets used, the final submitted checkpoint, whether
-   the agent iterated (multiple experiments stacked) or one-shot, a 3-5 sentence
-   narrative, and any notable observations (e.g. "peaked at 0.26 in experiment 2 and
-   never beat it", "switched from SFT to LoRA at hour 6 after OOM").
-
-Ground rules:
-  - Use null when truly unknown. Don't invent numbers or dataset names.
-  - The agent may use any library (trl, unsloth, axolotl, lit-gpt, custom loops, tinker
-    SDK). Read the actual scripts to figure out what's happening — don't pattern-match.
-  - For methods, use the closest match in the enum (sft/dpo/grpo/ppo/rloo/lora/qlora/
-    rejection_sampling/distillation/other). LoRA + SFT counts as "lora".
-  - If the agent ran the same script with no hyperparam changes 5 times, that's ONE
-    experiment with 5 retries (mention in description), not 5 experiments.
-"""
+_PROMPT = (Path(__file__).parent / "prompts" / "mine_trajectory.txt").read_text()
 
 
 # ---------------------------------------------------------------------------
@@ -145,18 +124,6 @@ async def reconstruct(trial_dir: Path, model: str, verbose: bool) -> Reconstruct
             "Neither ANTHROPIC_API_KEY nor AWS_BEARER_TOKEN_BEDROCK set; cannot run.",
             file=sys.stderr,
         )
-        return None
-
-    try:
-        from claude_agent_sdk import (
-            AssistantMessage,
-            ClaudeAgentOptions,
-            ResultMessage,
-            ToolUseBlock,
-            query,
-        )
-    except ImportError as e:
-        print(f"claude_agent_sdk unavailable: {e}", file=sys.stderr)
         return None
 
     env: dict[str, str] = {}
@@ -180,7 +147,10 @@ async def reconstruct(trial_dir: Path, model: str, verbose: bool) -> Reconstruct
         cwd=str(trial_dir),
         model=model,
         env=env or None,
-        output_format={"type": "json_schema", "schema": Reconstruction.model_json_schema()},
+        output_format={
+            "type": "json_schema",
+            "schema": Reconstruction.model_json_schema(),
+        },
         max_thinking_tokens=10000,
     )
 
@@ -215,48 +185,80 @@ async def reconstruct(trial_dir: Path, model: str, verbose: bool) -> Reconstruct
 # ---------------------------------------------------------------------------
 
 
-def render_progress_plot(progress: list[ProgressPoint], target_benchmark: str | None, out_path: Path) -> None:
-    if not progress:
-        return
-    try:
-        import matplotlib
+# Per-method marker + color. Methods not listed fall back to "other".
+_METHOD_STYLE: dict[str, tuple[str, str]] = {
+    "sft": ("o", "#1f77b4"),
+    "lora": ("s", "#2ca02c"),
+    "qlora": ("D", "#17becf"),
+    "dpo": ("^", "#9467bd"),
+    "grpo": ("v", "#8c564b"),
+    "ppo": ("<", "#e377c2"),
+    "rloo": (">", "#bcbd22"),
+    "rejection_sampling": ("P", "#7f7f7f"),
+    "distillation": ("X", "#ff7f0e"),
+    "other": ("*", "#aaaaaa"),
+}
 
-        matplotlib.use("Agg")
-        import matplotlib.pyplot as plt
-    except ImportError:
-        print("matplotlib not installed; skipping plot", file=sys.stderr)
+
+def _hours_since(ts: str, base_t: datetime) -> float:
+    return (datetime.fromisoformat(ts.replace("Z", "+00:00")) - base_t).total_seconds() / 3600
+
+
+def render_progress_plot(rec: Reconstruction, target_benchmark: str | None, out_path: Path) -> None:
+    if not rec.progress:
         return
 
-    points = sorted(progress, key=lambda p: p.timestamp)
+    points = sorted(rec.progress, key=lambda p: p.timestamp)
+    base_t = datetime.fromisoformat(points[0].timestamp.replace("Z", "+00:00"))
+    method_by_exp: dict[int, str] = {e.sequence: e.method for e in rec.experiments}
+
+    fig, ax = plt.subplots(figsize=(10, 5))
+
+    # Thin chronological trace per benchmark, for context.
     by_bench: dict[str, list[ProgressPoint]] = {}
     for p in points:
         by_bench.setdefault(p.benchmark, []).append(p)
-
-    base_t = datetime.fromisoformat(points[0].timestamp.replace("Z", "+00:00"))
-    fig, ax = plt.subplots(figsize=(10, 5))
     for bench, pts in by_bench.items():
-        xs = [(datetime.fromisoformat(p.timestamp.replace("Z", "+00:00")) - base_t).total_seconds() / 3600 for p in pts]
+        xs = [_hours_since(p.timestamp, base_t) for p in pts]
         ys = [p.score for p in pts]
-        ax.plot(xs, ys, "o-", label=bench, alpha=0.6, linewidth=1)
+        ax.plot(xs, ys, "-", alpha=0.25, linewidth=1, label=f"{bench} trace")
 
+    # Method-colored scatter, one marker per eval.
+    seen_methods: set[str] = set()
+    for p in points:
+        method = method_by_exp.get(p.experiment_sequence or -1, "other")
+        marker, color = _METHOD_STYLE.get(method, _METHOD_STYLE["other"])
+        label = method if method not in seen_methods else None
+        seen_methods.add(method)
+        ax.scatter(
+            _hours_since(p.timestamp, base_t),
+            p.score,
+            marker=marker,
+            color=color,
+            s=70,
+            edgecolors="black",
+            linewidths=0.5,
+            label=label,
+            zorder=3,
+        )
+
+    # Best-so-far line on the target benchmark.
     target_pts = by_bench.get(target_benchmark) if target_benchmark else None
     if target_pts:
-        best_so_far = []
+        target_pts = sorted(target_pts, key=lambda p: p.timestamp)
         running = 0.0
-        for p in sorted(target_pts, key=lambda p: p.timestamp):
+        best_xs, best_ys = [], []
+        for p in target_pts:
             running = max(running, p.score)
-            best_so_far.append(running)
-        xs = [
-            (datetime.fromisoformat(p.timestamp.replace("Z", "+00:00")) - base_t).total_seconds() / 3600
-            for p in sorted(target_pts, key=lambda p: p.timestamp)
-        ]
-        ax.plot(xs, best_so_far, "-", color="orange", label=f"{target_benchmark} best so far", linewidth=2)
+            best_xs.append(_hours_since(p.timestamp, base_t))
+            best_ys.append(running)
+        ax.plot(best_xs, best_ys, "-", color="orange", label=f"{target_benchmark} best so far", linewidth=2, zorder=2)
 
     ax.set_xlabel("Hours since first eval")
     ax.set_ylabel("Score")
-    ax.set_title(f"Experiment progress ({len(points)} evals)")
+    ax.set_title(f"Experiment progress ({len(points)} evals, methods: {', '.join(sorted(seen_methods))})")
     ax.grid(True, alpha=0.3)
-    ax.legend()
+    ax.legend(loc="best", fontsize=8)
     fig.tight_layout()
     fig.savefig(out_path, dpi=120)
     plt.close(fig)
@@ -361,7 +363,7 @@ def mine_trial(trial_dir: Path, *, model: str, verbose: bool) -> None:
     (out_dir / "experiments.json").write_text(json.dumps([e.model_dump() for e in rec.experiments], indent=2))
     (out_dir / "progress.json").write_text(json.dumps([p.model_dump() for p in rec.progress], indent=2))
     (out_dir / "summary.json").write_text(rec.summary.model_dump_json(indent=2))
-    render_progress_plot(rec.progress, target, out_dir / "progress.png")
+    render_progress_plot(rec, target, out_dir / "progress.png")
     render_summary_md(rec, trial_dir.name, target, out_dir)
 
     s = rec.summary

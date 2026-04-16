@@ -167,5 +167,22 @@ if [ "$MISSING_FINAL_MODEL" = "0" ] && [ -f "$LOGS_DIR/metrics.json" ] && [ -f "
     set -e
 fi
 
+# ============================================================
+# Offload final_model to HuggingFace, then purge large files from /app
+# so Harbor's artifact rsync doesn't drag multi-GB weights back.
+# Best-effort; failure here does not affect reward.
+# ============================================================
+if [ "$MISSING_FINAL_MODEL" = "0" ]; then
+    echo ""
+    echo "=== HF upload + artifact slimming ==="
+    set +e
+    python3 "$TESTS_DIR/hf_upload.py" 2>&1 | tee -a "$LOGS_DIR/hf_upload.log"
+    # Drop any file over 500M from the workspace after the upload. Keeps
+    # config.json / tokenizer / small checkpoints for reconstruction.
+    find "$WORKSPACE" -type f -size +500M -print -delete 2>&1 \
+        | tee "$LOGS_DIR/pruned_large_files.txt"
+    set -e
+fi
+
 echo "=== Verification complete ==="
 ls -la "$LOGS_DIR/"

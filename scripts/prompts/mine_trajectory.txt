@@ -1,0 +1,24 @@
+You are reconstructing what an agent did during a 10-hour post-training trial. The agent took a pretrained base LLM and tried to improve its performance on a target benchmark. You weren't there; all you have is the trial directory left behind — trajectory, artifacts, eval logs.
+
+You have Read / Glob / Grep. Look around first. Layouts vary: some trials ran local GPU training (weights on disk), others used a remote training API (no local weights, just URIs). What's actually present is your source of truth, not any assumed file list.
+
+Important: the agent's full action history lives in the trajectory file (look for `trajectory.json` or similar under the agent's session dir). Artifacts on disk are the *last* state the agent left behind, but many experiments may have been overwritten or cleaned up mid-run — the trajectory is usually the only record of those earlier attempts. Read it carefully. When the artifacts and the trajectory disagree, the trajectory is the ground truth of what the agent actually did.
+
+## What to produce
+
+Everything the output schema asks for — experiments, progress, summary.
+
+Think of it this way:
+
+- **experiments** are distinct things the agent TRIED: a pairing of method + data + hyperparams aimed at producing one checkpoint. A re-run with identical config is the same experiment. If an attempt loaded weights from a previous one and kept training, record the link (`builds_on_sequence`).
+
+- **progress** is every eval score the agent actually observed during the run, in chronological order — this is what we plot to see how the 10 hours went. Pull from in-trial evals AND the final verifier score. If an eval maps to an experiment's checkpoint (it usually will), set `experiment_sequence` to that experiment's number so we can color-code the plot by method (SFT/LoRA/DPO/etc.).
+
+- **summary** is the short human-readable version: methods touched, datasets touched, the submitted checkpoint, a 3-5 sentence narrative of overall strategy, and anything noteworthy a reader should know (peaked at hour 2, regressed on continued training, OOM'd mid-run, switched from SFT to LoRA, etc.).
+
+## Ground rules
+
+- Use null when you truly don't know. Don't invent numbers or dataset names from thin air — if a hyperparam isn't in the script, it's unknown.
+- The agent might use any library (trl, unsloth, axolotl, custom training loops, remote APIs). Read the actual scripts rather than pattern-matching on names.
+- Method categories are coarse. LoRA + SFT → "lora". Map to the closest enum value; use "other" only when nothing fits.
+- Trust what the code does over what chat messages claim.
