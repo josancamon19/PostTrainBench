@@ -1,8 +1,8 @@
-import os
-import json
-import pandas as pd
 import glob
+import os
+
 import gradio as gr
+import pandas as pd
 
 # Cache for loaded data
 data_cache = {}
@@ -122,7 +122,7 @@ def get_model_answer(benchmark, model, uid):
         else:
             return "Invalid message format"
     except Exception as e:
-        return f"Error extracting answer: {str(e)}"
+        return f"Error extracting answer: {e!s}"
 
 
 def get_judgment(benchmark, judge, model, uid):

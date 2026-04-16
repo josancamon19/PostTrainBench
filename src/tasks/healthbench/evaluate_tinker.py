@@ -14,14 +14,13 @@ import sys
 
 sys.path.insert(0, sys.path[0])
 sys.path.insert(0, sys.path[0] + "/../..")
-from tinker_util import parse_args, setup_tinker, save_metrics
-
-from tinker import types
-
 from evaluation_code.data_loader import load_healthbench
 from evaluation_code.grader import grade_examples_parallel
 from evaluation_code.scoring import aggregate_scores
 from evaluation_code.text_utils import limit_repetitions
+from tinker import types
+
+from tinker_util import parse_args, save_metrics, setup_tinker
 
 MAX_TOKENS = 16384
 
@@ -72,7 +71,7 @@ def main() -> None:
     args = parse_args("Evaluate a Tinker checkpoint on HealthBench.")
 
     if "OPENAI_API_KEY" not in os.environ:
-        raise EnvironmentError("OPENAI_API_KEY is not set.")
+        raise OSError("OPENAI_API_KEY is not set.")
 
     ctx = setup_tinker(args)
 

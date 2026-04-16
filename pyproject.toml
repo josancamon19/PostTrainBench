@@ -27,6 +27,7 @@ dev = [
     "runpod",
     "ruff",
     "matplotlib",
+    "pre-commit",
 ]
 
 [tool.ruff]

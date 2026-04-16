@@ -9,17 +9,16 @@
 
 """HealthBench evaluation."""
 
-import os
 import argparse
 import atexit
 import json
+import os
 import random
 import socket
 import subprocess
 import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from typing import Dict, List, Optional
 
 import requests
 from dotenv import load_dotenv
@@ -28,11 +27,10 @@ from tqdm import tqdm
 # Load environment variables from .env file
 load_dotenv()
 
-from evaluation_code.data_loader import load_healthbench, HealthBenchExample
-from evaluation_code.grader import grade_examples_parallel, ExampleResult
-from evaluation_code.scoring import aggregate_scores, BenchmarkResult
+from evaluation_code.data_loader import HealthBenchExample, load_healthbench
+from evaluation_code.grader import ExampleResult, grade_examples_parallel
+from evaluation_code.scoring import aggregate_scores
 from evaluation_code.text_utils import limit_repetitions
-
 
 # Constants
 API_MAX_RETRY = 3
@@ -91,8 +89,8 @@ class VLLMServer:
     def __init__(self, args, model_path: str):
         self.args = args
         self.model_path = model_path
-        self.port: Optional[int] = None
-        self.process: Optional[subprocess.Popen] = None
+        self.port: int | None = None
+        self.process: subprocess.Popen | None = None
 
     def start(self) -> int:
         """Start vLLM server and return port."""
@@ -155,7 +153,7 @@ def model_type(args) -> str:
     # Try to read from config.json
     config_path = os.path.join(args.model_path, "config.json")
     if os.path.exists(config_path):
-        with open(config_path, "r") as f:
+        with open(config_path) as f:
             config = json.load(f)
         architecture = config.get("architectures", [""])[0].lower()
         if "gemma" in architecture:
@@ -187,7 +185,7 @@ def template_args(args) -> list:
     return ["--chat-template", os.path.join(args.templates_dir, template)]
 
 
-def generate_answers(args, examples: List[HealthBenchExample]) -> List[str]:
+def generate_answers(args, examples: list[HealthBenchExample]) -> list[str]:
     """Generate model responses for all examples."""
     server = VLLMServer(args, args.model_path)
     print(f"[generate] Starting vLLM server for model {args.model_path}")
@@ -244,7 +242,7 @@ def generate_answers(args, examples: List[HealthBenchExample]) -> List[str]:
         server.stop()
 
 
-def _compute_metrics(results: List[ExampleResult], examples: List[HealthBenchExample]) -> Dict:
+def _compute_metrics(results: list[ExampleResult], examples: list[HealthBenchExample]) -> dict:
     """Compute final metrics."""
     benchmark_result = aggregate_scores(results, examples)
 
@@ -286,10 +284,10 @@ def main():
     model_alias = _model_alias(args.model_path)
 
     if "OPENAI_API_KEY" not in os.environ:
-        raise EnvironmentError("OPENAI_API_KEY is not set. Please export your OpenAI API key before running.")
+        raise OSError("OPENAI_API_KEY is not set. Please export your OpenAI API key before running.")
 
     # Load data
-    print(f"[data] Loading HealthBench dataset...")
+    print("[data] Loading HealthBench dataset...")
     examples = load_healthbench()
     random.Random(42).shuffle(examples)
     if args.limit != -1:
@@ -317,7 +315,7 @@ def main():
                 fout.write(json.dumps(record, ensure_ascii=False) + "\n")
 
     # Grade responses
-    print(f"[judge] Grading responses...")
+    print("[judge] Grading responses...")
     pbar = tqdm(total=len(examples), desc="Judging answers")
 
     def update_progress(completed, total):
@@ -339,19 +337,19 @@ def main():
     metrics = _compute_metrics(results, examples)
 
     # Print summary
-    print(f"\n[done] Evaluation Complete")
+    print("\n[done] Evaluation Complete")
     print(f"  Model: {model_alias}")
     print(f"  Examples: {metrics['n_examples']}")
     print(f"  Accuracy: {metrics['accuracy']:.4f} (±{metrics['stderr']:.4f})")
     print(f"  Grader calls: {metrics['total_grader_calls']}")
 
     if metrics["by_theme"]:
-        print(f"\n  By Theme:")
+        print("\n  By Theme:")
         for theme, score in sorted(metrics["by_theme"].items()):
             print(f"    {theme}: {score:.4f}")
 
     if metrics["by_axis"]:
-        print(f"\n  By Axis:")
+        print("\n  By Axis:")
         for axis, score in sorted(metrics["by_axis"].items()):
             print(f"    {axis}: {score:.4f}")
 

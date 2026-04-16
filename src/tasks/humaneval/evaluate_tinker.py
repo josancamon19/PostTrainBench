@@ -5,13 +5,11 @@ from __future__ import annotations
 
 import subprocess
 import sys
-import tempfile
 
 sys.path.insert(0, sys.path[0])
 sys.path.insert(0, sys.path[0] + "/../..")
-from tinker_util import parse_args, setup_tinker, batch_evaluate, save_metrics
-
 from datasets import load_dataset
+from tinker_util import batch_evaluate, parse_args, save_metrics, setup_tinker
 
 MAX_TOKENS = 4000
 SYSTEM = (

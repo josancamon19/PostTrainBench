@@ -9,9 +9,9 @@ import re
 import socket
 import subprocess
 import time
+from collections.abc import Iterable
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional
 
 import requests
 import shortuuid
@@ -244,8 +244,8 @@ class VLLMServer:
     def __init__(self, args, model_path: str):
         self.args = args
         self.model_path = model_path
-        self.port: Optional[int] = None
-        self.process: Optional[subprocess.Popen] = None
+        self.port: int | None = None
+        self.process: subprocess.Popen | None = None
 
     def start(self) -> int:
         if self.process is not None:
@@ -264,7 +264,7 @@ class VLLMServer:
         ]
         command.extend(template_args(self.args))
 
-        self.process = subprocess.Popen(command)  # noqa: S603,S607
+        self.process = subprocess.Popen(command)
         self.port = port
 
         try:
@@ -292,7 +292,7 @@ class VLLMServer:
         self.port = None
 
 
-def _make_metadata(answer: str) -> Dict:
+def _make_metadata(answer: str) -> dict:
     encoding = tiktoken.encoding_for_model("gpt-4o")
     token_len = len(encoding.encode(answer, disallowed_special=()))
     metadata = {"token_len": token_len}
@@ -319,7 +319,7 @@ def generate_answers(args) -> tuple:
     server = VLLMServer(args, args.model_path)
     print(f"[generate] Starting vLLM server for model {args.model_path}.")
 
-    answers_dict: Dict[str, Dict] = {}
+    answers_dict: dict[str, dict] = {}
 
     try:
         port = server.start()
@@ -390,7 +390,7 @@ def generate_answers(args) -> tuple:
         server.stop()
 
 
-def call_openai(messages: List[Dict]):
+def call_openai(messages: list[dict]):
     import openai
 
     client = openai.OpenAI()
@@ -424,7 +424,7 @@ def call_openai(messages: List[Dict]):
     return None
 
 
-def get_score(judgment: str, patterns: Iterable[str]) -> Optional[str]:
+def get_score(judgment: str, patterns: Iterable[str]) -> str | None:
     for pattern in patterns:
         compiled = re.compile(pattern)
         matches = [m for m in compiled.findall(judgment.upper()) if isinstance(m, str) and m]
@@ -437,7 +437,7 @@ def get_score(judgment: str, patterns: Iterable[str]) -> Optional[str]:
     return None
 
 
-def judge_answers(args, candidate_answers: Optional[Dict[str, Dict]] = None) -> tuple:
+def judge_answers(args, candidate_answers: dict[str, dict] | None = None) -> tuple:
     """Judge model answers and optionally save to disk.
 
     Args:
@@ -457,7 +457,7 @@ def judge_answers(args, candidate_answers: Optional[Dict[str, Dict]] = None) -> 
     output_path = judgment_dir / f"{args.model_alias}.jsonl"
 
     if "OPENAI_API_KEY" not in os.environ:
-        raise EnvironmentError("OPENAI_API_KEY is not set. Please export your OpenAI API key before judging.")
+        raise OSError("OPENAI_API_KEY is not set. Please export your OpenAI API key before judging.")
 
     questions = get_questions(args)
 
@@ -469,7 +469,7 @@ def judge_answers(args, candidate_answers: Optional[Dict[str, Dict]] = None) -> 
     if args.model_alias not in model_answers:
         raise FileNotFoundError(f"Cannot find answers for model '{args.model_alias}' in {answer_dir}.")
 
-    results: List[Optional[Dict]] = [None] * len(questions)
+    results: list[dict | None] = [None] * len(questions)
 
     with ThreadPoolExecutor(max_workers=args.judge_workers) as executor:
         futures = {
@@ -507,9 +507,9 @@ def judge_answers(args, candidate_answers: Optional[Dict[str, Dict]] = None) -> 
 
 
 def _judge_single_question(
-    question: Dict,
+    question: dict,
     args,
-    model_answers: Dict[str, Dict],
+    model_answers: dict[str, dict],
     prompt_template: str,
     regex_patterns: Iterable[str],
 ):
@@ -581,7 +581,7 @@ def _judge_single_question(
     }
 
 
-def _compute_metrics(battles) -> Dict[str, float]:
+def _compute_metrics(battles) -> dict[str, float]:
     scores = battles["scores"].astype(float)
     num_samples = len(scores)
 
@@ -598,7 +598,7 @@ def _compute_metrics(battles) -> Dict[str, float]:
     return {"accuracy": accuracy, "stderr": stderr}
 
 
-def _judgments_to_battles(judgments: List[Optional[Dict]], weight: int = 3):
+def _judgments_to_battles(judgments: list[dict | None], weight: int = 3):
     """Convert in-memory judgment records to battles DataFrame."""
     import pandas as pd
 
@@ -651,7 +651,7 @@ def _judgments_to_battles(judgments: List[Optional[Dict]], weight: int = 3):
     return battles
 
 
-def summarize_results(model_alias: str, judgments: Optional[List[Optional[Dict]]] = None) -> Optional[Dict[str, float]]:
+def summarize_results(model_alias: str, judgments: list[dict | None] | None = None) -> dict[str, float] | None:
     if judgments is not None:
         battles = _judgments_to_battles(judgments)
     else:
@@ -720,7 +720,7 @@ def main():
         if ans_path.exists():
             print(f"[skip] Skipping answer generation, loading existing answers from {ans_path}")
             candidate_answers = {}
-            with open(ans_path, "r", encoding="utf-8") as f:
+            with open(ans_path, encoding="utf-8") as f:
                 for line in f:
                     record = json.loads(line)
                     candidate_answers[record["uid"]] = record
@@ -766,7 +766,7 @@ def model_type(args) -> str:
     if "smollm" in args.model_path.lower():
         return "smollm"
 
-    with open(os.path.join(args.model_path, "config.json"), "r") as f:
+    with open(os.path.join(args.model_path, "config.json")) as f:
         config = json.load(f)
     architecture = config["architectures"][0].lower()
     if "gemma" in architecture:

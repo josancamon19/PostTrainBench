@@ -1,12 +1,12 @@
 """Score aggregation for HealthBench evaluation."""
 
-import math
-import numpy as np
 from collections import defaultdict
 from dataclasses import dataclass
-from typing import Optional, List, Dict, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
-from .grader import ExampleResult, GradingResult
+import numpy as np
+
+from .grader import ExampleResult
 
 if TYPE_CHECKING:
     from .data_loader import HealthBenchExample
@@ -19,13 +19,13 @@ class BenchmarkResult:
     accuracy: float  # Primary metric (0-1 normalized score, clipped)
     stderr: float  # Bootstrap standard error
     n_examples: int
-    by_theme: Dict[str, float]  # theme -> avg score
-    by_axis: Dict[str, float]  # axis -> avg score
+    by_theme: dict[str, float]  # theme -> avg score
+    by_axis: dict[str, float]  # axis -> avg score
     total_grader_calls: int
 
 
 def aggregate_scores(
-    results: List[ExampleResult], examples: Optional[List["HealthBenchExample"]] = None
+    results: list[ExampleResult], examples: list["HealthBenchExample"] | None = None
 ) -> BenchmarkResult:
     """Aggregate individual example results into benchmark score.
 
@@ -74,7 +74,7 @@ def aggregate_scores(
     )
 
 
-def compute_bootstrap_std(scores: List[float], n_bootstrap: int = 1000) -> float:
+def compute_bootstrap_std(scores: list[float], n_bootstrap: int = 1000) -> float:
     """Compute bootstrap standard error for scores."""
     if len(scores) < 2:
         return 0.0
@@ -90,13 +90,13 @@ def compute_bootstrap_std(scores: List[float], n_bootstrap: int = 1000) -> float
     return float(np.std(bootstrap_means))
 
 
-def compute_scores_by_theme(results: List[ExampleResult], examples: List["HealthBenchExample"]) -> Dict[str, float]:
+def compute_scores_by_theme(results: list[ExampleResult], examples: list["HealthBenchExample"]) -> dict[str, float]:
     """Compute average score for each theme."""
     if len(results) != len(examples):
         raise ValueError(f"results ({len(results)}) and examples ({len(examples)}) must have same length")
 
     # Group scores by theme
-    theme_scores: Dict[str, List[float]] = defaultdict(list)
+    theme_scores: dict[str, list[float]] = defaultdict(list)
 
     for result, example in zip(results, examples):
         theme = example.theme
@@ -111,13 +111,13 @@ def compute_scores_by_theme(results: List[ExampleResult], examples: List["Health
     return by_theme
 
 
-def compute_scores_by_axis(results: List[ExampleResult], examples: List["HealthBenchExample"]) -> Dict[str, float]:
+def compute_scores_by_axis(results: list[ExampleResult], examples: list["HealthBenchExample"]) -> dict[str, float]:
     """Compute average score for each behavioral axis."""
     if len(results) != len(examples):
         raise ValueError(f"results ({len(results)}) and examples ({len(examples)}) must have same length")
 
     # Collect (rubric_item, grading_result) pairs by axis
-    axis_items_grades: Dict[str, List[tuple]] = defaultdict(list)
+    axis_items_grades: dict[str, list[tuple]] = defaultdict(list)
 
     for result, example in zip(results, examples):
         for rubric, grading in zip(example.rubrics, result.grading_results):

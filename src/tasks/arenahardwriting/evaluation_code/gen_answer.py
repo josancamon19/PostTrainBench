@@ -1,24 +1,24 @@
 import argparse
+import concurrent.futures
 import json
 import os
 import re
 import time
-import concurrent.futures
 
-import tiktoken
 import shortuuid
+import tiktoken
 import tqdm
 
 from .utils.add_markdown_info import count_markdown_elements, remove_pattern
 from .utils.completion import (
-    load_questions,
-    load_model_answers,
-    make_config,
+    API_ERROR_OUTPUT,
     get_endpoint,
+    load_model_answers,
+    load_questions,
+    make_config,
     registered_api_completion,
     registered_engine_completion,
     reorg_answer_file,
-    API_ERROR_OUTPUT,
 )
 
 
@@ -95,7 +95,7 @@ if __name__ == "__main__":
         else:
             parallel = 1
 
-        if "local_engine" in endpoint_settings and endpoint_settings["local_engine"]:
+        if endpoint_settings.get("local_engine"):
             local_completion_func = registered_engine_completion[endpoint_settings["api_type"]]
 
             kwargs = endpoint_settings | {

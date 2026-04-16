@@ -1,12 +1,13 @@
-import pandas as pd
 import argparse
 import os
-import torch
 from glob import glob
+
+import pandas as pd
+import torch
 from tqdm import tqdm
 
 from .utils.judge_utils import JUDGE_SETTINGS
-from .utils.math_utils import one_hot_encode, to_winrate_probabilities, bootstrap_pairwise_model
+from .utils.math_utils import bootstrap_pairwise_model, one_hot_encode, to_winrate_probabilities
 
 
 def load_judgments(judge_names, benchmark, weight=3):

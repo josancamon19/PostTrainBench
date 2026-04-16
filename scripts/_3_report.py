@@ -128,9 +128,7 @@ def render_report_md(
         lines.append("## Compute (nvidia-smi samples, diagnostic only)\n")
         lines.append(f"- wall clock: {compute.get('wall_clock_hours', 0):.2f}h")
         lines.append(f"- active ratio: {compute.get('active_ratio', 0):.1%} (util ≥ 10%)")
-        lines.append(
-            f"- util p50/p90: {compute.get('util_p50_across_gpus')}% / {compute.get('util_p90_across_gpus')}%"
-        )
+        lines.append(f"- util p50/p90: {compute.get('util_p50_across_gpus')}% / {compute.get('util_p90_across_gpus')}%")
         lines.append(f"- num GPUs: {compute.get('num_gpus')}")
         lines.append("")
 

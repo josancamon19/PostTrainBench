@@ -1,20 +1,17 @@
-import json
-import yaml
 import argparse
-import os
 import concurrent.futures
+import json
+import os
 
 from tqdm import tqdm
 
 from .utils.completion import (
-    load_questions,
-    registered_api_completion,
-    load_questions,
-    load_model_answers,
     get_endpoint,
+    load_model_answers,
+    load_questions,
     make_config,
+    registered_api_completion,
 )
-
 from .utils.judge_utils import JUDGE_SETTINGS
 
 
@@ -40,7 +37,7 @@ def pairwise_judgment(question, baseline, answer, reference, configs, settings):
     }
 
     if reference:
-        prompt_args[f"REFERENCE"] = reference["messages"][-1]["content"]["answer"]
+        prompt_args["REFERENCE"] = reference["messages"][-1]["content"]["answer"]
 
     user_prompt = configs["prompt_template"].format(**prompt_args)
     messages = [
@@ -141,7 +138,7 @@ if __name__ == "__main__":
     models = [model for model in configs["model_list"]]
 
     if configs["reference"]:
-        assert not configs["reference"] in models, "ERROR: one of the models being evaluated is used as reference."
+        assert configs["reference"] not in models, "ERROR: one of the models being evaluated is used as reference."
         ref_answers = [answer_dir[model] for model in configs["reference"]]
     else:
         ref_answers = None
@@ -170,7 +167,7 @@ if __name__ == "__main__":
 
                 kwargs = {}
                 kwargs["question"] = question
-                if model in model_answers and not uid in model_answers[model]:
+                if model in model_answers and uid not in model_answers[model]:
                     print(f"Warning: {model} answer to {question['uid']} cannot be found.")
                     continue
 

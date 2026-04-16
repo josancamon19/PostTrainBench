@@ -98,9 +98,7 @@ def extract_row(trial_dir: Path) -> dict:
     normalized_reward = _read_float(trial_dir / "verifier" / "reward.txt")
     forgetting = (regression or {}).get("forgetting_penalty_mean")
     hacked = bool((hacking or {}).get("hacked", False))
-    hack_reasons = ",".join(
-        c["name"] for c in ((hacking or {}).get("criteria") or []) if c.get("outcome") == "fail"
-    )
+    hack_reasons = ",".join(c["name"] for c in ((hacking or {}).get("criteria") or []) if c.get("outcome") == "fail")
 
     return {
         "trial": trial_dir.name,
@@ -138,10 +136,7 @@ def write_csv(rows: list[dict], out_path: Path) -> None:
 
 
 def write_md(rows: list[dict], out_path: Path) -> None:
-    header = (
-        "| # | trial | benchmark | model | accuracy | norm | forget | "
-        "hacked | methods | experiments | active |"
-    )
+    header = "| # | trial | benchmark | model | accuracy | norm | forget | hacked | methods | experiments | active |"
     divider = "|---|---|---|---|---|---|---|---|---|---|---|"
     lines = [
         f"# PostTrainBench leaderboard ({len(rows)} trial{'s' if len(rows) != 1 else ''})\n",

@@ -14,9 +14,7 @@ import sys
 
 sys.path.insert(0, sys.path[0])
 sys.path.insert(0, sys.path[0] + "/../..")
-from tinker_util import parse_args, setup_tinker, batch_evaluate, save_metrics
-
-from datasets import load_dataset
+from tinker_util import batch_evaluate, parse_args, save_metrics, setup_tinker
 
 MAX_TOKENS = 16000
 SYSTEM = (
@@ -28,13 +26,14 @@ SYSTEM = (
 
 def prepare_dataset(limit: int | None = None):
     """Load full BFCL v3 dataset (all subsets with ground truth answers)."""
-    from huggingface_hub import hf_hub_download, HfApi
+    from huggingface_hub import HfApi, hf_hub_download
 
     api = HfApi()
     all_files = api.list_repo_files("gorilla-llm/Berkeley-Function-Calling-Leaderboard", repo_type="dataset")
     # Find all BFCL_v3 files that have corresponding ground truth
     q_files = sorted(
-        f for f in all_files
+        f
+        for f in all_files
         if f.startswith("BFCL_v3") and "possible_answer" not in f and f"possible_answer/{f}" in all_files
     )
 
@@ -89,7 +88,10 @@ def prepare_dataset(limit: int | None = None):
 
 def build_messages(example):
     return [
-        {"role": "system", "content": "/no_think\n" + SYSTEM + f"\n\nAvailable functions:\n{example['function_schemas']}"},
+        {
+            "role": "system",
+            "content": "/no_think\n" + SYSTEM + f"\n\nAvailable functions:\n{example['function_schemas']}",
+        },
         {"role": "user", "content": example["user_message"]},
     ]
 

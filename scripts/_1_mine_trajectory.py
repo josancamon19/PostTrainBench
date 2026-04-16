@@ -63,9 +63,7 @@ class MethodSummary(BaseModel):
     best_score: float
     final_method: Method | None = Field(description="Method that produced the submitted final_model")
     final_submitted_checkpoint: str | None
-    iterative: bool = Field(
-        description="True if experiments built on each other; False if it was effectively one-shot"
-    )
+    iterative: bool = Field(description="True if experiments built on each other; False if it was effectively one-shot")
     narrative: str = Field(description="3-5 sentence summary of the agent's overall strategy")
     notable_observations: list[str] = Field(
         default_factory=list, description="Anything surprising or noteworthy (e.g. peaked early, regressed at hour N)"
@@ -360,12 +358,8 @@ def mine_trial(trial_dir: Path, *, model: str, verbose: bool) -> None:
         return
 
     target = _read_target_benchmark(trial_dir)
-    (out_dir / "experiments.json").write_text(
-        json.dumps([e.model_dump() for e in rec.experiments], indent=2)
-    )
-    (out_dir / "progress.json").write_text(
-        json.dumps([p.model_dump() for p in rec.progress], indent=2)
-    )
+    (out_dir / "experiments.json").write_text(json.dumps([e.model_dump() for e in rec.experiments], indent=2))
+    (out_dir / "progress.json").write_text(json.dumps([p.model_dump() for p in rec.progress], indent=2))
     (out_dir / "summary.json").write_text(rec.summary.model_dump_json(indent=2))
     render_progress_plot(rec.progress, target, out_dir / "progress.png")
     render_summary_md(rec, trial_dir.name, target, out_dir)

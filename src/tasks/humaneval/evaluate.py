@@ -1,15 +1,13 @@
 #!/usr/bin/env python3
 from __future__ import annotations
-import os
 
 import argparse
 import json
+import os
 
-from inspect_ai.log._log import EvalLog, EvalMetric, EvalSample
-from inspect_ai import eval as inspect_eval  # type: ignore  # noqa: E402
-from inspect_ai.util._display import init_display_type  # noqa: E402
-
-import inspect_evals.humaneval  # noqa: F401, E402  (registers task definitions)
+import inspect_evals.humaneval
+from inspect_ai import eval as inspect_eval  # type: ignore
+from inspect_ai.util._display import init_display_type
 
 
 def parse_args() -> argparse.Namespace:
@@ -109,7 +107,7 @@ def model_type(args) -> str:
     if "smollm" in args.model_path.lower():
         return "smollm"
 
-    with open(os.path.join(args.model_path, "config.json"), "r") as f:
+    with open(os.path.join(args.model_path, "config.json")) as f:
         config = json.load(f)
     architecture = config["architectures"][0].lower()
     if "gemma" in architecture:

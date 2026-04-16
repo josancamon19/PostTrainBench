@@ -1,19 +1,18 @@
-import torch
+import multiprocessing as mp
 import os
+from collections.abc import Callable
+from dataclasses import dataclass
+from functools import partial
 
+import numpy as np
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-import numpy as np
-import multiprocessing as mp
-
 from tqdm import tqdm
-from dataclasses import dataclass
-from functools import partial
-from typing import Dict, Callable, Optional
 
-REGISTER_LOSSES: Dict[str, Callable] = {}
-REGISTER_MODELS: Dict[str, Callable] = {}
+REGISTER_LOSSES: dict[str, Callable] = {}
+REGISTER_MODELS: dict[str, Callable] = {}
 
 
 def register_loss(name: str):
@@ -35,7 +34,7 @@ def register_model(name: str):
 @dataclass
 class ModelParams:
     coefs: torch.FloatTensor = None
-    eta: Optional[torch.FloatTensor] = None
+    eta: torch.FloatTensor | None = None
 
 
 @register_model("bt")
@@ -194,7 +193,7 @@ def bootstrap_binary_model(
     features: np.ndarray,
     outcomes: np.ndarray,
     num_round: int = 100,
-    num_cpu: Optional[int] = None,
+    num_cpu: int | None = None,
 ):
 
     boot_idxs = np.random.randint(low=0, high=features.shape[0], size=(num_round, features.shape[0]))

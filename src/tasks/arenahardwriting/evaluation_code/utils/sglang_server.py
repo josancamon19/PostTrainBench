@@ -1,15 +1,14 @@
 # Author: Peter Jin
 
-from typing import Any, Optional, Union
-from dataclasses import dataclass
 import concurrent.futures
 import json
 import multiprocessing as mp
 import os
 import subprocess
 import time
-import traceback
 import urllib.request
+from dataclasses import dataclass
+from typing import Any
 
 try:
     import sglang
@@ -108,10 +107,10 @@ class SGLangServerExecutor:
         **kwargs,
     ):
         if server_host is not None:
-            assert kwargs.get("host", None) is None
+            assert kwargs.get("host") is None
             kwargs["host"] = server_host
         if server_port is not None:
-            assert kwargs.get("port", None) is None
+            assert kwargs.get("port") is None
             kwargs["port"] = server_port
         kwargs.setdefault("skip_tokenizer_init", True)
         kwargs.setdefault("log_level", "warning")
@@ -153,9 +152,7 @@ class SGLangServerExecutor:
                         cmd.append(f"--no-{key.replace('_', '-')}")
                 else:
                     cmd.append(f"--{key.replace('_', '-')}")
-                    if isinstance(arg, float):
-                        cmd.append(str(arg))
-                    elif isinstance(arg, int):
+                    if isinstance(arg, float) or isinstance(arg, int):
                         cmd.append(str(arg))
                     elif isinstance(arg, str):
                         cmd.append(arg)
@@ -175,7 +172,7 @@ class SGLangServerExecutor:
         self._pool_dict = dict()
         self._pool_work = set()
         self._pool_exec = concurrent.futures.ThreadPoolExecutor(max_workers=max_workers)
-        print(f"DEBUG: SGLangServerExecutor: post init...")
+        print("DEBUG: SGLangServerExecutor: post init...")
         if backend == "spawn":
             _ = rx.recv()
         elif backend == "subprocess":
@@ -190,17 +187,17 @@ class SGLangServerExecutor:
                     for w in concurrent.futures.as_completed(work):
                         output = w.result()
                         # print(f"DEBUG: SGLangServerExecutor: post init: heartbeat output = {output}")
-                        print(f"DEBUG: SGLangServerExecutor: post init: heartbeat: ok")
+                        print("DEBUG: SGLangServerExecutor: post init: heartbeat: ok")
                 except Exception as e:
                     print(f"DEBUG: SGLangServerExecutor: post init: retry heartbeat: exception = {e}")
-                    print(f"DEBUG: SGLangServerExecutor: post init: retry heartbeat: sleep...")
+                    print("DEBUG: SGLangServerExecutor: post init: retry heartbeat: sleep...")
                     time.sleep(10.0)
                     continue
                 break
-        print(f"DEBUG: SGLangServerExecutor: post init: done")
+        print("DEBUG: SGLangServerExecutor: post init: done")
 
     def join(self):
-        print(f"DEBUG: SGLangServerExecutor: join...")
+        print("DEBUG: SGLangServerExecutor: join...")
         if self._server_backend == "spawn":
             sglang.srt.utils.kill_process_tree(self._server_pid)
             self._server_proc = None
@@ -213,10 +210,10 @@ class SGLangServerExecutor:
 
     def submit(
         self,
-        input_ids: Union[None, list[int], list[list[int]]] = None,
-        prompt_token_ids: Union[None, list[int], list[list[int]]] = None,
-        sampling_params: Union[None, dict[str, Any], list[dict[str, Any]]] = None,
-        keys: Optional[list[Any]] = None,
+        input_ids: None | list[int] | list[list[int]] = None,
+        prompt_token_ids: None | list[int] | list[list[int]] = None,
+        sampling_params: None | dict[str, Any] | list[dict[str, Any]] = None,
+        keys: list[Any] | None = None,
     ):
         if input_ids is not None and prompt_token_ids is not None:
             assert False, "SGLangServerExecutor.submit supports either `input_ids` or `prompt_token_ids` but not both"

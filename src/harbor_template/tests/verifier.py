@@ -2,7 +2,6 @@
 """PostTrainBench verifier helpers — called from test.sh."""
 
 import json
-import subprocess
 import sys
 from pathlib import Path
 

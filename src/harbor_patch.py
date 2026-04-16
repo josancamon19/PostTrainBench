@@ -10,8 +10,6 @@ Usage:
     python src/harbor_patch.py  # patches and then forwards to harbor CLI
 """
 
-import sys
-
 
 def apply():
     from harbor.environments.modal import ModalEnvironment
@@ -35,12 +33,8 @@ def apply():
         from modal import Secret
 
         if getattr(self, "_resolved_task_env", None):
-            secrets_config = list(secrets_config) + [
-                Secret.from_dict(self._resolved_task_env)
-            ]
-        return await _original_create_sandbox(
-            self, gpu_config, secrets_config, volumes_config
-        )
+            secrets_config = list(secrets_config) + [Secret.from_dict(self._resolved_task_env)]
+        return await _original_create_sandbox(self, gpu_config, secrets_config, volumes_config)
 
     # Apply patches
     ModalEnvironment.start = _patched_start

@@ -1,7 +1,6 @@
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional, List
 
 
 @dataclass
@@ -10,7 +9,7 @@ class RubricCriterion:
 
     criterion: str  # The criterion text
     points: int  # Weight/points for this criterion
-    tags: List[str]  # Tags like ["level:example", "axis:accuracy"]
+    tags: list[str]  # Tags like ["level:example", "axis:accuracy"]
 
     @property
     def axis(self) -> str:
@@ -31,9 +30,9 @@ class HealthBenchExample:
     """Single HealthBench conversation with rubric."""
 
     prompt_id: str  # Unique identifier
-    prompt: List[dict]  # [{"role": "user/assistant", "content": "..."}]
-    rubrics: List[RubricCriterion]  # List of rubric criteria
-    example_tags: List[str]  # Tags like ["theme:emergency_referrals"]
+    prompt: list[dict]  # [{"role": "user/assistant", "content": "..."}]
+    rubrics: list[RubricCriterion]  # List of rubric criteria
+    example_tags: list[str]  # Tags like ["theme:emergency_referrals"]
 
     @property
     def example_id(self) -> str:
@@ -41,12 +40,12 @@ class HealthBenchExample:
         return self.prompt_id
 
     @property
-    def conversation(self) -> List[dict]:
+    def conversation(self) -> list[dict]:
         """Alias for prompt."""
         return self.prompt
 
     @property
-    def rubric_criteria(self) -> List[RubricCriterion]:
+    def rubric_criteria(self) -> list[RubricCriterion]:
         """Alias for rubrics."""
         return self.rubrics
 
@@ -84,8 +83,8 @@ def parse_example(raw: dict) -> HealthBenchExample:
 
 
 def load_healthbench(
-    cache_dir: Optional[Path] = None,
-) -> List[HealthBenchExample]:
+    cache_dir: Path | None = None,
+) -> list[HealthBenchExample]:
     if cache_dir is None:
         cache_dir = Path(__file__).parent / "data"
 
@@ -111,7 +110,7 @@ def load_healthbench(
     return examples
 
 
-def get_theme_distribution(examples: List[HealthBenchExample]) -> dict:
+def get_theme_distribution(examples: list[HealthBenchExample]) -> dict:
     """Get distribution of examples by theme."""
     distribution = {}
     for ex in examples:
@@ -119,7 +118,7 @@ def get_theme_distribution(examples: List[HealthBenchExample]) -> dict:
     return distribution
 
 
-def get_axis_distribution(examples: List[HealthBenchExample]) -> dict:
+def get_axis_distribution(examples: list[HealthBenchExample]) -> dict:
     """Get distribution of rubric criteria by axis."""
     distribution = {}
     for ex in examples:

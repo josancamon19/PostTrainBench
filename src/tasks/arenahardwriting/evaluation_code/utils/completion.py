@@ -1,16 +1,14 @@
-import os
 import json
-import time
-import yaml
+import os
 import random
-import shortuuid
-import pandas as pd
-
-import requests
-from typing import Optional
-import boto3
-
+import time
 from glob import glob
+
+import boto3
+import pandas as pd
+import requests
+import shortuuid
+import yaml
 from tqdm import tqdm
 
 from .bedrock_utils import create_llama3_body, create_nova_messages, extract_answer
@@ -43,7 +41,7 @@ def register_engine(engine_type):
 def load_questions(question_file: str):
     """Load questions from a file."""
     questions = []
-    with open(question_file, "r") as ques_file:
+    with open(question_file) as ques_file:
         for line in ques_file:
             if line:
                 questions.append(json.loads(line))
@@ -109,7 +107,7 @@ def get_endpoint(endpoint_list):
 # load config args from config yaml files
 def make_config(config_file: str) -> dict:
     config_kwargs = {}
-    with open(config_file, "r") as f:
+    with open(config_file) as f:
         config_kwargs = yaml.load(f, Loader=yaml.SafeLoader)
 
     return config_kwargs
@@ -342,8 +340,8 @@ def chat_completion_anthropic_thinking(model, messages, max_tokens, budget_token
 @register_api("mistral")
 def chat_completion_mistral(model, messages, temperature, max_tokens, **kwargs):
     from mistralai.client import MistralClient
-    from mistralai.models.chat_completion import ChatMessage
     from mistralai.exceptions import MistralException
+    from mistralai.models.chat_completion import ChatMessage
 
     api_key = os.environ["MISTRAL_API_KEY"]
     client = MistralClient(api_key=api_key)
@@ -464,8 +462,9 @@ def http_completion_gemini(model, messages, **kwargs):
 
 @register_api("vertex")
 def vertex_completion_gemini(model, messages, project_id, regions, **kwargs):
-    import requests
     import subprocess
+
+    import requests
 
     output = API_ERROR_OUTPUT
 
@@ -601,7 +600,7 @@ def chat_completion_meta(model, messages, temperature, max_tokens, api_dict, **k
             else:
                 print(f"**API REQUEST ERROR** Code: {res.status_code}")
                 time.sleep(API_RETRY_SLEEP)
-        except Exception as e:
+        except Exception:
             print("**API REQUEST ERROR** Reason: Unknown.")
             time.sleep(API_RETRY_SLEEP)
             continue
@@ -612,7 +611,7 @@ def chat_completion_meta(model, messages, temperature, max_tokens, api_dict, **k
 def reorg_answer_file(answer_file):
     """Sort by question id and de-duplication"""
     answers = {}
-    with open(answer_file, "r") as fin:
+    with open(answer_file) as fin:
         for l in fin:
             qid = json.loads(l)["uid"]
             answers[qid] = l
@@ -728,11 +727,12 @@ def sglang_completion(
     end_think_token=None,
     **kwargs,
 ):
-    from transformers import AutoTokenizer
-    from utils.sglang_server import SGLangServerExecutor
-    from utils.add_markdown_info import count_markdown_elements, remove_pattern
-    import tiktoken
     import re
+
+    import tiktoken
+    from transformers import AutoTokenizer
+    from utils.add_markdown_info import count_markdown_elements, remove_pattern
+    from utils.sglang_server import SGLangServerExecutor
 
     tokenizer = AutoTokenizer.from_pretrained(model)
 
@@ -1163,7 +1163,7 @@ def chat_completion_aws_bedrock_deepseek(messages, api_dict=None, aws_region="us
 
             break
 
-        except Exception as e:
+        except Exception:
             time.sleep(API_RETRY_SLEEP)
 
     return output

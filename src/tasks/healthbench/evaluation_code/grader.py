@@ -1,25 +1,25 @@
 """LLM-as-judge grading for HealthBench."""
 
 import json
+import logging
 import os
 import re
-import time
-import logging
 import threading
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
-from typing import Optional, List, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 from openai import OpenAI
 
 if TYPE_CHECKING:
-    from .data_loader import RubricCriterion, HealthBenchExample
+    from .data_loader import HealthBenchExample, RubricCriterion
 
 # Configure logging
 logger = logging.getLogger(__name__)
 
 # Global semaphore for rate limiting concurrent API requests
-_api_semaphore: Optional[threading.Semaphore] = None
+_api_semaphore: threading.Semaphore | None = None
 _api_semaphore_lock = threading.Lock()
 
 
@@ -39,7 +39,7 @@ class ExampleResult:
 
     example_id: str
     model_response: str
-    grading_results: List[GradingResult]
+    grading_results: list[GradingResult]
     total_score: float
     max_possible_score: float
     normalized_score: float  # total / max_possible
@@ -106,7 +106,7 @@ def get_client() -> OpenAI:
     """Get OpenAI client."""
     api_key = os.environ.get("OPENAI_API_KEY")
     if not api_key:
-        raise EnvironmentError("OPENAI_API_KEY is not set. Please export your OpenAI API key.")
+        raise OSError("OPENAI_API_KEY is not set. Please export your OpenAI API key.")
     return OpenAI(api_key=api_key)
 
 
@@ -143,7 +143,7 @@ def parse_json_to_dict(json_string: str) -> dict:
         return {}
 
 
-def format_conversation_for_grader(conversation: List[dict], model_response: str) -> str:
+def format_conversation_for_grader(conversation: list[dict], model_response: str) -> str:
     """Format conversation with model response for the grader."""
     convo_with_response = conversation + [{"role": "assistant", "content": model_response}]
     return "\n\n".join([f"{turn['role']}: {turn['content']}" for turn in convo_with_response])
@@ -155,11 +155,11 @@ def format_rubric_item(criterion_text: str, points: int) -> str:
 
 
 def grade_criterion(
-    conversation: List[dict],
+    conversation: list[dict],
     model_response: str,
     criterion: "RubricCriterion",
     grader_model: str = "gpt-5-mini",
-    client: Optional[OpenAI] = None,
+    client: OpenAI | None = None,
     max_retries: int = API_MAX_RETRY,
 ) -> GradingResult:
     """Grade a single criterion using LLM-as-judge."""
@@ -176,7 +176,7 @@ def grade_criterion(
     grader_prompt = GRADER_TEMPLATE.replace("<<conversation>>", conv_formatted).replace("<<rubric_item>>", rubric_str)
 
     # Call grader with retry logic and rate limiting
-    last_error: Optional[Exception] = None
+    last_error: Exception | None = None
     for attempt in range(max_retries):
         try:
             _acquire_api_slot()
@@ -235,7 +235,7 @@ def grade_criterion(
 
 def _grade_criterion_with_index(
     idx: int,
-    conversation: List[dict],
+    conversation: list[dict],
     model_response: str,
     criterion: "RubricCriterion",
     grader_model: str,
@@ -254,11 +254,11 @@ def _grade_criterion_with_index(
 
 def grade_example(
     example_id: str,
-    conversation: List[dict],
+    conversation: list[dict],
     model_response: str,
-    rubric_criteria: List["RubricCriterion"],
+    rubric_criteria: list["RubricCriterion"],
     grader_model: str = "gpt-5-mini",
-    client: Optional[OpenAI] = None,
+    client: OpenAI | None = None,
     max_workers: int = 1,
 ) -> ExampleResult:
     """Grade a single example against all rubric criteria."""
@@ -300,7 +300,7 @@ def grade_example(
                     grading_results[idx] = GradingResult(
                         criterion_id=rubric_criteria[idx].criterion_id,
                         criteria_met=False,
-                        explanation=f"Grading failed: {str(e)}",
+                        explanation=f"Grading failed: {e!s}",
                         weighted_score=0,
                     )
 
@@ -340,14 +340,14 @@ def _grade_example_with_index(
 
 
 def grade_examples_parallel(
-    examples: List["HealthBenchExample"],
-    responses: List[str],
+    examples: list["HealthBenchExample"],
+    responses: list[str],
     grader_model: str = "gpt-5-mini",
     example_workers: int = 4,
     criteria_workers: int = 8,
     max_concurrent_requests: int = 50,
     progress_callback=None,
-) -> List[ExampleResult]:
+) -> list[ExampleResult]:
     """Grade multiple examples in parallel with nested parallelism."""
     if len(examples) != len(responses):
         raise ValueError(f"Mismatch: {len(examples)} examples but {len(responses)} responses")

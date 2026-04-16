@@ -1,0 +1,15 @@
+repos:
+  - repo: local
+    hooks:
+      - id: ruff-format
+        name: ruff format (repo)
+        entry: uv run ruff format .
+        language: system
+        pass_filenames: false
+        always_run: true
+      - id: ruff-check-fix
+        name: ruff check --fix-only (repo)
+        entry: uv run ruff check --fix-only .
+        language: system
+        pass_filenames: false
+        always_run: true

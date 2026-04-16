@@ -5,7 +5,7 @@ This is just the evaluation code which the Berkeley Function Calling Leaderboard
 import ast
 import json
 import logging
-from typing import Any, Dict, List, cast, get_args
+from typing import Any, cast, get_args
 
 from inspect_ai import Task, dataset, task
 from inspect_ai.dataset import Sample
@@ -28,7 +28,7 @@ DATASET_PATH = "gorilla-llm/Berkeley-Function-Calling-Leaderboard"
 @solver
 def bfcl_solver() -> Solver:
     async def solve(state: TaskState, generate: Generate) -> TaskState:
-        tool_infos: List[ToolInfo] = []
+        tool_infos: list[ToolInfo] = []
 
         for tool_spec in state.metadata["tools"]:
             tool_info = create_tool_info_from_dict(tool_spec)
@@ -72,7 +72,7 @@ def bfcl_scorer() -> Scorer:
         tool_calls = message.tool_calls
 
         if tool_calls is None or len(tool_calls) != 1:
-            return Score(value="I", answer=f"tool calls: {repr(tool_calls)}")
+            return Score(value="I", answer=f"tool calls: {tool_calls!r}")
 
         target_obj = state.metadata["target_obj"]
 
@@ -124,7 +124,7 @@ def get_type(bfcl_type: str | None) -> JSONType | None:
     return cast(JSONType, bfcl_type)
 
 
-def create_tool_param(param_dict: Dict[str, Any] | None) -> ToolParam | None:
+def create_tool_param(param_dict: dict[str, Any] | None) -> ToolParam | None:
     """Helper function to create ToolParam instances recursively"""
     if param_dict is None:
         return None
@@ -153,7 +153,7 @@ def create_tool_param(param_dict: Dict[str, Any] | None) -> ToolParam | None:
     )
 
 
-def create_tool_info_from_dict(tool_dict: Dict[str, Any]) -> ToolInfo:
+def create_tool_info_from_dict(tool_dict: dict[str, Any]) -> ToolInfo:
     """
     Create a ToolInfo instance from a dictionary.
 

@@ -240,8 +240,7 @@ fi
             regression_ids = [bid for bid in REGRESSION_EVALS if bid != benchmark_id]
             metadata["regression_benchmarks"] = regression_ids
             metadata["regression_baselines"] = {
-                bid: BASE_SCORES.get((model_info.model_id, bid))
-                for bid in regression_ids
+                bid: BASE_SCORES.get((model_info.model_id, bid)) for bid in regression_ids
             }
 
         (env_dir / "metadata.json").write_text(json.dumps(metadata, indent=2))

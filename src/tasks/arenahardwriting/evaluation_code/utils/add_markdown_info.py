@@ -1,11 +1,11 @@
-import pandas as pd
-import re
-import os
-import tiktoken
 import argparse
-
-from tqdm import tqdm
+import os
+import re
 from glob import glob
+
+import pandas as pd
+import tiktoken
+from tqdm import tqdm
 
 
 def count_markdown_elements(markdown_text, suffix):

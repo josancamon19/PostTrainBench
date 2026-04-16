@@ -7,6 +7,7 @@ regression_metrics.json.
 
 Designed to be forgiving: a single eval crashing does not abort the sweep.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -144,9 +145,7 @@ def main() -> int:
         res = run_one(reg_id, model_path, tests_dir, logs_dir)
         baseline = baselines.get(reg_id)
         res["baseline"] = baseline
-        res["delta"] = (
-            res["score"] - baseline if (res["score"] is not None and baseline is not None) else None
-        )
+        res["delta"] = res["score"] - baseline if (res["score"] is not None and baseline is not None) else None
         print(f"     {res}", flush=True)
         results[reg_id] = res
 

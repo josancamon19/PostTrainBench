@@ -16,19 +16,15 @@ import random
 import re
 import sys
 import time
+from collections.abc import Iterable
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional
 
 sys.path.insert(0, sys.path[0])
 sys.path.insert(0, sys.path[0] + "/../..")
-from tinker_util import parse_args as _tinker_parse_args, setup_tinker
-
-from tinker import types
-
 import shortuuid
 import tiktoken
-from evaluation_code.show_result import load_judgments, print_leaderboard
+from evaluation_code.show_result import print_leaderboard
 from evaluation_code.utils.add_markdown_info import count_markdown_elements, remove_pattern
 from evaluation_code.utils.completion import (
     load_model_answers,
@@ -36,7 +32,10 @@ from evaluation_code.utils.completion import (
     make_config,
 )
 from evaluation_code.utils.judge_utils import JUDGE_SETTINGS
+from tinker import types
 from tqdm import tqdm
+
+from tinker_util import setup_tinker
 
 API_MAX_RETRY = 3
 API_RETRY_SLEEP = 5
@@ -53,6 +52,7 @@ MAX_TOKENS = 16384
 
 
 # --- Text processing (copied from GPU version) ---
+
 
 def limit_repetitions(text: str, max_reps: int = MAX_REPETITIONS) -> str:
     def _limit_consecutive_lines(txt):
@@ -79,6 +79,7 @@ def limit_repetitions(text: str, max_reps: int = MAX_REPETITIONS) -> str:
             changed = False
             for min_len, max_len in [(3, 30), (30, 60), (60, 120), (120, 250), (250, 500)]:
                 pattern = rf"(.{{{min_len},{max_len}}}?)\1{{{max_reps},}}"
+
                 def replace_func(match):
                     nonlocal changed, modified
                     unit = match.group(1)
@@ -88,6 +89,7 @@ def limit_repetitions(text: str, max_reps: int = MAX_REPETITIONS) -> str:
                         changed = True
                         return unit * max_reps
                     return full
+
                 txt = re.sub(pattern, replace_func, txt, flags=re.DOTALL)
             if not changed:
                 break
@@ -103,7 +105,8 @@ def limit_repetitions(text: str, max_reps: int = MAX_REPETITIONS) -> str:
 
 # --- Metadata ---
 
-def _make_metadata(answer: str) -> Dict:
+
+def _make_metadata(answer: str) -> dict:
     encoding = tiktoken.encoding_for_model("gpt-4o")
     token_len = len(encoding.encode(answer, disallowed_special=()))
     metadata = {"token_len": token_len}
@@ -117,7 +120,8 @@ def _make_metadata(answer: str) -> Dict:
 
 # --- Tinker generation ---
 
-def generate_answers_tinker(ctx, questions, model_alias) -> Dict[str, Dict]:
+
+def generate_answers_tinker(ctx, questions, model_alias) -> dict[str, dict]:
     """Generate answers using Tinker sampling."""
     sampling_params = types.SamplingParams(
         max_tokens=MAX_TOKENS,
@@ -136,7 +140,7 @@ def generate_answers_tinker(ctx, questions, model_alias) -> Dict[str, Dict]:
 
     print(f"[generate] Fired {len(futures)} requests...")
 
-    answers_dict: Dict[str, Dict] = {}
+    answers_dict: dict[str, dict] = {}
     for i, (future, question) in enumerate(zip(futures, questions)):
         try:
             result = future.result()
@@ -174,7 +178,8 @@ def generate_answers_tinker(ctx, questions, model_alias) -> Dict[str, Dict]:
 
 # --- Judge (same as GPU version) ---
 
-def call_openai(messages: List[Dict]):
+
+def call_openai(messages: list[dict]):
     import openai
 
     client = openai.OpenAI()
@@ -206,7 +211,7 @@ def call_openai(messages: List[Dict]):
     return None
 
 
-def get_score(judgment: str, patterns: Iterable[str]) -> Optional[str]:
+def get_score(judgment: str, patterns: Iterable[str]) -> str | None:
     for pattern in patterns:
         compiled = re.compile(pattern)
         matches = [m for m in compiled.findall(judgment.upper()) if isinstance(m, str) and m]
@@ -284,14 +289,19 @@ def judge_answers(questions, model_alias, candidate_answers, judge_workers=DEFAU
     model_answers[model_alias] = candidate_answers
 
     if "OPENAI_API_KEY" not in os.environ:
-        raise EnvironmentError("OPENAI_API_KEY is not set.")
+        raise OSError("OPENAI_API_KEY is not set.")
 
-    results: List[Optional[Dict]] = [None] * len(questions)
+    results: list[dict | None] = [None] * len(questions)
 
     with ThreadPoolExecutor(max_workers=judge_workers) as executor:
         futures = {
             executor.submit(
-                _judge_single_question, question, model_alias, model_answers, prompt_template, regex_patterns,
+                _judge_single_question,
+                question,
+                model_alias,
+                model_answers,
+                prompt_template,
+                regex_patterns,
             ): idx
             for idx, question in enumerate(questions)
         }
@@ -310,14 +320,21 @@ def judge_answers(questions, model_alias, candidate_answers, judge_workers=DEFAU
 
 # --- Scoring (same as GPU version) ---
 
+
 def _judgments_to_battles(judgments, weight=3):
     import pandas as pd
 
     score_map = {
-        "A>B": [1], "A>>B": [1] * weight, "A=B": [0.5],
-        "A<<B": [0] * weight, "A<B": [0],
-        "B>A": [0], "B>>A": [0] * weight, "B=A": [0.5],
-        "B<<A": [1] * weight, "B<A": [1],
+        "A>B": [1],
+        "A>>B": [1] * weight,
+        "A=B": [0.5],
+        "A<<B": [0] * weight,
+        "A<B": [0],
+        "B>A": [0],
+        "B>>A": [0] * weight,
+        "B=A": [0.5],
+        "B<<A": [1] * weight,
+        "B<A": [1],
     }
 
     battles_data = []
@@ -334,11 +351,15 @@ def _judgments_to_battles(judgments, weight=3):
         scores_ab = score_map[score_ab.upper()]
         scores_ba = score_map[score_ba.upper()]
         scores = [1 - s for s in scores_ab] + scores_ba
-        battles_data.append({
-            "uid": record["uid"], "category": record["category"],
-            "model": record["model"], "baseline": record["baseline"],
-            "scores": scores,
-        })
+        battles_data.append(
+            {
+                "uid": record["uid"],
+                "category": record["category"],
+                "model": record["model"],
+                "baseline": record["baseline"],
+                "scores": scores,
+            }
+        )
 
     battles = pd.DataFrame(battles_data)
     if battles.empty:
@@ -373,8 +394,10 @@ def summarize_results(model_alias, judgments):
 
 # --- Main ---
 
+
 def parse_args():
     import argparse
+
     parser = argparse.ArgumentParser(description="Run Arena-Hard evaluation with Tinker.")
     parser.add_argument("--checkpoint", type=str, default=None)
     parser.add_argument("--base-model", type=str, default=None)
@@ -388,7 +411,7 @@ def main():
     args = parse_args()
 
     if "OPENAI_API_KEY" not in os.environ:
-        raise EnvironmentError("OPENAI_API_KEY is not set.")
+        raise OSError("OPENAI_API_KEY is not set.")
 
     ctx = setup_tinker(args)
     model_alias = ctx.model_name.split("/")[-1]
