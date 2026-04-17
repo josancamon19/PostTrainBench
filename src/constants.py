@@ -221,7 +221,7 @@ REGRESSION_EVALS: list[str] = [
 #
 # IFEval is Google's original instruction-following eval (prompt_strict
 # score). We vendored Google's instruction_following_eval source under
-# src/harbor_template/regressions/ifeval/ rather than depending on the
+# src/harbor_template/tests/regressions/ifeval/ rather than depending on the
 # unmaintained pip package (which doesn't resolve on 3.13).
 #
 # Layer B (gsm8k, humaneval, gpqamain) baselines reuse BASE_SCORES — not

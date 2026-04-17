@@ -285,15 +285,15 @@ fi
                 shutil.copytree(templates_src, tests_dir / "templates", dirs_exist_ok=True)
 
             # Regression suite evaluators. Each lives under tests/regression/<id>/evaluate.py
-            # so regression_suite.py can invoke them without touching the target's evaluate.py.
+            # so suite.py can invoke them without touching the target's evaluate.py.
             # Source preference: regression-only evals (mmlu/ifeval/truthfulqa) live under
-            # harbor_template/regressions/; benchmarks that are also training targets
+            # harbor_template/tests/regressions/; benchmarks that are also training targets
             # (gsm8k/humaneval/etc.) reuse src/tasks/<id>/evaluate.py.
             regression_root = tests_dir / "regression"
             for reg_id in REGRESSION_EVALS:
                 if reg_id == benchmark_id:
                     continue
-                regression_only_src = TEMPLATE_DIR / "regressions" / reg_id / "evaluate.py"
+                regression_only_src = TEMPLATE_DIR / "tests" / "regressions" / reg_id / "evaluate.py"
                 task_src = SRC_DIR / "tasks" / reg_id / "evaluate.py"
                 src = regression_only_src if regression_only_src.exists() else task_src
                 if not src.exists():

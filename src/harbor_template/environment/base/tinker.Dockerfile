@@ -7,23 +7,20 @@ RUN apt-get update && apt-get install -y \
     wget \
     curl \
     build-essential \
-    && curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
-    && apt-get install -y nodejs \
     && rm -rf /var/lib/apt/lists/*
-
-# codex CLI (for contamination judge)
-RUN npm install -g @openai/codex
 
 # uv
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 ENV PATH="/root/.local/bin:$PATH"
 
-# Tinker SDK and dependencies
+# Tinker SDK, dependencies, judge
 RUN uv pip install --system --no-cache \
     tinker \
     tinker-cookbook \
     datasets \
     openai \
+    anthropic \
+    if-verifiable \
     boto3 \
     python-dotenv \
     requests \

@@ -10,7 +10,7 @@
     "ifeval": 0.162662
   },
   "meta-llama/Llama-3.2-1B": {
-    "mmlu": 0.19890329012961117,
+    "mmlu": 0.1,
     "truthfulqa": 0.9375764993880049,
     "ifeval": 0.12
   },

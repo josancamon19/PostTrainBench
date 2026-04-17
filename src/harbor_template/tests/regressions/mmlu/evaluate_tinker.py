@@ -14,7 +14,7 @@ import re
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent.parent))
 from datasets import load_dataset
 from tinker_util import batch_evaluate, parse_args, save_metrics, setup_tinker
 
