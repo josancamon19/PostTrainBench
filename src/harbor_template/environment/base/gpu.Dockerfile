@@ -3,10 +3,13 @@ FROM nvidia/cuda:12.9.1-cudnn-devel-ubuntu22.04
 ENV DEBIAN_FRONTEND=noninteractive
 ENV PATH="/root/.local/bin:$PATH"
 
-# System dependencies
-RUN apt-get update && apt-get install -y \
-    python3.10 \
-    python3-dev \
+# System dependencies (Python 3.11 via deadsnakes — if-verifiable needs >=3.11)
+RUN apt-get update && apt-get install -y software-properties-common \
+    && add-apt-repository -y ppa:deadsnakes/ppa \
+    && apt-get update && apt-get install -y \
+    python3.11 \
+    python3.11-dev \
+    python3.11-distutils \
     python3-pip \
     git \
     wget \
@@ -15,8 +18,8 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # python/python3 symlinks
-RUN ln -sf /usr/bin/python3.10 /usr/bin/python3 && \
-    ln -sf /usr/bin/python3.10 /usr/bin/python
+RUN ln -sf /usr/bin/python3.11 /usr/bin/python3 && \
+    ln -sf /usr/bin/python3.11 /usr/bin/python
 
 # uv
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
