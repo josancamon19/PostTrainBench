@@ -36,12 +36,10 @@ MODEL_ID=$(echo "$META" | python3 -c "import sys,json; print(json.load(sys.stdin
 echo "Benchmark: $BENCHMARK_NAME ($BENCHMARK_ID) | Model: $MODEL_ID"
 
 # ============================================================
-# Evaluation with 3-phase retry logic (skipped if final_model missing)
+# Evaluation: one full run, one retry on failure. Skipped if final_model
+# is missing.
 # ============================================================
-echo ""
 cd "$TESTS_DIR"
-
-EVAL_COUNTER=0
 
 kill_gpu_processes() {
     # Kill GPU-holding processes except PID 1 (container init)
@@ -54,10 +52,7 @@ kill_gpu_processes() {
 }
 
 run_evaluation() {
-    local max_tokens_arg="$1"
-    EVAL_COUNTER=$((EVAL_COUNTER + 1))
-    echo "Evaluation attempt $EVAL_COUNTER"
-
+    local attempt="$1"
     kill_gpu_processes
 
     MAX_CONN=$(python3 -c "import json; print(json.load(open('$TESTS_DIR/metadata.json')).get('max_connections', 64))")
@@ -74,43 +69,26 @@ run_evaluation() {
         --templates-dir "$TESTS_DIR/templates/" \
         --limit -1 \
         ${EXTRA_ARGS} \
-        ${max_tokens_arg} \
-        2>&1 | tee "$LOGS_DIR/final_eval_${EVAL_COUNTER}.txt"
+        2>&1 | tee "$LOGS_DIR/final_eval_${attempt}.txt"
     set -e
 }
 
-run_phase() {
-    local max_retries="$1"
-    local max_tokens_arg="$2"
-
-    for ((attempt=1; attempt<=max_retries; attempt++)); do
-        [ -f "$LOGS_DIR/metrics.json" ] && return 0
-        sleep 5
-        run_evaluation "$max_tokens_arg"
-    done
-}
-
 if [ "$MISSING_FINAL_MODEL" = "0" ]; then
+    echo ""
     echo "=== Running evaluation on final_model ==="
-
-    PHASE2_TOKENS=$(python3 "$TESTS_DIR/verifier.py" token-args "$BENCHMARK_ID" 2)
-    PHASE3_TOKENS=$(python3 "$TESTS_DIR/verifier.py" token-args "$BENCHMARK_ID" 3)
-
-    echo "--- Phase 1: default token limits (up to 4 attempts) ---"
-    run_phase 4 ""
-
-    echo "--- Phase 2: reduced tokens [${PHASE2_TOKENS}] (up to 3 attempts) ---"
-    run_phase 3 "$PHASE2_TOKENS"
-
-    echo "--- Phase 3: further reduced tokens [${PHASE3_TOKENS}] (up to 2 attempts) ---"
-    run_phase 2 "$PHASE3_TOKENS"
+    run_evaluation 1
+    if [ ! -f "$LOGS_DIR/metrics.json" ]; then
+        echo "--- First attempt failed, retrying once ---"
+        sleep 5
+        run_evaluation 2
+    fi
 fi
 
 # ============================================================
 # Extract accuracy and write reward
 # ============================================================
 echo ""
-echo "=== Evaluation complete (${EVAL_COUNTER} total attempts) ==="
+echo "=== Evaluation complete ==="
 
 if [ -f "$LOGS_DIR/metrics.json" ] && [ "$MISSING_FINAL_MODEL" = "0" ]; then
     cat "$LOGS_DIR/metrics.json"
