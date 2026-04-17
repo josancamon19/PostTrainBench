@@ -41,6 +41,8 @@ RUN uv pip install --system --no-cache \
     matplotlib \
     ninja \
     "openai>=2.26.0" \
+    anthropic \
+    if-verifiable \
     packaging \
     pandas \
     peft \

@@ -304,15 +304,19 @@ fi
                 reg_code = SRC_DIR / "tasks" / reg_id / "evaluation_code"
                 if reg_code.is_dir():
                     shutil.copytree(reg_code, dst_dir / "evaluation_code", dirs_exist_ok=True)
-            regression_runner = TEMPLATE_DIR / "tests" / "regression_suite.py"
-            if regression_runner.exists():
-                shutil.copy(regression_runner, tests_dir / "regression_suite.py")
-            compute_parser = TEMPLATE_DIR / "tests" / "compute_parser.py"
-            if compute_parser.exists():
-                shutil.copy(compute_parser, tests_dir / "compute_parser.py")
-            hf_upload = TEMPLATE_DIR / "tests" / "hf_upload.py"
-            if hf_upload.exists():
-                shutil.copy(hf_upload, tests_dir / "hf_upload.py")
+            # Verifier subsystems live under tests/{judge,regression,compute,hooks}/.
+            for subdir, src_name, dst_name in [
+                ("regression", "suite.py", "suite.py"),
+                ("compute", "parser.py", "parser.py"),
+                ("hooks", "hf_upload.py", "hf_upload.py"),
+                ("judge", "judge.py", "judge.py"),
+                ("judge", "prompt.txt", "prompt.txt"),
+            ]:
+                src = TEMPLATE_DIR / "tests" / subdir / src_name
+                if src.exists():
+                    dst = tests_dir / subdir / dst_name
+                    dst.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copy(src, dst)
 
         eval_code_src = SRC_DIR / "tasks" / benchmark_id / "evaluation_code"
         if eval_code_src.is_dir():

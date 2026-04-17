@@ -24,6 +24,10 @@ timeout_sec = 3600.0
 [verifier.env]
 OPENAI_API_KEY = "${OPENAI_API_KEY}"
 HF_TOKEN = "${HF_TOKEN}"
+# Judge auth — verifier-only. DO NOT move to [environment.env].
+ANTHROPIC_API_KEY = "${ANTHROPIC_API_KEY}"
+AWS_BEARER_TOKEN_BEDROCK = "${AWS_BEARER_TOKEN_BEDROCK}"
+AWS_REGION = "${AWS_REGION}"
 
 [agent]
 timeout_sec = 36000.0

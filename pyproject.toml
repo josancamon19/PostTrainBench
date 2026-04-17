@@ -14,6 +14,7 @@ dependencies = [
     "pydantic>=2.12.5",
     "matplotlib>=3.10.8",
     "if-verifiable>=0.1.2",
+    "anthropic>=0.96.0",
 ]
 
 [project.optional-dependencies]

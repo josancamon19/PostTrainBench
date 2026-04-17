@@ -142,8 +142,8 @@ fi
 # Best-effort — no impact on reward. Silently writes status=no_samples if
 # the sampler didn't run (tinker mode, CPU-only, or pre-built GPU images).
 # ============================================================
-if [ -f "$TESTS_DIR/compute_parser.py" ]; then
-    python3 "$TESTS_DIR/compute_parser.py" \
+if [ -f "$TESTS_DIR/compute/parser.py" ]; then
+    python3 "$TESTS_DIR/compute/parser.py" \
         --input /logs/compute_samples.csv \
         --output "$LOGS_DIR/compute.json" 2>&1 | tee -a "$LOGS_DIR/compute_parser.log" || true
 fi
@@ -153,17 +153,31 @@ fi
 # catastrophic forgetting and domain generalization. Best-effort; a failure
 # here does NOT affect the primary reward written above.
 # ============================================================
-if [ "$MISSING_FINAL_MODEL" = "0" ] && [ -f "$LOGS_DIR/metrics.json" ] && [ -f "$TESTS_DIR/regression_suite.py" ]; then
+if [ "$MISSING_FINAL_MODEL" = "0" ] && [ -f "$LOGS_DIR/metrics.json" ] && [ -f "$TESTS_DIR/regression/suite.py" ]; then
     echo ""
     echo "=== Running regression suite ==="
     kill_gpu_processes
     set +e
-    python3 "$TESTS_DIR/regression_suite.py" \
+    python3 "$TESTS_DIR/regression/suite.py" \
         --model-path "$WORKSPACE/final_model" \
         --tests-dir "$TESTS_DIR" \
         --logs-dir "$LOGS_DIR" \
         --metadata "$TESTS_DIR/metadata.json" \
         2>&1 | tee "$LOGS_DIR/regression_suite.log"
+    set -e
+fi
+
+# ============================================================
+# Reward-hacking judge: runs LLM over /app + /logs/agent to flag
+# contamination / grader tampering / instruct substitution. Verifier-only;
+# never visible to the agent. Best-effort: missing auth or API errors log
+# a stub and exit 0 — does not affect the primary reward.
+# ============================================================
+if [ -f "$TESTS_DIR/judge/judge.py" ]; then
+    echo ""
+    echo "=== Reward-hacking judge ==="
+    set +e
+    python3 "$TESTS_DIR/judge/judge.py" 2>&1 | tee "$LOGS_DIR/judge.log"
     set -e
 fi
 
@@ -176,7 +190,7 @@ if [ "$MISSING_FINAL_MODEL" = "0" ]; then
     echo ""
     echo "=== HF upload + artifact slimming ==="
     set +e
-    python3 "$TESTS_DIR/hf_upload.py" 2>&1 | tee -a "$LOGS_DIR/hf_upload.log"
+    python3 "$TESTS_DIR/hooks/hf_upload.py" 2>&1 | tee -a "$LOGS_DIR/hf_upload.log"
     # Drop any file over 500M from the workspace after the upload. Keeps
     # config.json / tokenizer / small checkpoints for reconstruction.
     find "$WORKSPACE" -type f -size +500M -print -delete 2>&1 \
