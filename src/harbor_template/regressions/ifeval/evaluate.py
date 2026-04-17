@@ -1,134 +1,91 @@
 #!/usr/bin/env python3
+"""IFEval regression eval for the verifier (GPU path).
+
+Drops inspect-ai in favor of direct vLLM + if-verifiable scoring. Writes
+metrics.json with `accuracy` = binary_strict (prompt-level all-pass).
+"""
+
 from __future__ import annotations
 
 import argparse
 import json
 import os
-
-import inspect_evals.ifeval  # noqa: F401  (registers task definitions)
-from inspect_ai import eval as inspect_eval  # type: ignore
-from inspect_ai.util._display import init_display_type
+from pathlib import Path
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Run IFEval via Inspect AI.")
-    parser.add_argument(
-        "--model-path",
-        type=str,
-        default="final_model",
-        help="Path to the Hugging Face model (directory or model identifier).",
-    )
-    parser.add_argument(
-        "--limit",
-        type=int,
-        default=-1,
-        help="Optional limit for number of samples to evaluate (-1 for all; ~540 total).",
-    )
-    parser.add_argument(
-        "--json-output-file",
-        type=str,
-        default=None,
-    )
-    parser.add_argument(
-        "--templates-dir",
-        type=str,
-        default="templates/",
-    )
-    parser.add_argument(
-        "--max-connections",
-        type=int,
-        default=64,
-    )
-    parser.add_argument(
-        "--max-tokens",
-        type=int,
-        default=2048,
-    )
-    parser.add_argument(
-        "--gpu-memory-utilization",
-        type=float,
-        default=0.9,
-    )
-    return parser.parse_args()
+    p = argparse.ArgumentParser(description="Run IFEval via vLLM + if-verifiable.")
+    p.add_argument("--model-path", type=str, default="final_model")
+    p.add_argument("--limit", type=int, default=-1)
+    p.add_argument("--json-output-file", type=str, default=None)
+    p.add_argument("--templates-dir", type=str, default="templates/")
+    p.add_argument("--max-connections", type=int, default=64)  # unused; vLLM offline
+    p.add_argument("--max-tokens", type=int, default=2048)
+    p.add_argument("--gpu-memory-utilization", type=float, default=0.9)
+    return p.parse_args()
+
+
+def _model_type(path: str) -> str:
+    low = path.lower()
+    for fam in ("qwen", "llama", "gemma", "smollm"):
+        if fam in low:
+            return fam
+    with open(os.path.join(path, "config.json")) as f:
+        arch = json.load(f)["architectures"][0].lower()
+    for fam in ("gemma", "llama", "qwen", "smollm"):
+        if fam in arch:
+            return fam
+    raise ValueError(arch)
+
+
+def _chat_template(templates_dir: str, path: str) -> str:
+    fam = _model_type(path)
+    tpl = {"qwen": "qwen3.jinja", "llama": "llama3.jinja", "gemma": "gemma3.jinja", "smollm": "smollm.jinja"}[fam]
+    return (Path(templates_dir) / tpl).read_text()
 
 
 def main() -> None:
     args = parse_args()
 
-    init_display_type("plain")
+    from if_verifiable import evaluate_output_for_sample, get_eval_data
+    from vllm import LLM, SamplingParams
 
-    other_kwargs = {}
-    if (args.limit is not None) and (args.limit != -1):
-        other_kwargs["limit"] = args.limit
+    samples = list(get_eval_data("ifeval"))
+    if args.limit and args.limit > 0:
+        samples = samples[: args.limit]
 
-    task = "inspect_evals/ifeval"
-    model_args = {
-        "gpu_memory_utilization": args.gpu_memory_utilization,
-    }
-    model_args.update(template_kwargs(args))
+    llm = LLM(model=args.model_path, gpu_memory_utilization=args.gpu_memory_utilization)
+    tokenizer = llm.get_tokenizer()
+    chat_template = _chat_template(args.templates_dir, args.model_path)
 
-    eval_out = inspect_eval(
-        task,
-        model=f"vllm/{args.model_path}",
-        model_args=model_args,
-        score_display=False,
-        log_realtime=False,
-        log_format="json",
-        timeout=18000000,
-        attempt_timeout=18000000,
-        max_tokens=args.max_tokens,
-        max_connections=args.max_connections,
-        **other_kwargs,
-    )
+    prompts = [
+        tokenizer.apply_chat_template(
+            [{"role": "user", "content": s.prompt}],
+            chat_template=chat_template,
+            add_generation_prompt=True,
+            tokenize=False,
+        )
+        for s in samples
+    ]
+    params = SamplingParams(max_tokens=args.max_tokens, temperature=0.0)
+    outputs = llm.generate(prompts, params)
 
-    if args.json_output_file is not None:
-        assert len(eval_out) == 1, eval_out
-        assert len(eval_out[0].results.scores) == 1, eval_out[0].results.scores
-        metrics = {}
-        for k, v in eval_out[0].results.scores[0].metrics.items():
-            metrics[k] = v.value
+    agg = {"binary_strict": 0.0, "binary_loose": 0.0, "partial_strict": 0.0, "partial_loose": 0.0}
+    for out, s in zip(outputs, samples, strict=True):
+        response = out.outputs[0].text
+        _, scores = evaluate_output_for_sample("ifeval", s, response)
+        agg["binary_strict"] += scores.binary_strict
+        agg["binary_loose"] += scores.binary_loose
+        agg["partial_strict"] += scores.partial_strict
+        agg["partial_loose"] += scores.partial_loose
 
-        with open(args.json_output_file, "w") as f:
-            json.dump(metrics, f, indent=2)
+    n = len(samples)
+    metrics = {k: v / n for k, v in agg.items()}
+    metrics["accuracy"] = metrics["binary_strict"]
 
-
-def model_type(args) -> str:
-    if "qwen" in args.model_path.lower():
-        return "qwen"
-    if "llama" in args.model_path.lower():
-        return "llama"
-    if "gemma" in args.model_path.lower():
-        return "gemma"
-    if "smollm" in args.model_path.lower():
-        return "smollm"
-
-    with open(os.path.join(args.model_path, "config.json")) as f:
-        config = json.load(f)
-    architecture = config["architectures"][0].lower()
-    if "gemma" in architecture:
-        return "gemma"
-    if "llama" in architecture:
-        return "llama"
-    if "qwen" in architecture:
-        return "qwen"
-    if "smollm" in architecture:
-        return "smollm"
-    raise ValueError(architecture)
-
-
-def template_kwargs(args) -> dict:
-    model_type_str = model_type(args)
-    if model_type_str == "qwen":
-        template = "qwen3.jinja"
-    elif model_type_str == "llama":
-        template = "llama3.jinja"
-    elif model_type_str == "gemma":
-        template = "gemma3.jinja"
-    elif model_type_str == "smollm":
-        template = "smollm.jinja"
-    else:
-        raise ValueError(model_type_str)
-    return {"chat_template": os.path.join(args.templates_dir, template)}
+    if args.json_output_file:
+        Path(args.json_output_file).write_text(json.dumps(metrics, indent=2))
+    print(json.dumps(metrics, indent=2))
 
 
 if __name__ == "__main__":

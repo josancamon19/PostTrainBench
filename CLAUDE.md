@@ -102,3 +102,7 @@ DAYTONA_API_KEY   — Daytona remote execution
 - `evaluate.py` ERROR warnings from inspect-ai are normal
 - CI (`.github/workflows/build-images.yml`) builds base + per-task Docker images on push to main when Dockerfiles or adapter.py change
 - `datasets/`, `results/`, `jobs/` directories are gitignored (generated outputs)
+
+## Style
+
+- Be brief in comments and docstrings. One short line if the "why" is non-obvious, none otherwise. Don't narrate obvious code, don't restate function names, don't write multi-paragraph module docstrings. Expand only when explicitly asked.

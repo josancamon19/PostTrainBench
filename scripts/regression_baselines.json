@@ -12,7 +12,7 @@
   "meta-llama/Llama-3.2-1B": {
     "mmlu": 0.19890329012961117,
     "truthfulqa": 0.9375764993880049,
-    "ifeval": 0.149723
+    "ifeval": 0.12
   },
   "Qwen/Qwen3-8B-Base": {
     "mmlu": 0.7230451502634953,
