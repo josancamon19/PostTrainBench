@@ -207,15 +207,17 @@ REGRESSION_EVALS: list[str] = [
 # for THIS benchmark, because the verifier evaluates trained models in the
 # same 0-shot chat format — apples-to-apples.
 #
-# Llama-3.2-1B on TruthfulQA @ 0.938 still looks suspicious at full 817
-# samples — the 1B model evidently outputs a fixed letter that correlates
-# with TruthfulQA's truthful-answer positions. Shuffling choice positions
-# per sample would correct this; left as follow-up. For now the high
-# baseline just means forgetting is easy to flag on that row — a trained
-# model that actually answers the questions will score lower, and that
-# drop would show up as forgetting penalty even though semantically the
-# post-training is *improving* the model. Handle with care when reading
-# leaderboard for this model/benchmark combo.
+# TruthfulQA MC1 has a hard position bias: the correct answer sits at
+# index 0 for all 817 samples. Any base model that doesn't actually
+# engage with the question and just emits "A" scores very high. We drop
+# the TruthfulQA baseline entries for the two smaller Llamas where this
+# artifact dominates (Llama-3.2-1B @ 0.938 and Llama-3.2-3B @ 0.632
+# both look exploit-driven). Without a baseline the regression suite
+# skips those rows from the forgetting penalty rather than flagging a
+# trained model as "forgetting" when it's really just answering
+# honestly and scoring lower than the biased base.
+#
+# Fix: shuffle choices per sample and re-measure. Left as follow-up.
 #
 # IFEval is Google's original instruction-following eval (prompt_strict
 # score). We vendored Google's instruction_following_eval source under
@@ -236,10 +238,10 @@ REGRESSION_BASE_SCORES: dict[tuple[str, str], float] = {
     ("meta-llama/Llama-3.1-8B", "truthfulqa"): 0.494,
     ("meta-llama/Llama-3.1-8B", "ifeval"):     0.159,
     ("meta-llama/Llama-3.2-3B", "mmlu"):       0.219,
-    ("meta-llama/Llama-3.2-3B", "truthfulqa"): 0.632,
+    # ("meta-llama/Llama-3.2-3B", "truthfulqa") — dropped; position bias (see note)
     ("meta-llama/Llama-3.2-3B", "ifeval"):     0.163,
     ("meta-llama/Llama-3.2-1B", "mmlu"):       0.199,
-    ("meta-llama/Llama-3.2-1B", "truthfulqa"): 0.938,  # position-bias artifact (see note)
+    # ("meta-llama/Llama-3.2-1B", "truthfulqa") — dropped; position bias (see note)
     ("meta-llama/Llama-3.2-1B", "ifeval"):     0.150,
 }
 # fmt: on
