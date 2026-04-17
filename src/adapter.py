@@ -293,7 +293,7 @@ fi
             for reg_id in REGRESSION_EVALS:
                 if reg_id == benchmark_id:
                     continue
-                regression_only_src = TEMPLATE_DIR / "tests" / "regressions" / reg_id / "evaluate.py"
+                regression_only_src = TEMPLATE_DIR / "tests" / "evals" / reg_id / "evaluate.py"
                 task_src = SRC_DIR / "tasks" / reg_id / "evaluate.py"
                 src = regression_only_src if regression_only_src.exists() else task_src
                 if not src.exists():

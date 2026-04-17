@@ -26,9 +26,9 @@ sys.path.insert(0, str(SRC_DIR))
 from constants import MODELS  # noqa: E402
 
 EVAL_SCRIPTS: dict[str, Path] = {
-    "mmlu": REPO_ROOT / "src/harbor_template/tests/regressions/mmlu/evaluate_tinker.py",
-    "truthfulqa": REPO_ROOT / "src/harbor_template/tests/regressions/truthfulqa/evaluate_tinker.py",
-    "ifeval": REPO_ROOT / "src/harbor_template/tests/regressions/ifeval/evaluate_tinker.py",
+    "mmlu": REPO_ROOT / "src/harbor_template/tests/evals/mmlu/evaluate_tinker.py",
+    "truthfulqa": REPO_ROOT / "src/harbor_template/tests/evals/truthfulqa/evaluate_tinker.py",
+    "ifeval": REPO_ROOT / "src/harbor_template/tests/evals/ifeval/evaluate_tinker.py",
 }
 
 OUT_JSON = REPO_ROOT / "scripts" / "regression_baselines.json"
