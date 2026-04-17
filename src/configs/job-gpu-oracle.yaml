@@ -1,0 +1,32 @@
+n_attempts: 1
+timeout_multiplier: 1.0
+name: posttrainbench-oracle-smoke
+description: |
+  Run the oracle agent (solution/solve.sh downloads the instruct model)
+  against the smallest task. End-to-end sanity check: does the verifier
+  score the instruct model, does the regression suite run, does the
+  judge emit a verdict, does the HF upload work.
+
+orchestrator:
+  type: local
+  n_concurrent_trials: 1
+  quiet: false
+
+environment:
+  type: runpod
+  delete: true
+  override_gpus: 1
+  kwargs:
+    gpu_type: h100
+
+agents:
+  - name: oracle
+
+datasets:
+  - path: datasets/posttrainbench/gpu-runpod
+    task_names:
+      - gsm8k-llama3.2-1b
+
+artifacts:
+  - source: /app
+    destination: workspace

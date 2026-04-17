@@ -36,8 +36,17 @@ def _pct(vals: list[float], p: float) -> float:
     return vals_sorted[f] + (vals_sorted[c] - vals_sorted[f]) * (k - f)
 
 
-def parse(csv_path: Path) -> dict:
+def parse(csv_path: Path, marker_path: Path | None = None) -> dict:
+    marker_ts = None
+    if marker_path and marker_path.exists():
+        try:
+            marker_ts = marker_path.read_text().strip() or None
+        except Exception:
+            marker_ts = None
+
     if not csv_path.exists() or csv_path.stat().st_size == 0:
+        if marker_ts:
+            return {"status": "killed_before_first_sample", "samples": 0, "sampler_started_at": marker_ts}
         return {"status": "no_samples", "samples": 0}
 
     rows: list[dict] = []
@@ -90,6 +99,24 @@ def parse(csv_path: Path) -> dict:
     active_samples = sum(1 for u in all_utils if u >= 10.0)
     active_ratio = active_samples / len(all_utils) if all_utils else 0.0
 
+    # Gap detection — distinguishes a clean "sampler ran and finished" from
+    # "sampler was killed mid-run" or "sampling paused for a long stretch".
+    # Expected cadence is ~30s/row (GPU_SAMPLE_INTERVAL); anything > 5x that
+    # is a suspicious gap.
+    gaps: list[float] = []
+    max_gap_s = 0.0
+    ts_list = [_parse_ts(r["ts"]) for r in rows[:: max(1, len(gpus))]]  # one per sample
+    for prev, cur in zip(ts_list, ts_list[1:], strict=False):
+        if prev is None or cur is None:
+            continue
+        dt = (cur - prev).total_seconds()
+        if dt > 0:
+            gaps.append(dt)
+            max_gap_s = max(max_gap_s, dt)
+    median_gap_s = _pct(gaps, 50) if gaps else 0.0
+    suspicious_threshold_s = max(median_gap_s * 5, 300)  # ≥5 min counts as a gap regardless
+    num_suspicious_gaps = sum(1 for g in gaps if g > suspicious_threshold_s)
+
     return {
         "status": "ok",
         "samples": len(rows),
@@ -105,16 +132,21 @@ def parse(csv_path: Path) -> dict:
         "per_gpu": per_gpu,
         "first_ts": rows[0]["ts"],
         "last_ts": rows[-1]["ts"],
+        "median_gap_sec": round(median_gap_s, 1),
+        "max_gap_sec": round(max_gap_s, 1),
+        "num_suspicious_gaps": num_suspicious_gaps,
+        "continuous": num_suspicious_gaps == 0,
     }
 
 
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--input", default="/logs/compute_samples.csv")
+    parser.add_argument("--marker", default="/logs/gpu_sampler.started")
     parser.add_argument("--output", default="/logs/verifier/compute.json")
     args = parser.parse_args()
 
-    out = parse(Path(args.input))
+    out = parse(Path(args.input), Path(args.marker))
     out_path = Path(args.output)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(json.dumps(out, indent=2))
