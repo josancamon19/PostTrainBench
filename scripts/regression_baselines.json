@@ -1,22 +1,27 @@
 {
   "meta-llama/Llama-3.1-8B": {
     "mmlu": 0.10696481982623558,
-    "truthfulqa": 0.4944920440636475
+    "truthfulqa": 0.4944920440636475,
+    "ifeval": 0.158965
   },
   "meta-llama/Llama-3.2-3B": {
     "mmlu": 0.2187722546645777,
-    "truthfulqa": 0.631578947368421
+    "truthfulqa": 0.631578947368421,
+    "ifeval": 0.162662
   },
   "meta-llama/Llama-3.2-1B": {
     "mmlu": 0.19890329012961117,
-    "truthfulqa": 0.9375764993880049
+    "truthfulqa": 0.9375764993880049,
+    "ifeval": 0.149723
   },
   "Qwen/Qwen3-8B-Base": {
     "mmlu": 0.7230451502634953,
-    "truthfulqa": 0.7515299877600979
+    "truthfulqa": 0.7515299877600979,
+    "ifeval": 0.571165
   },
   "Qwen/Qwen3-30B-A3B-Base": {
     "mmlu": 0.7714000854579119,
-    "truthfulqa": 0.605875152998776
+    "truthfulqa": 0.605875152998776,
+    "ifeval": 0.526802
   }
 }

@@ -217,10 +217,10 @@ REGRESSION_EVALS: list[str] = [
 # post-training is *improving* the model. Handle with care when reading
 # leaderboard for this model/benchmark combo.
 #
-# IFEval needs google/instruction_following_eval (not resolvable on 3.13);
-# will be measured on GPU in a follow-up pass. Entry omitted here so the
-# regression suite skips it in the forgetting calculation instead of
-# counting as 0.
+# IFEval is Google's original instruction-following eval (prompt_strict
+# score). We vendored Google's instruction_following_eval source under
+# src/harbor_template/regressions/ifeval/ rather than depending on the
+# unmaintained pip package (which doesn't resolve on 3.13).
 #
 # Layer B (gsm8k, humaneval, gpqamain) baselines reuse BASE_SCORES — not
 # duplicated here.
@@ -228,13 +228,18 @@ REGRESSION_EVALS: list[str] = [
 REGRESSION_BASE_SCORES: dict[tuple[str, str], float] = {
     ("Qwen/Qwen3-30B-A3B-Base", "mmlu"):       0.771,
     ("Qwen/Qwen3-30B-A3B-Base", "truthfulqa"): 0.606,
+    ("Qwen/Qwen3-30B-A3B-Base", "ifeval"):     0.527,
     ("Qwen/Qwen3-8B-Base",      "mmlu"):       0.723,
     ("Qwen/Qwen3-8B-Base",      "truthfulqa"): 0.752,
+    ("Qwen/Qwen3-8B-Base",      "ifeval"):     0.571,
     ("meta-llama/Llama-3.1-8B", "mmlu"):       0.107,
     ("meta-llama/Llama-3.1-8B", "truthfulqa"): 0.494,
+    ("meta-llama/Llama-3.1-8B", "ifeval"):     0.159,
     ("meta-llama/Llama-3.2-3B", "mmlu"):       0.219,
     ("meta-llama/Llama-3.2-3B", "truthfulqa"): 0.632,
+    ("meta-llama/Llama-3.2-3B", "ifeval"):     0.163,
     ("meta-llama/Llama-3.2-1B", "mmlu"):       0.199,
     ("meta-llama/Llama-3.2-1B", "truthfulqa"): 0.938,  # position-bias artifact (see note)
+    ("meta-llama/Llama-3.2-1B", "ifeval"):     0.150,
 }
 # fmt: on
