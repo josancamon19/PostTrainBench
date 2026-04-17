@@ -16,6 +16,8 @@ Think of it this way:
 
 - **summary** is the short human-readable version: methods touched, datasets touched, the submitted checkpoint, a 3-5 sentence narrative of overall strategy, and anything noteworthy a reader should know (peaked at hour 2, regressed on continued training, OOM'd mid-run, switched from SFT to LoRA, etc.).
 
+- **regression_analysis** is your read of catastrophic forgetting and cross-target generalization. The verifier may have left a regression_metrics.json (usually under a verifier dir) containing per-eval scores on benchmarks that weren't the training target. If you find it, join each eval against its baseline from metadata.json's `regression_baselines` (or leave baseline_score null if not measured) and emit a RegressionEval row per eval. Classify `layer` as "forgetting" for breadth-style capability evals (mmlu, ifeval, truthfulqa) and "generalization" for STEM/coding cross-target evals (gsm8k, humaneval, gpqamain). Then write 2-3 sentences each on forgetting vs generalization: which dimensions held up, which dropped, and what the pattern suggests about the agent's strategy (e.g. "narrow SFT on the target distribution erased IFEval's instruction-following behavior" vs "post-training preserved general knowledge"). If regression data is absent, return null.
+
 ## Ground rules
 
 - Use null when you truly don't know. Don't invent numbers or dataset names from thin air — if a hyperparam isn't in the script, it's unknown.

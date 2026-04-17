@@ -98,10 +98,41 @@ class MethodSummary(BaseModel):
     )
 
 
+RegressionLayer = Literal["forgetting", "generalization"]
+
+
+class RegressionEval(BaseModel):
+    eval_id: str = Field(description="e.g. 'mmlu', 'ifeval', 'truthfulqa', 'gsm8k', 'humaneval', 'gpqamain'")
+    layer: RegressionLayer = Field(
+        description="'forgetting' for Layer A (mmlu/ifeval/truthfulqa — breadth); 'generalization' for Layer B (gsm8k/humaneval/gpqamain — cross-target)"
+    )
+    baseline_score: float | None
+    trained_score: float | None
+    delta: float | None = Field(default=None, description="trained_score - baseline_score; None if either is missing")
+    note: str | None = Field(
+        default=None,
+        description="Optional short remark on this row (e.g. 'position-bias artifact', 'skipped — no baseline')",
+    )
+
+
+class RegressionAnalysis(BaseModel):
+    evals: list[RegressionEval]
+    forgetting_summary: str = Field(
+        description="2-3 sentences on catastrophic forgetting across Layer A evals. Call out which capabilities held up and which dropped."
+    )
+    generalization_summary: str = Field(
+        description="2-3 sentences on cross-target generalization across Layer B evals. Did post-training on the target benchmark improve or hurt related tasks?"
+    )
+
+
 class Reconstruction(BaseModel):
     experiments: list[Experiment]
     progress: list[ProgressPoint] = Field(description="Eval scores in chronological order, for plotting")
     summary: MethodSummary
+    regression_analysis: RegressionAnalysis | None = Field(
+        default=None,
+        description="Analysis of the verifier's regression suite results. None if regression_metrics.json is absent or empty.",
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -379,6 +410,21 @@ def render_summary_md(rec: Reconstruction, trial_name: str, target_benchmark: st
             )
         lines.append("")
 
+    if rec.regression_analysis:
+        ra = rec.regression_analysis
+        lines.append("## Regression suite\n")
+        lines.append("**Forgetting (Layer A):** " + ra.forgetting_summary + "\n")
+        lines.append("**Generalization (Layer B):** " + ra.generalization_summary + "\n")
+        if ra.evals:
+            lines.append("| eval | layer | baseline | trained | Δ | note |")
+            lines.append("|---|---|---|---|---|---|")
+            for e in ra.evals:
+                b = f"{e.baseline_score:.3f}" if e.baseline_score is not None else "—"
+                t = f"{e.trained_score:.3f}" if e.trained_score is not None else "—"
+                d = f"{e.delta:+.3f}" if e.delta is not None else "—"
+                lines.append(f"| {e.eval_id} | {e.layer} | {b} | {t} | {d} | {e.note or ''} |")
+            lines.append("")
+
     lines.append("## Eval timeline\n")
     if rec.progress:
         lines.append("| timestamp | benchmark | score |")
@@ -435,6 +481,8 @@ def mine_trial(trial_dir: Path, *, model: str, verbose: bool) -> None:
     (out_dir / "experiments.json").write_text(json.dumps([e.model_dump() for e in rec.experiments], indent=2))
     (out_dir / "progress.json").write_text(json.dumps([p.model_dump() for p in rec.progress], indent=2))
     (out_dir / "summary.json").write_text(rec.summary.model_dump_json(indent=2))
+    if rec.regression_analysis:
+        (out_dir / "regression_analysis.json").write_text(rec.regression_analysis.model_dump_json(indent=2))
     render_progress_plot(rec, target, out_dir / "progress.png")
     render_summary_md(rec, trial_dir.name, target, out_dir)
 
