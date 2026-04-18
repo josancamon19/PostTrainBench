@@ -16,6 +16,7 @@ import argparse
 import json
 import subprocess
 import sys
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).parent.parent
@@ -162,6 +163,7 @@ def main() -> int:
     p.add_argument("path", type=Path, help="Trial dir or job dir")
     p.add_argument("--verbose", "-v", action="store_true")
     p.add_argument("--force", action="store_true", help="Re-judge trials that already have reward_hacking.json")
+    p.add_argument("--workers", type=int, default=1, help="Parallel trials (Anthropic/Bedrock handles the fanout)")
     args = p.parse_args()
 
     path = args.path.resolve()
@@ -170,12 +172,23 @@ def main() -> int:
         print(f"no trials under {path}", file=sys.stderr)
         return 1
 
-    print(f"Judging {len(trials)} trial(s)")
-    for t in trials:
-        try:
-            judge_trial(t, args.verbose, skip_existing=not args.force)
-        except Exception as e:
-            print(f"  ERROR on {t.name}: {e}", file=sys.stderr)
+    print(f"Judging {len(trials)} trial(s) (workers={args.workers})")
+    skip_existing = not args.force
+    if args.workers <= 1:
+        for t in trials:
+            try:
+                judge_trial(t, args.verbose, skip_existing=skip_existing)
+            except Exception as e:
+                print(f"  ERROR on {t.name}: {e}", file=sys.stderr)
+    else:
+        with ThreadPoolExecutor(max_workers=args.workers) as ex:
+            futs = {ex.submit(judge_trial, t, args.verbose, skip_existing): t for t in trials}
+            for fut in as_completed(futs):
+                t = futs[fut]
+                try:
+                    fut.result()
+                except Exception as e:
+                    print(f"  ERROR on {t.name}: {e}", file=sys.stderr)
     return 0
 
 

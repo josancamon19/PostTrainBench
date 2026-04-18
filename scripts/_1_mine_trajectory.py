@@ -475,13 +475,16 @@ def _read_target_benchmark(trial_dir: Path) -> str | None:
     return None
 
 
-def mine_trial(trial_dir: Path, *, model: str, verbose: bool) -> None:
+def mine_trial(trial_dir: Path, *, model: str, verbose: bool, skip_existing: bool = True) -> None:
     if not (trial_dir / "agent" / "trajectory.json").exists():
         print(f"  skipping {trial_dir.name}: no trajectory.json", file=sys.stderr)
         return
 
     out_dir = trial_dir / "reconstructed"
     out_dir.mkdir(parents=True, exist_ok=True)
+    if skip_existing and (out_dir / "summary.json").exists():
+        print(f"  skipped {trial_dir.name}: already mined")
+        return
 
     rec = asyncio.run(reconstruct(trial_dir, model, verbose))
     if rec is None:
@@ -511,6 +514,8 @@ def main() -> int:
     parser.add_argument("path", type=Path, help="Trial dir or job dir")
     parser.add_argument("--model", default="opus", help="Model for reconstruction (haiku/sonnet/opus)")
     parser.add_argument("--verbose", "-v", action="store_true", help="Stream LLM trace to stderr")
+    parser.add_argument("--force", action="store_true", help="Re-mine trials that already have summary.json")
+    parser.add_argument("--workers", type=int, default=1, help="Parallel trials")
     args = parser.parse_args()
 
     path = args.path.resolve()
@@ -526,12 +531,28 @@ def main() -> int:
         print(f"{path} is not a trial or job dir", file=sys.stderr)
         return 1
 
-    print(f"Mining {len(trials)} trial(s) with model={args.model}")
-    for trial in trials:
-        try:
-            mine_trial(trial, model=args.model, verbose=args.verbose)
-        except Exception as e:
-            print(f"  ERROR on {trial.name}: {e}", file=sys.stderr)
+    print(f"Mining {len(trials)} trial(s) with model={args.model} (workers={args.workers})")
+    skip_existing = not args.force
+    if args.workers <= 1:
+        for trial in trials:
+            try:
+                mine_trial(trial, model=args.model, verbose=args.verbose, skip_existing=skip_existing)
+            except Exception as e:
+                print(f"  ERROR on {trial.name}: {e}", file=sys.stderr)
+    else:
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+
+        with ThreadPoolExecutor(max_workers=args.workers) as ex:
+            futs = {
+                ex.submit(mine_trial, t, model=args.model, verbose=args.verbose, skip_existing=skip_existing): t
+                for t in trials
+            }
+            for fut in as_completed(futs):
+                t = futs[fut]
+                try:
+                    fut.result()
+                except Exception as e:
+                    print(f"  ERROR on {t.name}: {e}", file=sys.stderr)
     return 0
 
 
