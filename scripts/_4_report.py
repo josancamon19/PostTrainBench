@@ -20,7 +20,7 @@ forgetting, hack verdict, compute efficiency, strategy) is its own column.
 Readers decide how to weight them.
 
 Usage:
-    python scripts/_3_report.py <trial-or-job-dir>
+    python scripts/_4_report.py <trial-or-job-dir>
 """
 
 from __future__ import annotations

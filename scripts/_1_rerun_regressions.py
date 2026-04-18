@@ -13,7 +13,7 @@ is indistinguishable from what the verifier would have produced on
 a live trial.
 
 Usage:
-    python scripts/_5_rerun_regressions.py <trial-or-job-dir>
+    python scripts/_1_rerun_regressions.py <trial-or-job-dir>
 
 Auth: TINKER_API_KEY (tinker mode).
 """
