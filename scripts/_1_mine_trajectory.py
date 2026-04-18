@@ -515,7 +515,7 @@ def main() -> int:
     parser.add_argument("--model", default="opus", help="Model for reconstruction (haiku/sonnet/opus)")
     parser.add_argument("--verbose", "-v", action="store_true", help="Stream LLM trace to stderr")
     parser.add_argument("--force", action="store_true", help="Re-mine trials that already have summary.json")
-    parser.add_argument("--workers", type=int, default=1, help="Parallel trials")
+    parser.add_argument("--workers", type=int, default=24, help="Parallel trials")
     args = parser.parse_args()
 
     path = args.path.resolve()

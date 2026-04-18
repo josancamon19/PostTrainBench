@@ -147,14 +147,17 @@ def _call_tool(name: str, inp: dict) -> str:
 
 
 def make_client():
+    # max_retries covers 429 rate-limit backoff automatically (the SDK reads
+    # Retry-After headers). 8 is high enough to ride out a TPM burst when
+    # judging 20+ trials in parallel on Bedrock.
     if os.environ.get("AWS_BEARER_TOKEN_BEDROCK"):
         from anthropic import AnthropicBedrock
 
-        return AnthropicBedrock(), True
+        return AnthropicBedrock(max_retries=8), True
     if os.environ.get("ANTHROPIC_API_KEY"):
         from anthropic import Anthropic
 
-        return Anthropic(), False
+        return Anthropic(max_retries=8), False
     return None, False
 
 

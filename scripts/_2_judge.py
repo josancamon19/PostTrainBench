@@ -163,7 +163,7 @@ def main() -> int:
     p.add_argument("path", type=Path, help="Trial dir or job dir")
     p.add_argument("--verbose", "-v", action="store_true")
     p.add_argument("--force", action="store_true", help="Re-judge trials that already have reward_hacking.json")
-    p.add_argument("--workers", type=int, default=1, help="Parallel trials (Anthropic/Bedrock handles the fanout)")
+    p.add_argument("--workers", type=int, default=24, help="Parallel trials (Anthropic/Bedrock handles the fanout)")
     args = p.parse_args()
 
     path = args.path.resolve()
