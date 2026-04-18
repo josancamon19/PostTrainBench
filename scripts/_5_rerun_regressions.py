@@ -27,6 +27,17 @@ sys.path.insert(0, str(REPO_ROOT / "src"))
 from constants import REGRESSION_EVALS  # noqa: E402
 
 EVALS_DIR = REPO_ROOT / "src" / "harbor_template" / "tests" / "evals"
+TASKS_DIR = REPO_ROOT / "src" / "tasks"
+
+
+def _eval_tinker_script(eval_id: str) -> Path | None:
+    """Layer A evals (mmlu/ifeval/truthfulqa) live under tests/evals/; Layer B
+    (gsm8k/humaneval/…) are training targets that have evaluate_tinker.py in
+    src/tasks/ alongside the GPU evaluate.py."""
+    for candidate in (EVALS_DIR / eval_id / "evaluate_tinker.py", TASKS_DIR / eval_id / "evaluate_tinker.py"):
+        if candidate.exists():
+            return candidate
+    return None
 
 
 def _read_metric(path: Path) -> float | None:
@@ -43,9 +54,9 @@ def _read_metric(path: Path) -> float | None:
 
 
 def _rerun_tinker_one(eval_id: str, checkpoint: str, base_model: str, out_json: Path) -> dict:
-    script = EVALS_DIR / eval_id / "evaluate_tinker.py"
-    if not script.exists():
-        return {"status": "missing_evaluate_tinker", "score": None}
+    script = _eval_tinker_script(eval_id)
+    if script is None:
+        return {"status": "no_tinker_eval", "score": None}
     cmd = [
         str(REPO_ROOT / ".venv" / "bin" / "python"),
         str(script),
