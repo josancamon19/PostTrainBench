@@ -240,9 +240,10 @@ fi
         if self.mode != "tinker":
             regression_ids = [bid for bid in REGRESSION_EVALS if bid != benchmark_id]
             metadata["regression_benchmarks"] = regression_ids
-            # Layer B (cross-target: gsm8k/humaneval/gpqamain/aime2025) reuses BASE_SCORES;
-            # Layer A (mmlu/ifeval/truthfulqa) uses REGRESSION_BASE_SCORES. IFEval has no
-            # measured baseline yet (tinker harness gap) so it gets None → regression_suite
+            # Baselines come from REGRESSION_BASE_SCORES first (regression-only
+            # evals: mmlu/ifeval/truthfulqa) and fall back to BASE_SCORES
+            # (training-target evals: gsm8k/humaneval/gpqamain/aime2025).
+            # If neither has a measurement, the entry is None and regression_suite
             # skips it in the forgetting penalty rather than counting as 0.
             metadata["regression_baselines"] = {
                 bid: (

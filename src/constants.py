@@ -188,12 +188,11 @@ INSTRUCT_BASELINES: dict[tuple[str, str], float] = {
     (model_id, bid): scores[1] for model_id, data in SCORES.items() for bid, scores in data["benchmarks"].items()
 }
 
-# Regression suite: evals the verifier runs against final_model to detect catastrophic
-# forgetting and domain generalization. Not training targets. Two layers:
-#   Layer A (breadth, orthogonal to the STEM targets): mmlu, ifeval, truthfulqa
-#   Layer B (cross-target check on existing cheap benchmarks): gsm8k, humaneval, gpqamain
-# Long-gen OpenAI-graded benchmarks (arenahardwriting, healthbench) are excluded due to
-# cost + latency per trial.
+# Regression suite: evals the verifier runs against final_model to surface
+# score changes on benchmarks the agent didn't train on. Interpretation
+# (what counts as forgetting vs generalization) is left to mine_trajectory —
+# this list just logs the numbers. Long-gen OpenAI-judged benchmarks
+# (arenahardwriting, healthbench) are excluded due to judge cost + latency.
 REGRESSION_EVALS: list[str] = [
     "mmlu",
     "ifeval",
@@ -203,51 +202,22 @@ REGRESSION_EVALS: list[str] = [
     "gpqamain",
 ]
 
-# Baselines for Layer A regression evals, measured via Tinker (0-shot chat,
-# temp=0, full test/validation sets: MMLU=14,042, TruthfulQA MC1=817 samples).
-# Used for forgetting_penalty computation.
-#
-# Caveat: Llama base models under-perform at 0-shot chat format (they weren't
-# trained on it), so the MMLU numbers here are noticeably lower than Meta's
-# reported 8-shot completion-style baselines. These numbers are what matters
-# for THIS benchmark, because the verifier evaluates trained models in the
-# same 0-shot chat format — apples-to-apples.
-#
-# TruthfulQA MC1 has a hard position bias: the correct answer sits at
-# index 0 for all 817 samples. Any base model that doesn't actually
-# engage with the question and just emits "A" scores very high. We drop
-# the TruthfulQA baseline entries for the two smaller Llamas where this
-# artifact dominates (Llama-3.2-1B @ 0.938 and Llama-3.2-3B @ 0.632
-# both look exploit-driven). Without a baseline the regression suite
-# skips those rows from the forgetting penalty rather than flagging a
-# trained model as "forgetting" when it's really just answering
-# honestly and scoring lower than the biased base.
-#
-# Fix: shuffle choices per sample and re-measure. Left as follow-up.
-#
-# IFEval is Google's original instruction-following eval (prompt_strict
-# score). We vendored Google's instruction_following_eval source under
-# src/harbor_template/tests/evals/ifeval/ rather than depending on the
-# unmaintained pip package (which doesn't resolve on 3.13).
-#
-# Layer B (gsm8k, humaneval, gpqamain) baselines reuse BASE_SCORES — not
-# duplicated here.
-# fmt: off
+
 REGRESSION_BASE_SCORES: dict[tuple[str, str], float] = {
-    ("Qwen/Qwen3-30B-A3B-Base", "mmlu"):       0.771,
+    ("Qwen/Qwen3-30B-A3B-Base", "mmlu"): 0.771,
     ("Qwen/Qwen3-30B-A3B-Base", "truthfulqa"): 0.606,
-    ("Qwen/Qwen3-30B-A3B-Base", "ifeval"):     0.527,
-    ("Qwen/Qwen3-8B-Base",      "mmlu"):       0.723,
-    ("Qwen/Qwen3-8B-Base",      "truthfulqa"): 0.752,
-    ("Qwen/Qwen3-8B-Base",      "ifeval"):     0.571,
-    ("meta-llama/Llama-3.1-8B", "mmlu"):       0.107,
+    ("Qwen/Qwen3-30B-A3B-Base", "ifeval"): 0.527,
+    ("Qwen/Qwen3-8B-Base", "mmlu"): 0.723,
+    ("Qwen/Qwen3-8B-Base", "truthfulqa"): 0.752,
+    ("Qwen/Qwen3-8B-Base", "ifeval"): 0.571,
+    ("meta-llama/Llama-3.1-8B", "mmlu"): 0.107,
     ("meta-llama/Llama-3.1-8B", "truthfulqa"): 0.494,
-    ("meta-llama/Llama-3.1-8B", "ifeval"):     0.159,
-    ("meta-llama/Llama-3.2-3B", "mmlu"):       0.219,
-    # ("meta-llama/Llama-3.2-3B", "truthfulqa") — dropped; position bias (see note)
-    ("meta-llama/Llama-3.2-3B", "ifeval"):     0.163,
-    ("meta-llama/Llama-3.2-1B", "mmlu"):       0.199,
-    # ("meta-llama/Llama-3.2-1B", "truthfulqa") — dropped; position bias (see note)
-    ("meta-llama/Llama-3.2-1B", "ifeval"):     0.150,
+    ("meta-llama/Llama-3.1-8B", "ifeval"): 0.159,
+    ("meta-llama/Llama-3.2-3B", "mmlu"): 0.219,
+    # ("meta-llama/Llama-3.2-3B", "truthfulqa") — dropped; position bias
+    ("meta-llama/Llama-3.2-3B", "ifeval"): 0.163,
+    ("meta-llama/Llama-3.2-1B", "mmlu"): 0.199,
+    # ("meta-llama/Llama-3.2-1B", "truthfulqa") — dropped; position bias
+    ("meta-llama/Llama-3.2-1B", "ifeval"): 0.150,
 }
 # fmt: on

@@ -33,8 +33,8 @@ from constants import BASE_SCORES, REGRESSION_BASE_SCORES, REGRESSION_EVALS  # n
 
 def _baselines_for(model_id: str, reg_ids: list[str]) -> dict[str, float | None]:
     """Fallback when metadata doesn't carry regression_baselines (older trials
-    predate the regression suite). Layer A from REGRESSION_BASE_SCORES, Layer B
-    from BASE_SCORES — same precedence the adapter uses at export time."""
+    predate the regression suite). REGRESSION_BASE_SCORES first, BASE_SCORES
+    fallback — same precedence the adapter uses at export time."""
     out: dict[str, float | None] = {}
     for reg_id in reg_ids:
         v = REGRESSION_BASE_SCORES.get((model_id, reg_id))
@@ -49,8 +49,8 @@ TASKS_DIR = REPO_ROOT / "src" / "tasks"
 
 
 def _eval_tinker_script(eval_id: str) -> Path | None:
-    """Layer A evals (mmlu/ifeval/truthfulqa) live under tests/evals/; Layer B
-    (gsm8k/humaneval/…) are training targets that have evaluate_tinker.py in
+    """Regression-only evals (mmlu/ifeval/truthfulqa) live under tests/evals/;
+    training-target evals (gsm8k/humaneval/…) have evaluate_tinker.py in
     src/tasks/ alongside the GPU evaluate.py."""
     for candidate in (EVALS_DIR / eval_id / "evaluate_tinker.py", TASKS_DIR / eval_id / "evaluate_tinker.py"):
         if candidate.exists():

@@ -99,7 +99,7 @@ def _tools_for(trial_dir: Path):
 
 
 def _prompt_for(trial_dir: Path) -> str:
-    base = (REPO_ROOT / "scripts" / "prompts" / "judge.txt").read_text()
+    base = (REPO_ROOT / "src" / "harbor_template" / "tests" / "judge" / "prompt.txt").read_text()
     pointers = (
         "\n\n## Where things live (paths relative to the trial dir)\n"
         "- `agent/trajectory.json` — agent tool-call history\n"
