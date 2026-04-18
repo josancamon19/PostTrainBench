@@ -6,8 +6,7 @@ description: |
 datasets:
   - path: datasets/posttrainbench/tinker
     task_names:
-      - "mmmlu-llama3.2-1b-tinker"
-      - "mmmlu-llama3.2-3b-tinker"
+      - "ifeval-llama3.2-1b-tinker"
 
 agents:
   - name: claude-code
