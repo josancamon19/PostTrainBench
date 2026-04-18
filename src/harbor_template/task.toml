@@ -18,7 +18,9 @@ allow_internet = true
 HF_TOKEN = "${HF_TOKEN}"
 
 [verifier]
-# 1h budget: primary eval (3-phase retry) + regression suite (up to 6 extra evals)
+# 1h budget: primary eval + regression suite (up to 6 evals) + judge + HF upload.
+# Comfortable headroom for non-judged primaries, tight for arenahardwriting /
+# healthbench which add 15-25min of OpenAI-judge calls.
 timeout_sec = 3600.0
 
 [verifier.env]
