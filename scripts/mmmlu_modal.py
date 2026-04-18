@@ -48,7 +48,7 @@ _secrets = [modal.Secret.from_dict({"HF_TOKEN": os.environ["HF_TOKEN"]})] if os.
 
 
 @app.function(image=IMAGE, gpu="H100", timeout=3600, secrets=_secrets)
-def evaluate_mmmlu(model_id: str, per_lang: int = 100) -> dict:
+def evaluate_mmmlu(model_id: str, per_lang: int | None = None) -> dict:
     import re
 
     from vllm import LLM, SamplingParams
@@ -57,8 +57,9 @@ def evaluate_mmmlu(model_id: str, per_lang: int = 100) -> dict:
 
     parts = []
     for cfg in LANG_CONFIGS:
-        ds = load_dataset("openai/MMMLU", cfg, split="test").shuffle(seed=42)
-        ds = ds.select(range(min(per_lang, len(ds))))
+        ds = load_dataset("openai/MMMLU", cfg, split="test")
+        if per_lang is not None and per_lang > 0:
+            ds = ds.shuffle(seed=42).select(range(min(per_lang, len(ds))))
         parts.append(ds)
     dataset = concatenate_datasets(parts)
     print(f"MMMLU: {len(dataset)} samples", flush=True)

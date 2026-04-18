@@ -44,7 +44,7 @@ def prepare_dataset(limit: int | None = None):
                 "target": correct_label,
             }
         )
-    if limit:
+    if limit is not None and limit > 0:
         examples = examples[:limit]
     return examples
 

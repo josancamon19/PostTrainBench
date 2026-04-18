@@ -18,12 +18,11 @@ def parse_args() -> argparse.Namespace:
         default="final_model",
         help="Path to the Hugging Face model (directory or model identifier).",
     )
-    # this is a good limit for this task, just keep it like that (or use less in case you want faster tests)
     parser.add_argument(
         "--limit",
         type=int,
-        default=150,
-        help="Optional limit for number of samples to evaluate.",
+        default=-1,
+        help="Sample cap for dev iteration. -1 = full test set (default).",
     )
     parser.add_argument(
         "--json-output-file",

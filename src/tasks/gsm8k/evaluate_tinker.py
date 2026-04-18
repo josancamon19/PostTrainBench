@@ -58,7 +58,7 @@ def main() -> None:
     args = parse_args("Evaluate a Tinker checkpoint on GSM8K.")
     ctx = setup_tinker(args)
     dataset = load_dataset("openai/gsm8k", "main", split="test")
-    if args.limit:
+    if args.limit is not None and args.limit > 0:
         dataset = dataset.select(range(min(args.limit, len(dataset))))
     metrics = batch_evaluate(ctx, dataset, build_messages, score, max_tokens=MAX_TOKENS)
     save_metrics(metrics, args.json_output_file)

@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""OpenAI MMMLU regression eval for the verifier (GPU / vLLM path).
+"""OpenAI MMMLU eval for the verifier (GPU / vLLM path).
 
-Mirrors the ifeval GPU eval: direct vLLM offline inference + per-sample
-MCQ letter match, balanced sample across 14 languages.
+Direct vLLM offline inference + per-sample MCQ letter match across all 14
+MMMLU languages. Runs the full test set by default; pass --limit N for a
+balanced N-sample dev slice.
 """
 
 from __future__ import annotations
@@ -35,7 +36,9 @@ SYSTEM = "Answer the following multiple-choice question with the single letter o
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Run OpenAI MMMLU via vLLM.")
     p.add_argument("--model-path", type=str, default="final_model")
-    p.add_argument("--limit", type=int, default=1400, help="Total samples (balanced across languages). -1 = full.")
+    p.add_argument(
+        "--limit", type=int, default=-1, help="Total samples (balanced across languages). -1 = full test set."
+    )
     p.add_argument("--json-output-file", type=str, default=None)
     p.add_argument("--templates-dir", type=str, default="templates/")
     p.add_argument("--max-tokens", type=int, default=32)

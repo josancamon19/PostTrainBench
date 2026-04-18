@@ -74,7 +74,7 @@ def main() -> None:
     args = parse_args("Evaluate a Tinker checkpoint on HumanEval.")
     ctx = setup_tinker(args)
     dataset = load_dataset("openai/openai_humaneval", split="test")
-    if args.limit:
+    if args.limit is not None and args.limit > 0:
         dataset = dataset.select(range(min(args.limit, len(dataset))))
     dataset_list = list(dataset)
     metrics = batch_evaluate(ctx, dataset_list, build_messages, make_score_fn(dataset_list), max_tokens=MAX_TOKENS)

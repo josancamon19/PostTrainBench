@@ -679,8 +679,7 @@ def main():
     parser.add_argument("--model-path", required=True, help="Hugging Face model ID or local path.")
     parser.add_argument("--max-new-tokens", type=int, default=16384)
     parser.add_argument("--max-connections", type=int, default=64, help="Concurrent vLLM requests for generation.")
-    # this is a good limit for this task, just keep it like that (or use less in case you want faster tests)
-    parser.add_argument("--limit", type=int, default=32, help="Limit number of questions for quicker runs.")
+    parser.add_argument("--limit", type=int, default=-1, help="Sample cap for dev iteration. -1 = full set (default).")
     parser.add_argument(
         "--judge-workers",
         type=int,

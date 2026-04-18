@@ -228,7 +228,13 @@ def generate_answers(args, examples: list[HealthBenchExample]) -> list[str]:
         max_workers = getattr(args, "max_connections", 64)
         # Preserve order: submit in order, collect in order
         with ThreadPoolExecutor(max_workers=max_workers) as pool:
-            results = list(tqdm(pool.map(_generate_one, examples), total=len(examples), desc="Generating answers"))
+            results = list(
+                tqdm(
+                    pool.map(_generate_one, examples),
+                    total=len(examples),
+                    desc="Generating answers",
+                )
+            )
 
         responses = []
         for answer_text in results:
@@ -258,11 +264,24 @@ def _compute_metrics(results: list[ExampleResult], examples: list[HealthBenchExa
 
 def main():
     parser = argparse.ArgumentParser(description="Run HealthBench evaluation.")
-    parser.add_argument("--model-path", default="final_model", help="Hugging Face model ID or local path.")
+    parser.add_argument(
+        "--model-path",
+        default="final_model",
+        help="Hugging Face model ID or local path.",
+    )
     parser.add_argument("--max-new-tokens", type=int, default=16384)
-    parser.add_argument("--max-connections", type=int, default=64, help="Concurrent vLLM requests for generation.")
-    # this is a good limit for this task, you can keep it like that (or use less in case you want faster tests)
-    parser.add_argument("--limit", type=int, default=32, help="Limit number of examples for quicker runs.")
+    parser.add_argument(
+        "--max-connections",
+        type=int,
+        default=64,
+        help="Concurrent vLLM requests for generation.",
+    )
+    parser.add_argument(
+        "--limit",
+        type=int,
+        default=-1,
+        help="Sample cap for dev iteration. -1 = full set (default).",
+    )
     parser.add_argument(
         "--judge-workers",
         type=int,
@@ -276,9 +295,16 @@ def main():
         default="templates/",
     )
     parser.add_argument(
-        "--json-output-file", type=str, default=None, help="Optional path to output the metrics as a JSON file."
+        "--json-output-file",
+        type=str,
+        default=None,
+        help="Optional path to output the metrics as a JSON file.",
     )
-    parser.add_argument("--store-outputs", action="store_true", help="Store model answers to disk (default: off).")
+    parser.add_argument(
+        "--store-outputs",
+        action="store_true",
+        help="Store model answers to disk (default: off).",
+    )
     args = parser.parse_args()
 
     model_alias = _model_alias(args.model_path)

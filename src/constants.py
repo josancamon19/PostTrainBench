@@ -58,6 +58,16 @@ BENCHMARKS = {
         setup_note="- A final note: the evaluate.py script sometimes outputs ERROR warnings. "
         "Do not be alarmed by this, this is normal behavior for inspect-ai.\n",
     ),
+    "mmlu": BenchmarkInfo(
+        task_id="mmlu",
+        benchmark_name="MMLU (Massive Multitask Language Understanding)",
+        setup_note="",
+    ),
+    "ifeval": BenchmarkInfo(
+        task_id="ifeval",
+        benchmark_name="IFEval (Instruction-Following Evaluation)",
+        setup_note="",
+    ),
     "arenahardwriting": BenchmarkInfo(
         task_id="arenahardwriting",
         benchmark_name="Arena-Hard-v2.0 (Writing)",
@@ -194,14 +204,12 @@ INSTRUCT_BASELINES: dict[tuple[str, str], float] = {
 }
 
 # Regression suite: evals the verifier runs against final_model to surface
-# score changes on benchmarks the agent didn't train on. Interpretation
-# (what counts as forgetting vs generalization) is left to mine_trajectory —
-# this list just logs the numbers. Long-gen OpenAI-judged benchmarks
-# (arenahardwriting, healthbench) are excluded due to judge cost + latency.
+# score changes on benchmarks the agent didn't train on. Long-gen OpenAI-judged
+# benchmarks (arenahardwriting, healthbench) are excluded due to judge cost +
+# latency. truthfulqa dropped because of position-bias noise.
 REGRESSION_EVALS: list[str] = [
     "mmlu",
     "ifeval",
-    "truthfulqa",
     "gsm8k",
     "humaneval",
     "gpqamain",
@@ -210,19 +218,14 @@ REGRESSION_EVALS: list[str] = [
 
 REGRESSION_BASE_SCORES: dict[tuple[str, str], float] = {
     ("Qwen/Qwen3-30B-A3B-Base", "mmlu"): 0.771,
-    ("Qwen/Qwen3-30B-A3B-Base", "truthfulqa"): 0.606,
     ("Qwen/Qwen3-30B-A3B-Base", "ifeval"): 0.527,
     ("Qwen/Qwen3-8B-Base", "mmlu"): 0.723,
-    ("Qwen/Qwen3-8B-Base", "truthfulqa"): 0.752,
     ("Qwen/Qwen3-8B-Base", "ifeval"): 0.571,
     ("meta-llama/Llama-3.1-8B", "mmlu"): 0.107,
-    ("meta-llama/Llama-3.1-8B", "truthfulqa"): 0.494,
     ("meta-llama/Llama-3.1-8B", "ifeval"): 0.159,
     ("meta-llama/Llama-3.2-3B", "mmlu"): 0.219,
-    # ("meta-llama/Llama-3.2-3B", "truthfulqa") — dropped; position bias
     ("meta-llama/Llama-3.2-3B", "ifeval"): 0.163,
     ("meta-llama/Llama-3.2-1B", "mmlu"): 0.199,
-    # ("meta-llama/Llama-3.2-1B", "truthfulqa") — dropped; position bias
     ("meta-llama/Llama-3.2-1B", "ifeval"): 0.150,
 }
 # fmt: on
