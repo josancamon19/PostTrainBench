@@ -254,10 +254,9 @@ def _dataset_label(datasets: list[str]) -> str:
 
 
 def _hp_label(curr: dict, prev: dict | None) -> str:
-    """For the first experiment, show a few salient hyperparams.
-    For later ones, show only what changed vs. the prior experiment."""
+    """First experiment → salient absolute hps; later ones → what changed."""
     if prev is None:
-        return " ".join(f"{k}={curr[k]}" for k in _HP_PRIORITY if k in curr)[:60]
+        return " ".join(f"{k}={curr[k]}" for k in _HP_PRIORITY if k in curr)[:40]
 
     deltas: list[str] = []
     for k in sorted(set(curr) | set(prev)):
@@ -270,7 +269,7 @@ def _hp_label(curr: dict, prev: dict | None) -> str:
             deltas.append(f"-{k}")
         else:
             deltas.append(f"{k}:{pv}→{cv}")
-    return " ".join(deltas[:3])[:60] if deltas else "same hp"
+    return " ".join(deltas[:2])[:40] if deltas else ""  # empty if unchanged — skip annotation
 
 
 def _annotation_text(exp: Experiment | None, prev_exp: Experiment | None) -> str:
@@ -314,8 +313,12 @@ def render_progress_plot(rec: Reconstruction, target_benchmark: str | None, out_
         ys = [p.score for p in pts]
         ax.plot(xs, ys, "-", alpha=0.2, linewidth=1, label=f"{bench} trace")
 
-    # Method-colored scatter with diff annotation per dot.
+    # Method-colored scatter. Annotate only the first eval per experiment
+    # (all later evals are the same experiment at a different step) and
+    # alternate the label offset above/below to reduce overlap.
     seen_methods: set[str] = set()
+    annotated_seq: set[int] = set()
+    alt = 0
     for p in points:
         exp = exp_by_seq.get(p.experiment_sequence) if p.experiment_sequence is not None else None
         method = exp.method if exp else "other"
@@ -324,26 +327,34 @@ def render_progress_plot(rec: Reconstruction, target_benchmark: str | None, out_
         seen_methods.add(method)
         x = _hours_since(p.timestamp, base_t)
         ax.scatter(
-            x, p.score, marker=marker, color=color, s=90, edgecolors="black", linewidths=0.5, label=label, zorder=3
+            x, p.score, marker=marker, color=color, s=70, edgecolors="black", linewidths=0.5, label=label, zorder=3
         )
 
-        ann = _annotation_text(exp, prev_by_seq.get(exp.sequence) if exp else None)
-        if ann:
-            ax.annotate(
-                ann,
-                xy=(x, p.score),
-                xytext=(6, 8),
-                textcoords="offset points",
-                fontsize=6.5,
-                color="black",
-                bbox={
-                    "boxstyle": "round,pad=0.2",
-                    "facecolor": "white",
-                    "edgecolor": color,
-                    "linewidth": 0.7,
-                    "alpha": 0.85,
-                },
-            )
+        # One annotation per experiment, placed at its first eval point.
+        if exp is None or exp.sequence in annotated_seq:
+            continue
+        annotated_seq.add(exp.sequence)
+        ann = _annotation_text(exp, prev_by_seq.get(exp.sequence))
+        if not ann:
+            continue
+        dy = 12 if alt % 2 == 0 else -24
+        alt += 1
+        ax.annotate(
+            ann,
+            xy=(x, p.score),
+            xytext=(6, dy),
+            textcoords="offset points",
+            fontsize=7,
+            color="black",
+            arrowprops={"arrowstyle": "-", "color": color, "lw": 0.5, "alpha": 0.5},
+            bbox={
+                "boxstyle": "round,pad=0.25",
+                "facecolor": "white",
+                "edgecolor": color,
+                "linewidth": 0.7,
+                "alpha": 0.9,
+            },
+        )
 
     # Best-so-far line on the target benchmark.
     target_pts = by_bench.get(target_benchmark) if target_benchmark else None

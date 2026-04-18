@@ -20,6 +20,7 @@ import argparse
 import json
 import subprocess
 import sys
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).parent.parent
@@ -77,11 +78,15 @@ def _rerun_tinker_one(eval_id: str, checkpoint: str, base_model: str, out_json: 
     return {"status": "ok" if proc.returncode == 0 and score is not None else f"exit_{proc.returncode}", "score": score}
 
 
-def rerun_trial(trial_dir: Path) -> bool:
+def rerun_trial(trial_dir: Path, skip_existing: bool = False) -> bool:
     meta_path = trial_dir / "artifacts" / "workspace" / "metadata.json"
     if not meta_path.exists():
         print(f"  {trial_dir.name}: skipped (no metadata.json)")
         return False
+    out_metrics = trial_dir / "reconstructed" / "regression_metrics.json"
+    if skip_existing and out_metrics.exists():
+        print(f"  {trial_dir.name}: skipped (already has regression_metrics.json)")
+        return True
     meta = json.loads(meta_path.read_text())
     mode = meta.get("mode")
     baselines = meta.get("regression_baselines") or {}
@@ -139,19 +144,33 @@ def _is_trial(p: Path) -> bool:
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("path", type=Path, help="Trial dir or job dir")
+    p.add_argument("--workers", type=int, default=1, help="Parallel trial count (Tinker handles the fanout)")
+    p.add_argument("--skip-existing", action="store_true", help="Skip trials that already have regression_metrics.json")
     args = p.parse_args()
     path = args.path.resolve()
     trials = [path] if _is_trial(path) else sorted([c for c in path.iterdir() if c.is_dir() and _is_trial(c)])
     if not trials:
         print(f"no trials under {path}", file=sys.stderr)
         return 1
+
     ok = 0
-    for t in trials:
-        try:
-            if rerun_trial(t):
-                ok += 1
-        except Exception as e:
-            print(f"  ERROR on {t.name}: {e}", file=sys.stderr)
+    if args.workers <= 1:
+        for t in trials:
+            try:
+                if rerun_trial(t, skip_existing=args.skip_existing):
+                    ok += 1
+            except Exception as e:
+                print(f"  ERROR on {t.name}: {e}", file=sys.stderr)
+    else:
+        with ThreadPoolExecutor(max_workers=args.workers) as ex:
+            futs = {ex.submit(rerun_trial, t, args.skip_existing): t for t in trials}
+            for fut in as_completed(futs):
+                t = futs[fut]
+                try:
+                    if fut.result():
+                        ok += 1
+                except Exception as e:
+                    print(f"  ERROR on {t.name}: {e}", file=sys.stderr)
     print(f"\nDone: {ok}/{len(trials)} reran.")
     return 0
 
