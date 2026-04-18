@@ -22,12 +22,27 @@ import argparse
 import json
 import subprocess
 import sys
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(REPO_ROOT / "src"))
-from constants import REGRESSION_EVALS  # noqa: E402
+from constants import BASE_SCORES, REGRESSION_BASE_SCORES, REGRESSION_EVALS  # noqa: E402
+
+
+def _baselines_for(model_id: str, reg_ids: list[str]) -> dict[str, float | None]:
+    """Fallback when metadata doesn't carry regression_baselines (older trials
+    predate the regression suite). Layer A from REGRESSION_BASE_SCORES, Layer B
+    from BASE_SCORES — same precedence the adapter uses at export time."""
+    out: dict[str, float | None] = {}
+    for reg_id in reg_ids:
+        v = REGRESSION_BASE_SCORES.get((model_id, reg_id))
+        if v is None:
+            v = BASE_SCORES.get((model_id, reg_id))
+        out[reg_id] = v
+    return out
+
 
 EVALS_DIR = REPO_ROOT / "src" / "harbor_template" / "tests" / "evals"
 TASKS_DIR = REPO_ROOT / "src" / "tasks"
@@ -70,15 +85,18 @@ def _rerun_tinker_one(eval_id: str, checkpoint: str, base_model: str, out_json: 
         "--json-output-file",
         str(out_json),
     ]
+    start = time.time()
     try:
         with stdout_file.open("w") as f:
             proc = subprocess.run(cmd, cwd=str(REPO_ROOT), stdout=f, stderr=subprocess.STDOUT, timeout=3600)
     except subprocess.TimeoutExpired:
-        return {"status": "timeout", "score": None}
+        return {"status": "timeout", "score": None, "seconds": round(time.time() - start, 1)}
     except Exception as e:
-        return {"status": "error", "score": None, "error": str(e)}
+        return {"status": "error", "score": None, "error": str(e), "seconds": round(time.time() - start, 1)}
+    elapsed = round(time.time() - start, 1)
     score = _read_metric(out_json)
-    return {"status": "ok" if proc.returncode == 0 and score is not None else f"exit_{proc.returncode}", "score": score}
+    status = "ok" if proc.returncode == 0 and score is not None else f"exit_{proc.returncode}"
+    return {"status": status, "score": score, "seconds": elapsed}
 
 
 def rerun_trial(trial_dir: Path, skip_existing: bool = False) -> bool:
@@ -94,10 +112,10 @@ def rerun_trial(trial_dir: Path, skip_existing: bool = False) -> bool:
         return True
     meta = json.loads(meta_path.read_text())
     mode = meta.get("mode")
-    baselines = meta.get("regression_baselines") or {}
     benchmark_id = meta.get("benchmark_id")
     model_id = meta.get("model_id")
     reg_ids = [b for b in REGRESSION_EVALS if b != benchmark_id]
+    baselines = meta.get("regression_baselines") or _baselines_for(model_id, reg_ids)
 
     print(f"\n=== {trial_dir.name} (mode={mode}, model={model_id}) ===")
 
