@@ -34,10 +34,11 @@ LANG_CONFIGS = [
     "ZH_CN",
 ]
 
-# Pin vllm + transformers to a known-good pair; newer transformers breaks vllm.
+# vllm 0.8.5 ships with Qwen3 support; pinning transformers 4.49 because
+# 4.52+ breaks the tokenizer backend vllm expects.
 IMAGE = modal.Image.debian_slim(python_version="3.11").pip_install(
-    "vllm==0.6.6.post1",
-    "transformers==4.46.3",
+    "vllm==0.8.5",
+    "transformers==4.51.3",
     "datasets>=2.0",
     "huggingface-hub>=0.25",
 )

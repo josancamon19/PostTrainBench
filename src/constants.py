@@ -130,6 +130,7 @@ SCORES: dict[str, dict] = {
             "gpqamain":        (0.181,  0.304),
             "arenahardwriting":(0.017,  0.467),
             "healthbench":     (0.214,  0.234),
+            "mmmlu":           (0.161,  0.443),
         },
     },
     "meta-llama/Llama-3.2-3B": {
@@ -141,6 +142,7 @@ SCORES: dict[str, dict] = {
             "gpqamain":        (0.252,  0.328), # ✅
             "arenahardwriting":(0.005,  0.433), # ✅
             "healthbench":     (0.134,  0.256), # ✅
+            "mmmlu":           (0.141,  0.380),
         },
     },
     "meta-llama/Llama-3.2-1B": {
@@ -152,6 +154,7 @@ SCORES: dict[str, dict] = {
             "gpqamain":        (0.132,  0.225), # ✅
             "arenahardwriting":(0.0,    0.200), # ✅
             "healthbench":     (0.054,  0.139), # ✅
+            "mmmlu":           (0.174,  0.301),
         },
     },
     "Qwen/Qwen3-8B-Base": {
@@ -163,6 +166,7 @@ SCORES: dict[str, dict] = {
             "gpqamain":        (0.388,  0.534),
             "arenahardwriting":(0.341,  0.820),
             "healthbench":     (0.287,  0.542),
+            # "mmmlu":           (0.571,  0.568),  # base > target (instruct's chat format hurts letter-match)
         },
     },
     "Qwen/Qwen3-30B-A3B-Base": {
@@ -174,6 +178,7 @@ SCORES: dict[str, dict] = {
             "gpqamain":        (0.462,  0.580),
             "arenahardwriting":(0.475,  0.860),
             "healthbench":     (0.301,  0.580),
+            # "mmmlu":           (0.627,  0.612),  # base > target (instruct's chat format hurts letter-match)
         },
     },
 }
