@@ -22,6 +22,24 @@ TEMPLATE_DIR = Path(__file__).parent / "harbor_template"
 SRC_DIR = Path(__file__).parent
 
 
+def _regression_eval_source(reg_id: str, mode: str) -> Path | None:
+    """Find the right evaluate script for a regression eval.
+    Preference: regression-only evals (tests/evals/<id>/) → training-target
+    evals (src/tasks/<id>/). Filename flips on tinker mode."""
+    fname = "evaluate_tinker.py" if mode == "tinker" else "evaluate.py"
+    for candidate in (
+        TEMPLATE_DIR / "tests" / "evals" / reg_id / fname,
+        SRC_DIR / "tasks" / reg_id / fname,
+    ):
+        if candidate.exists():
+            return candidate
+    return None
+
+
+def _has_tinker_eval(reg_id: str) -> bool:
+    return _regression_eval_source(reg_id, "tinker") is not None
+
+
 class PostTrainBenchAdapter:
     """Adapter to generate Harbor tasks from PostTrainBench configuration."""
 
@@ -246,24 +264,25 @@ fi
         if base is not None:
             metadata["base_score"] = base
 
-        # Regression suite: evals the verifier runs on final_model, excluding the target.
-        # Only for GPU modes (tinker mode has a different eval flow).
-        if self.mode != "tinker":
-            regression_ids = [bid for bid in REGRESSION_EVALS if bid != benchmark_id]
-            metadata["regression_benchmarks"] = regression_ids
-            # Baselines come from REGRESSION_BASE_SCORES first (regression-only
-            # evals: mmlu/ifeval/truthfulqa) and fall back to BASE_SCORES
-            # (training-target evals: gsm8k/humaneval/gpqamain/aime2025).
-            # If neither has a measurement, the entry is None and regression_suite
-            # skips it in the forgetting penalty rather than counting as 0.
-            metadata["regression_baselines"] = {
-                bid: (
-                    REGRESSION_BASE_SCORES.get((model_info.model_id, bid))
-                    if (model_info.model_id, bid) in REGRESSION_BASE_SCORES
-                    else BASE_SCORES.get((model_info.model_id, bid))
-                )
-                for bid in regression_ids
-            }
+        # Regression suite: evals the verifier runs on final_model, excluding
+        # the target. Same set across all modes; evaluate.py differs (vLLM for
+        # GPU, Tinker API for tinker) but metadata shape is identical.
+        regression_ids = [bid for bid in REGRESSION_EVALS if bid != benchmark_id]
+        # For tinker, only keep evals that have an evaluate_tinker.py available.
+        if self.mode == "tinker":
+            regression_ids = [bid for bid in regression_ids if _has_tinker_eval(bid)]
+        metadata["regression_benchmarks"] = regression_ids
+        # Baselines come from REGRESSION_BASE_SCORES first (regression-only
+        # evals: mmlu/ifeval/truthfulqa) and fall back to BASE_SCORES
+        # (training-target evals: gsm8k/humaneval/gpqamain/aime2025).
+        metadata["regression_baselines"] = {
+            bid: (
+                REGRESSION_BASE_SCORES.get((model_info.model_id, bid))
+                if (model_info.model_id, bid) in REGRESSION_BASE_SCORES
+                else BASE_SCORES.get((model_info.model_id, bid))
+            )
+            for bid in regression_ids
+        }
 
         (env_dir / "metadata.json").write_text(json.dumps(metadata, indent=2))
 
@@ -296,39 +315,45 @@ fi
             if templates_src.exists():
                 shutil.copytree(templates_src, tests_dir / "templates", dirs_exist_ok=True)
 
-            # Regression suite evaluators. Each lives under tests/regression/<id>/evaluate.py
-            # so suite.py can invoke them without touching the target's evaluate.py.
-            # Source preference: regression-only evals (mmlu/ifeval/truthfulqa) live under
-            # harbor_template/tests/regressions/; benchmarks that are also training targets
-            # (gsm8k/humaneval/etc.) reuse src/tasks/<id>/evaluate.py.
-            regression_root = tests_dir / "regression"
-            for reg_id in REGRESSION_EVALS:
-                if reg_id == benchmark_id:
-                    continue
-                regression_only_src = TEMPLATE_DIR / "tests" / "evals" / reg_id / "evaluate.py"
-                task_src = SRC_DIR / "tasks" / reg_id / "evaluate.py"
-                src = regression_only_src if regression_only_src.exists() else task_src
-                if not src.exists():
-                    continue
-                dst_dir = regression_root / reg_id
-                dst_dir.mkdir(parents=True, exist_ok=True)
-                shutil.copy(src, dst_dir / "evaluate.py")
-                reg_code = SRC_DIR / "tasks" / reg_id / "evaluation_code"
-                if reg_code.is_dir():
-                    shutil.copytree(reg_code, dst_dir / "evaluation_code", dirs_exist_ok=True)
-            # Verifier subsystems live under tests/{judge,regression,compute,hooks}/.
-            for subdir, src_name, dst_name in [
-                ("regression", "suite.py", "suite.py"),
-                ("compute", "parser.py", "parser.py"),
-                ("hooks", "hf_upload.py", "hf_upload.py"),
-                ("judge", "judge.py", "judge.py"),
-                ("judge", "prompt.txt", "prompt.txt"),
-            ]:
-                src = TEMPLATE_DIR / "tests" / subdir / src_name
-                if src.exists():
-                    dst = tests_dir / subdir / dst_name
-                    dst.parent.mkdir(parents=True, exist_ok=True)
-                    shutil.copy(src, dst)
+        # Regression suite evaluators — mode-aware (evaluate.py for GPU,
+        # evaluate_tinker.py for tinker). Both land as tests/regression/<id>/
+        # evaluate.py so suite.py invokes a consistent filename.
+        regression_root = tests_dir / "regression"
+        for reg_id in REGRESSION_EVALS:
+            if reg_id == benchmark_id:
+                continue
+            src = _regression_eval_source(reg_id, self.mode)
+            if src is None:
+                continue
+            dst_dir = regression_root / reg_id
+            dst_dir.mkdir(parents=True, exist_ok=True)
+            shutil.copy(src, dst_dir / "evaluate.py")
+            # evaluation_code only exists for training-target GPU evals.
+            reg_code = SRC_DIR / "tasks" / reg_id / "evaluation_code"
+            if reg_code.is_dir() and self.mode != "tinker":
+                shutil.copytree(reg_code, dst_dir / "evaluation_code", dirs_exist_ok=True)
+
+        # Verifier subsystems live under tests/{judge,regression,compute,hooks}/.
+        # compute/hooks don't apply to tinker (no GPU sampler, no on-disk model),
+        # but judge + regression/suite.py do.
+        subsystems = [
+            ("regression", "suite.py", "suite.py"),
+            ("judge", "judge.py", "judge.py"),
+            ("judge", "prompt.txt", "prompt.txt"),
+        ]
+        if self.mode != "tinker":
+            subsystems.extend(
+                [
+                    ("compute", "parser.py", "parser.py"),
+                    ("hooks", "hf_upload.py", "hf_upload.py"),
+                ]
+            )
+        for subdir, src_name, dst_name in subsystems:
+            src = TEMPLATE_DIR / "tests" / subdir / src_name
+            if src.exists():
+                dst = tests_dir / subdir / dst_name
+                dst.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy(src, dst)
 
         eval_code_src = SRC_DIR / "tasks" / benchmark_id / "evaluation_code"
         if eval_code_src.is_dir():

@@ -19,10 +19,10 @@ datasets:
 agents:
   # - name: oracle
   # - name: nop
-  # - name: claude-code
-  #   model_name: global.anthropic.claude-opus-4-6-v1
-  #   env:
-  #     CLAUDE_CODE_MAX_OUTPUT_TOKENS: "65536"
+  - name: claude-code
+    model_name: global.anthropic.claude-opus-4-6-v1
+    env:
+      CLAUDE_CODE_MAX_OUTPUT_TOKENS: "65536"
   - name: gemini-cli
     model_name: gemini/gemini-3-flash-preview
   # - name: codex

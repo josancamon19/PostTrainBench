@@ -74,8 +74,20 @@ def kill_gpu_processes() -> None:
     time.sleep(5)
 
 
-def run_one(reg_id: str, model_path: Path, tests_dir: Path, logs_dir: Path) -> dict:
-    """Run a single regression eval. Never raises — captures errors into the result."""
+def run_one(
+    reg_id: str,
+    model_path: str,
+    tests_dir: Path,
+    logs_dir: Path,
+    mode: str,
+    model_id: str,
+) -> dict:
+    """Run a single regression eval. Never raises — captures errors into the result.
+
+    mode/model_id drive the CLI shape:
+      - gpu / gpu-runpod: evaluate.py --model-path <path> --templates-dir ...
+      - tinker:          evaluate.py --checkpoint <URI> --base-model <model_id>
+    """
     eval_dir = tests_dir / "regression" / reg_id
     evaluate_py = eval_dir / "evaluate.py"
     templates_dir = tests_dir / "templates"
@@ -85,26 +97,44 @@ def run_one(reg_id: str, model_path: Path, tests_dir: Path, logs_dir: Path) -> d
     if not evaluate_py.exists():
         return {"status": "missing_evaluate", "score": None}
 
-    kill_gpu_processes()
+    if mode != "tinker":
+        kill_gpu_processes()
 
     limit = _LIMIT_OVERRIDES.get(reg_id)
-    cmd = [
-        sys.executable,
-        str(evaluate_py),
-        "--model-path",
-        str(model_path),
-        "--json-output-file",
-        str(out_json),
-        "--templates-dir",
-        str(templates_dir),
-    ]
+    if mode == "tinker":
+        cmd = [
+            sys.executable,
+            str(evaluate_py),
+            "--checkpoint",
+            model_path,
+            "--base-model",
+            model_id,
+            "--json-output-file",
+            str(out_json),
+        ]
+    else:
+        cmd = [
+            sys.executable,
+            str(evaluate_py),
+            "--model-path",
+            str(model_path),
+            "--json-output-file",
+            str(out_json),
+            "--templates-dir",
+            str(templates_dir),
+        ]
     if limit is not None:
         cmd.extend(["--limit", str(limit)])
+
+    # For tinker, evaluate_tinker.py imports tinker_util from repo root via
+    # sys.path hacks — put /tests first so it finds /tests/tinker_util.py.
+    env = dict(os.environ)
+    env["PYTHONPATH"] = str(tests_dir) + os.pathsep + env.get("PYTHONPATH", "")
 
     start = time.time()
     try:
         with open(stdout_file, "w") as f:
-            proc = subprocess.run(cmd, stdout=f, stderr=subprocess.STDOUT, timeout=3600)
+            proc = subprocess.run(cmd, stdout=f, stderr=subprocess.STDOUT, timeout=3600, env=env)
         rc = proc.returncode
     except subprocess.TimeoutExpired:
         return {"status": "timeout", "score": None, "seconds": time.time() - start}
@@ -131,17 +161,20 @@ def main() -> int:
     metadata = json.loads(Path(args.metadata).read_text())
     reg_ids: list[str] = metadata.get("regression_benchmarks", [])
     baselines: dict[str, float | None] = metadata.get("regression_baselines", {}) or {}
+    mode: str = metadata.get("mode", "gpu")
+    model_id: str = metadata.get("model_id", "")
 
-    model_path = Path(args.model_path)
+    # For tinker, model_path is a checkpoint URI (str); for GPU it's a dir path.
+    model_path = args.model_path
     tests_dir = Path(args.tests_dir)
     logs_dir = Path(args.logs_dir)
     logs_dir.mkdir(parents=True, exist_ok=True)
 
-    print(f"Regression suite: {len(reg_ids)} evals", flush=True)
+    print(f"Regression suite ({mode}): {len(reg_ids)} evals", flush=True)
     results: dict[str, dict] = {}
     for reg_id in reg_ids:
         print(f"  -> {reg_id}", flush=True)
-        res = run_one(reg_id, model_path, tests_dir, logs_dir)
+        res = run_one(reg_id, model_path, tests_dir, logs_dir, mode, model_id)
         baseline = baselines.get(reg_id)
         res["baseline"] = baseline
         res["delta"] = res["score"] - baseline if (res["score"] is not None and baseline is not None) else None
