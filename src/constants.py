@@ -52,6 +52,12 @@ BENCHMARKS = {
         setup_note="- A final note: the evaluate.py script sometimes outputs ERROR warnings. "
         "Do not be alarmed by this, this is normal behavior for inspect-ai.\n",
     ),
+    "mmmlu": BenchmarkInfo(
+        task_id="mmmlu",
+        benchmark_name="Massively Multilingual MMLU (OpenAI)",
+        setup_note="- A final note: the evaluate.py script sometimes outputs ERROR warnings. "
+        "Do not be alarmed by this, this is normal behavior for inspect-ai.\n",
+    ),
     "arenahardwriting": BenchmarkInfo(
         task_id="arenahardwriting",
         benchmark_name="Arena-Hard-v2.0 (Writing)",
