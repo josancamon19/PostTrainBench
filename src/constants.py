@@ -16,7 +16,8 @@ class ModelInfo:
     model_id: str
     short_name: str
     instruct_id: str = ""  # HF model ID of the instruct variant (for baseline oracle)
-    tinker: bool = True  # Whether available on Tinker (remote API mode)
+    tinker: bool = True  # Whether the base model is available on Tinker
+    tinker_instruct: bool = False  # Whether the instruct variant is served on Tinker
     # Max concurrent vLLM requests on H100 80GB (scaled by model size + KV cache)
     max_connections: int = 64  # for short-generation benchmarks (~2k tokens)
     max_connections_long: int = 8  # for long-generation benchmarks (~16k tokens)
@@ -92,6 +93,7 @@ MODELS = {
         model_id="meta-llama/Llama-3.1-8B",
         short_name="llama3.1-8b",
         instruct_id="meta-llama/Llama-3.1-8B-Instruct",
+        tinker_instruct=True,
         max_connections=64,
         max_connections_long=8,
     ),
@@ -113,6 +115,7 @@ MODELS = {
         model_id="Qwen/Qwen3-8B-Base",
         short_name="qwen3-8b",
         instruct_id="Qwen/Qwen3-8B",
+        tinker_instruct=True,
         max_connections=64,
         max_connections_long=8,
     ),
@@ -120,6 +123,7 @@ MODELS = {
         model_id="Qwen/Qwen3-30B-A3B-Base",
         short_name="qwen3-30b-a3b",
         instruct_id="Qwen/Qwen3-30B-A3B",
+        tinker_instruct=True,
         max_connections=16,
         max_connections_long=4,
     ),
@@ -140,6 +144,8 @@ SCORES: dict[str, dict] = {
             "gpqamain":        (0.181,  0.304),
             "arenahardwriting":(0.017,  0.467),
             "healthbench":     (0.214,  0.234),
+            "mmlu":            (0.106,  0.650), # full Tinker eval (14k samples)
+            "ifeval":          (0.161,  0.739), # full Tinker eval (541 prompts)
             "mmmlu":           (0.161,  0.443),
         },
     },
@@ -152,6 +158,8 @@ SCORES: dict[str, dict] = {
             "gpqamain":        (0.252,  0.328), # ✅
             "arenahardwriting":(0.005,  0.433), # ✅
             "healthbench":     (0.134,  0.256), # ✅
+            "mmlu":            (0.217,  0.580), # base Tinker, target Modal (vllm)
+            "ifeval":          (0.161,  0.677), # base Tinker, target Modal (vllm)
             "mmmlu":           (0.141,  0.380),
         },
     },
@@ -164,6 +172,8 @@ SCORES: dict[str, dict] = {
             "gpqamain":        (0.132,  0.225), # ✅
             "arenahardwriting":(0.0,    0.200), # ✅
             "healthbench":     (0.054,  0.139), # ✅
+            "mmlu":            (0.199,  0.350), # base Tinker, target Modal (vllm)
+            "ifeval":          (0.152,  0.444), # base Tinker, target Modal (vllm)
             "mmmlu":           (0.174,  0.301),
         },
     },
@@ -217,15 +227,11 @@ REGRESSION_EVALS: list[str] = [
 
 
 REGRESSION_BASE_SCORES: dict[tuple[str, str], float] = {
+    # Llama mmlu/ifeval moved into SCORES (first-class tasks). Only Qwen
+    # regression-only entries remain here.
     ("Qwen/Qwen3-30B-A3B-Base", "mmlu"): 0.771,
     ("Qwen/Qwen3-30B-A3B-Base", "ifeval"): 0.527,
     ("Qwen/Qwen3-8B-Base", "mmlu"): 0.723,
     ("Qwen/Qwen3-8B-Base", "ifeval"): 0.571,
-    ("meta-llama/Llama-3.1-8B", "mmlu"): 0.107,
-    ("meta-llama/Llama-3.1-8B", "ifeval"): 0.159,
-    ("meta-llama/Llama-3.2-3B", "mmlu"): 0.219,
-    ("meta-llama/Llama-3.2-3B", "ifeval"): 0.163,
-    ("meta-llama/Llama-3.2-1B", "mmlu"): 0.199,
-    ("meta-llama/Llama-3.2-1B", "ifeval"): 0.150,
 }
 # fmt: on

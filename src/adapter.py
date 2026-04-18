@@ -401,6 +401,9 @@ fi
             dst = solution_dir / "solve.sh"
             content = solution_src.read_text()
             content = content.replace("{instruct_id}", model_info.instruct_id or "")
+            # Tinker oracle: only pass instruct_id when Tinker actually serves it.
+            instruct_oracle = model_info.instruct_id if model_info.tinker_instruct else ""
+            content = content.replace("{instruct_oracle_id}", instruct_oracle)
             dst.write_text(content)
             dst.chmod(0o755)
 
