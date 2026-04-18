@@ -1,24 +1,15 @@
 n_attempts: 1
 name: posttrainbench
 description: |
-  PostTrainBench measures the ability of CLI agents to post-train pre-trained
-  LLMs. The agent is given a base model, an H100 GPU, and 10 hours to improve
-  the model's performance on a given benchmark.
+  PostTrainBench measures the ability of CLI agents to post-train pre-trained LLMs. The agent is given a base model, an H100 GPU, and 10 hours to improve the model's performance on a given benchmark.
 
 datasets:
   - path: datasets/posttrainbench/tinker
-    task_names: # gemini-cli retries (Mac crash + agent failures)
-      - "arenahardwriting-llama3.2-1b-tinker"
-      - "arenahardwriting-llama3.2-3b-tinker"
-      - "gpqamain-llama3.2-3b-tinker"
-      - "healthbench-llama3.2-1b-tinker"
-      - "healthbench-llama3.2-3b-tinker"
-      - "humaneval-llama3.2-1b-tinker"
-      - "humaneval-llama3.2-3b-tinker"
+    task_names:
+      - "mmmlu-llama3.2-1b-tinker"
+      - "mmmlu-llama3.2-3b-tinker"
 
 agents:
-  # - name: oracle
-  # - name: nop
   - name: claude-code
     model_name: global.anthropic.claude-opus-4-6-v1
     env:
