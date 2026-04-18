@@ -25,11 +25,22 @@ SRC_DIR = Path(__file__).parent
 class PostTrainBenchAdapter:
     """Adapter to generate Harbor tasks from PostTrainBench configuration."""
 
-    def __init__(self, output_dir: Path, num_hours: float = 10, mode: str = "gpu", include_target: bool = False):
+    def __init__(
+        self,
+        output_dir: Path,
+        num_hours: float = 10,
+        mode: str = "gpu",
+        include_target: bool = False,
+        force: bool = False,
+    ):
         self.output_dir = Path(output_dir)
         self.num_hours = num_hours
         self.mode = mode  # "gpu", "tinker", or "gpu-runpod"
         self.include_target = include_target
+        # When true, export even (benchmark, model) pairs without measured
+        # SCORES. Useful for bootstrapping a new benchmark: export → run oracle
+        # → harvest the target score from the verifier's metrics.json.
+        self.force = force
 
     def _read_benchmark_name(self, benchmark_id: str) -> str:
         bench_file = SRC_DIR / "tasks" / benchmark_id / "benchmark.txt"
@@ -384,9 +395,9 @@ fi
                 key = (model_info.model_id, benchmark_id)
                 target = INSTRUCT_BASELINES.get(key)
                 base = BASE_SCORES.get(key)
-                if target is None or base is None:
+                if (target is None or base is None) and not self.force:
                     continue
-                if self.include_target and base >= target:
+                if self.include_target and target is not None and base is not None and base >= target:
                     print(
                         f"  WARNING: Skipping {benchmark_id}/{model_info.short_name}: "
                         f"base ({base:.3f}) >= target ({target:.3f}). "
@@ -419,6 +430,7 @@ def generate(
     list: bool = False,
     mode: str = "all",
     include_target: bool = True,
+    force: bool = False,
 ) -> None:
     """Generate Harbor tasks for PostTrainBench.
 
@@ -455,7 +467,9 @@ def generate(
     for m in modes:
         mode_output = output / m
         hours = num_hours if num_hours is not None else (1 if m == "tinker" else 10)
-        adapter = PostTrainBenchAdapter(output_dir=mode_output, num_hours=hours, mode=m, include_target=include_target)
+        adapter = PostTrainBenchAdapter(
+            output_dir=mode_output, num_hours=hours, mode=m, include_target=include_target, force=force
+        )
 
         if all:
             print(f"Generating {m} tasks to {mode_output}/...")
