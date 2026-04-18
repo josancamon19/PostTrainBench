@@ -7,8 +7,10 @@ Dispatches on mode (read from artifacts/workspace/metadata.json):
   - gpu / gpu-runpod: needs a GPU to run vLLM. Currently flagged as TODO —
     would require a Modal wrapper around tests/regression/suite.py.
 
-Writes <trial-dir>/reconstructed/regression_metrics.json (won't clobber
-the verifier's original at <trial-dir>/verifier/regression_metrics.json).
+Writes to <trial-dir>/verifier/ — regression_metrics.json,
+regression_<id>_metrics.json, regression_<id>.txt — so the output
+is indistinguishable from what the verifier would have produced on
+a live trial.
 
 Usage:
     python scripts/_5_rerun_regressions.py <trial-or-job-dir>
@@ -54,7 +56,7 @@ def _read_metric(path: Path) -> float | None:
     return None
 
 
-def _rerun_tinker_one(eval_id: str, checkpoint: str, base_model: str, out_json: Path) -> dict:
+def _rerun_tinker_one(eval_id: str, checkpoint: str, base_model: str, out_json: Path, stdout_file: Path) -> dict:
     script = _eval_tinker_script(eval_id)
     if script is None:
         return {"status": "no_tinker_eval", "score": None}
@@ -69,7 +71,8 @@ def _rerun_tinker_one(eval_id: str, checkpoint: str, base_model: str, out_json: 
         str(out_json),
     ]
     try:
-        proc = subprocess.run(cmd, cwd=str(REPO_ROOT), timeout=3600)
+        with stdout_file.open("w") as f:
+            proc = subprocess.run(cmd, cwd=str(REPO_ROOT), stdout=f, stderr=subprocess.STDOUT, timeout=3600)
     except subprocess.TimeoutExpired:
         return {"status": "timeout", "score": None}
     except Exception as e:
@@ -83,7 +86,9 @@ def rerun_trial(trial_dir: Path, skip_existing: bool = False) -> bool:
     if not meta_path.exists():
         print(f"  {trial_dir.name}: skipped (no metadata.json)")
         return False
-    out_metrics = trial_dir / "reconstructed" / "regression_metrics.json"
+    out_dir = trial_dir / "verifier"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out_metrics = out_dir / "regression_metrics.json"
     if skip_existing and out_metrics.exists():
         print(f"  {trial_dir.name}: skipped (already has regression_metrics.json)")
         return True
@@ -102,13 +107,12 @@ def rerun_trial(trial_dir: Path, skip_existing: bool = False) -> bool:
             print("  missing best_checkpoint.txt — skipping")
             return False
         checkpoint = cp_file.read_text().strip()
-        out_dir = trial_dir / "reconstructed"
-        out_dir.mkdir(parents=True, exist_ok=True)
         results: dict[str, dict] = {}
         for reg_id in reg_ids:
             out_json = out_dir / f"regression_{reg_id}_metrics.json"
+            stdout_file = out_dir / f"regression_{reg_id}.txt"
             print(f"  → {reg_id}…", flush=True)
-            res = _rerun_tinker_one(reg_id, checkpoint, model_id, out_json)
+            res = _rerun_tinker_one(reg_id, checkpoint, model_id, out_json, stdout_file)
             baseline = baselines.get(reg_id)
             res["baseline"] = baseline
             res["delta"] = (res["score"] - baseline) if (res["score"] is not None and baseline is not None) else None
@@ -124,7 +128,7 @@ def rerun_trial(trial_dir: Path, skip_existing: bool = False) -> bool:
             "forgetting_penalty_mean": (sum(penalties) / len(penalties)) if penalties else 0.0,
             "evals_with_baseline_count": len(penalties),
         }
-        (out_dir / "regression_metrics.json").write_text(json.dumps(out, indent=2))
+        out_metrics.write_text(json.dumps(out, indent=2))
         print(f"  forgetting_penalty_mean={out['forgetting_penalty_mean']:.3f}")
         return True
 
