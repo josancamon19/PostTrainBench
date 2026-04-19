@@ -96,7 +96,17 @@ class PostTrainBenchAdapter:
         return "gpu" if self.mode == "gpu-runpod" else self.mode
 
     def generate_task_toml(self, task_dir: Path, benchmark_id: str = "", task_id: str = "") -> None:
+        import re
+
         content = self._template("task.toml").read_text()
+        # Rewrite [agent] timeout_sec from num_hours — num_hours is the single
+        # source of truth for wall-clock budget (see _agent_timeout_sec).
+        content = re.sub(
+            r"(\[agent\]\s*\n\s*timeout_sec\s*=\s*)\d+(?:\.\d+)?",
+            rf"\g<1>{self._agent_timeout_sec()}.0",
+            content,
+            count=1,
+        )
         if benchmark_id in ("arenahardwriting", "healthbench"):
             if "[environment.env]" in content:
                 content = content.replace(
@@ -146,13 +156,12 @@ class PostTrainBenchAdapter:
 
         (task_dir / "instruction.md").write_text(content)
 
-    def _read_agent_timeout_sec(self) -> int:
-        """Read agent timeout from the task.toml template (single source of truth)."""
-        import tomllib
+    def _agent_timeout_sec(self) -> int:
+        """Agent timeout in seconds. Driven by num_hours (single source of truth)."""
+        return int(self.num_hours * 3600)
 
-        content = self._template("task.toml").read_text()
-        config = tomllib.loads(content)
-        return int(config["agent"]["timeout_sec"])
+    # Backward-compat alias.
+    _read_agent_timeout_sec = _agent_timeout_sec
 
     def generate_timer_sh(self, env_dir: Path) -> None:
         timeout_sec = self._read_agent_timeout_sec()
@@ -494,7 +503,7 @@ def generate(
     total_tasks = []
     for m in modes:
         mode_output = output / m
-        hours = num_hours if num_hours is not None else (1 if m == "tinker" else 10)
+        hours = num_hours if num_hours is not None else 10
         adapter = PostTrainBenchAdapter(
             output_dir=mode_output, num_hours=hours, mode=m, include_target=include_target, force=force
         )
