@@ -20,6 +20,7 @@ RUN uv pip install --system --no-cache \
     datasets \
     openai \
     anthropic \
+    claude-agent-sdk \
     if-verifiable \
     boto3 \
     python-dotenv \
