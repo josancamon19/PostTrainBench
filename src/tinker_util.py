@@ -13,27 +13,22 @@ from tinker import types
 from tinker_cookbook.model_info import get_model_attributes, get_recommended_renderer_name
 from tinker_cookbook.renderers import get_renderer
 
+# Base model id for the exported task. The adapter substitutes this at
+# export time so the evaluator works without a metadata.json on disk.
+BASE_MODEL = "{model_id}"
+
 
 def parse_args(description: str = "Evaluate a Tinker checkpoint.") -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=description)
     parser.add_argument("--checkpoint", type=str, default=None)
-    parser.add_argument("--base-model", type=str, default=None)
+    parser.add_argument("--base-model", type=str, default=BASE_MODEL)
     parser.add_argument("--json-output-file", type=str, default=None)
     parser.add_argument("--limit", type=int, default=None)
     return parser.parse_args()
 
 
 def resolve_model_name(checkpoint: str | None, base_model: str | None) -> str:
-    if base_model:
-        return base_model
-    try:
-        with open("metadata.json") as f:
-            return json.load(f)["model_id"]
-    except (FileNotFoundError, KeyError):
-        pass
-    if checkpoint:
-        raise ValueError("Cannot determine model name for renderer. Provide --base-model alongside --checkpoint.")
-    raise ValueError("Provide --checkpoint, --base-model, or both.")
+    return base_model or BASE_MODEL
 
 
 @dataclass

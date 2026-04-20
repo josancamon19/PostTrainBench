@@ -24,7 +24,6 @@ HF_TOKEN = "${HF_TOKEN}"
 timeout_sec = 3600.0
 
 [verifier.env]
-OPENAI_API_KEY = "${OPENAI_API_KEY}"
 HF_TOKEN = "${HF_TOKEN}"
 # Judge auth — verifier-only. DO NOT move to [environment.env].
 AWS_BEARER_TOKEN_BEDROCK = "${AWS_BEARER_TOKEN_BEDROCK}"

@@ -11,14 +11,13 @@ set -e
 cd /app
 
 INSTRUCT_ORACLE_ID="{instruct_oracle_id}"
+BASE_MODEL_ID="{model_id}"
 
 python3 <<PYEOF
-import json
 import tinker
 
 instruct_oracle_id = "$INSTRUCT_ORACLE_ID"
-meta = json.load(open("metadata.json"))
-base_model_id = meta["model_id"]
+base_model_id = "$BASE_MODEL_ID"
 
 if instruct_oracle_id:
     print(f"Oracle: saving instruct model {instruct_oracle_id} as checkpoint")

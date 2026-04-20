@@ -22,7 +22,6 @@ timeout_sec = 3600.0
 
 [verifier.env]
 TINKER_API_KEY = "${TINKER_API_KEY}"
-OPENAI_API_KEY = "${OPENAI_API_KEY}"
 # Judge auth — verifier-only. DO NOT move to [environment.env].
 AWS_BEARER_TOKEN_BEDROCK = "${AWS_BEARER_TOKEN_BEDROCK}"
 

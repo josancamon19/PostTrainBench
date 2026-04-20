@@ -107,6 +107,9 @@ class PostTrainBenchAdapter:
             content,
             count=1,
         )
+        # OpenAI-judged benchmarks need OPENAI_API_KEY in both the agent env
+        # (to run evaluate.py locally) and the verifier env (same evaluator
+        # runs on final_model). Other benchmarks' verifiers don't call OpenAI.
         if benchmark_id in ("arenahardwriting", "healthbench"):
             if "[environment.env]" in content:
                 content = content.replace(
@@ -116,6 +119,11 @@ class PostTrainBenchAdapter:
                 )
             else:
                 content += '\n[environment.env]\nOPENAI_API_KEY = "${OPENAI_API_KEY}"\n'
+            content = content.replace(
+                "[verifier.env]",
+                '[verifier.env]\nOPENAI_API_KEY = "${OPENAI_API_KEY}"',
+                1,
+            )
         # Add prebuilt docker_image for RunPod tasks (GPU mode uses Dockerfile directly)
         if self.mode == "gpu-runpod" and task_id:
             image = "runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404"
@@ -224,10 +232,14 @@ fi
                 shutil.copy(eval_src, env_dir / "evaluate.py")
             else:
                 raise FileNotFoundError(f"evaluate_tinker.py not found: {eval_src}")
-            # Copy shared tinker evaluation module
+            # Copy shared tinker evaluation module; bake {model_id} into
+            # its BASE_MODEL constant so the evaluator works without a
+            # metadata.json on disk (we ship metadata.json to tests/ only).
             tinker_eval_src = SRC_DIR / "tinker_util.py"
             if tinker_eval_src.exists():
-                shutil.copy(tinker_eval_src, env_dir / "tinker_util.py")
+                content = tinker_eval_src.read_text()
+                content = content.replace("{model_id}", model_info.model_id)
+                (env_dir / "tinker_util.py").write_text(content)
         else:
             eval_src = SRC_DIR / "tasks" / benchmark_id / "evaluate.py"
             if eval_src.exists():
@@ -256,46 +268,17 @@ fi
 
         self.generate_timer_sh(env_dir)
 
-        target = INSTRUCT_BASELINES.get((model_info.model_id, benchmark_id))
-        base = BASE_SCORES.get((model_info.model_id, benchmark_id))
-        max_conn = model_info.max_connections_long if benchmark_info.long_generation else model_info.max_connections
-        metadata = {
-            "benchmark_id": benchmark_id,
-            "benchmark_name": benchmark_info.benchmark_name,
-            "model_id": model_info.model_id,
-            "model_short_name": model_info.short_name,
-            "num_hours": self.num_hours,
-            "mode": self.mode,
-            "max_connections": max_conn,
-        }
-        if target is not None:
-            metadata["target_score"] = target
-        if base is not None:
-            metadata["base_score"] = base
+        # metadata.json is written to tests/ only (see generate_tests). The
+        # agent doesn't need it at runtime: tinker_util has {model_id} baked
+        # in, and GPU-mode evaluate.py takes --model-path directly.
 
-        # Regression suite: evals the verifier runs on final_model, excluding
-        # the target. Same set across all modes; evaluate.py differs (vLLM for
-        # GPU, Tinker API for tinker) but metadata shape is identical.
-        regression_ids = [bid for bid in REGRESSION_EVALS if bid != benchmark_id]
-        # For tinker, only keep evals that have an evaluate_tinker.py available.
-        if self.mode == "tinker":
-            regression_ids = [bid for bid in regression_ids if _has_tinker_eval(bid)]
-        metadata["regression_benchmarks"] = regression_ids
-        # Baselines come from REGRESSION_BASE_SCORES first (regression-only
-        # evals: mmlu/ifeval/truthfulqa) and fall back to BASE_SCORES
-        # (training-target evals: gsm8k/humaneval/gpqamain/aime2025).
-        metadata["regression_baselines"] = {
-            bid: (
-                REGRESSION_BASE_SCORES.get((model_info.model_id, bid))
-                if (model_info.model_id, bid) in REGRESSION_BASE_SCORES
-                else BASE_SCORES.get((model_info.model_id, bid))
-            )
-            for bid in regression_ids
-        }
-
-        (env_dir / "metadata.json").write_text(json.dumps(metadata, indent=2))
-
-    def generate_tests(self, task_dir: Path, benchmark_id: str) -> None:
+    def generate_tests(
+        self,
+        task_dir: Path,
+        benchmark_id: str,
+        model_info: ModelInfo,
+        benchmark_info: BenchmarkInfo,
+    ) -> None:
         """Copy pristine eval files into tests/ so the verifier uses untampered copies."""
         tests_dir = task_dir / "tests"
         tests_dir.mkdir(parents=True, exist_ok=True)
@@ -304,9 +287,12 @@ fi
         shutil.copy(self._template("tests", "test.sh"), test_sh_dst)
         test_sh_dst.chmod(0o755)
 
-        verifier_src = TEMPLATE_DIR / "tests" / "verifier.py"
-        if verifier_src.exists():
-            shutil.copy(verifier_src, tests_dir / "verifier.py")
+        # verifier.py is used only by the GPU/runpod test.sh (validate final_model,
+        # extract accuracy). test.tinker.sh does the same work inline.
+        if self.mode != "tinker":
+            verifier_src = TEMPLATE_DIR / "tests" / "verifier.py"
+            if verifier_src.exists():
+                shutil.copy(verifier_src, tests_dir / "verifier.py")
 
         if self.mode == "tinker":
             eval_src = SRC_DIR / "tasks" / benchmark_id / "evaluate_tinker.py"
@@ -317,7 +303,9 @@ fi
         if self.mode == "tinker":
             tinker_eval_src = SRC_DIR / "tinker_util.py"
             if tinker_eval_src.exists():
-                shutil.copy(tinker_eval_src, tests_dir / "tinker_util.py")
+                content = tinker_eval_src.read_text()
+                content = content.replace("{model_id}", model_info.model_id)
+                (tests_dir / "tinker_util.py").write_text(content)
 
         if self.mode != "tinker":
             templates_src = TEMPLATE_DIR / "environment" / "templates"
@@ -368,10 +356,46 @@ fi
         if eval_code_src.is_dir():
             shutil.copytree(eval_code_src, tests_dir / "evaluation_code", dirs_exist_ok=True)
 
-        # Copy metadata into tests/ so the verifier reads a tamper-proof copy
-        env_metadata = task_dir / "environment" / "metadata.json"
-        if env_metadata.exists():
-            shutil.copy(env_metadata, tests_dir / "metadata.json")
+        # Build metadata.json under tests/ (verifier-trusted, tamper-proof).
+        # Not emitted to environment/ — the agent doesn't need it at runtime.
+        target = INSTRUCT_BASELINES.get((model_info.model_id, benchmark_id))
+        base = BASE_SCORES.get((model_info.model_id, benchmark_id))
+        max_conn = model_info.max_connections_long if benchmark_info.long_generation else model_info.max_connections
+        metadata = {
+            "benchmark_id": benchmark_id,
+            "benchmark_name": benchmark_info.benchmark_name,
+            "model_id": model_info.model_id,
+            "model_short_name": model_info.short_name,
+            "num_hours": self.num_hours,
+            "mode": self.mode,
+            "max_connections": max_conn,
+        }
+        if target is not None:
+            metadata["target_score"] = target
+        if base is not None:
+            metadata["base_score"] = base
+
+        # Regression suite: evals the verifier runs on final_model, excluding
+        # the target. Same set across all modes; evaluate.py differs (vLLM for
+        # GPU, Tinker API for tinker) but metadata shape is identical.
+        regression_ids = [bid for bid in REGRESSION_EVALS if bid != benchmark_id]
+        # For tinker, only keep evals that have an evaluate_tinker.py available.
+        if self.mode == "tinker":
+            regression_ids = [bid for bid in regression_ids if _has_tinker_eval(bid)]
+        metadata["regression_benchmarks"] = regression_ids
+        # Baselines come from REGRESSION_BASE_SCORES first (regression-only
+        # evals: mmlu/ifeval/truthfulqa) and fall back to BASE_SCORES
+        # (training-target evals: gsm8k/humaneval/gpqamain/aime2025).
+        metadata["regression_baselines"] = {
+            bid: (
+                REGRESSION_BASE_SCORES.get((model_info.model_id, bid))
+                if (model_info.model_id, bid) in REGRESSION_BASE_SCORES
+                else BASE_SCORES.get((model_info.model_id, bid))
+            )
+            for bid in regression_ids
+        }
+
+        (tests_dir / "metadata.json").write_text(json.dumps(metadata, indent=2))
 
     def generate_task(self, benchmark_id: str, model_key: str) -> Path:
         models = self._models
@@ -401,7 +425,7 @@ fi
         self.generate_task_toml(task_dir, benchmark_id, task_id)
         self.generate_instruction(task_dir, model_info, benchmark_info, benchmark_id)
         self.generate_environment(task_dir, benchmark_id, model_info, benchmark_info)
-        self.generate_tests(task_dir, benchmark_id)
+        self.generate_tests(task_dir, benchmark_id, model_info, benchmark_info)
 
         solution_src = self._template("solution.sh")
         if solution_src.exists():
@@ -409,6 +433,7 @@ fi
             solution_dir.mkdir(parents=True, exist_ok=True)
             dst = solution_dir / "solve.sh"
             content = solution_src.read_text()
+            content = content.replace("{model_id}", model_info.model_id)
             content = content.replace("{instruct_id}", model_info.instruct_id or "")
             # Tinker oracle: only pass instruct_id when Tinker actually serves it.
             instruct_oracle = model_info.instruct_id if model_info.tinker_instruct else ""
