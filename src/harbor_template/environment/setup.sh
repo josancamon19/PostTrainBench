@@ -30,6 +30,9 @@ uv pip install --system --no-cache \
     matplotlib \
     ninja \
     "openai>=2.26.0" \
+    anthropic \
+    claude-agent-sdk \
+    if-verifiable \
     packaging \
     pandas \
     peft \
