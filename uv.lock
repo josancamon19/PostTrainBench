@@ -1443,13 +1443,14 @@ wheels = [
 
 [[package]]
 name = "harbor"
-version = "0.3.0"
-source = { git = "https://github.com/josancamon19/harbor?rev=mirror#335ed4d9b1799564f985d7f516bb9b586e29eec1" }
+version = "0.4.0"
+source = { git = "https://github.com/josancamon19/harbor?rev=mirror#1dd8127d9da7034e7781170e5b8502f5c1f59b42" }
 dependencies = [
     { name = "claude-agent-sdk" },
     { name = "datasets" },
     { name = "dirhash" },
     { name = "fastapi" },
+    { name = "httpx" },
     { name = "jinja2" },
     { name = "litellm" },
     { name = "packaging" },
