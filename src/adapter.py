@@ -126,11 +126,7 @@ class PostTrainBenchAdapter:
             )
         # Add prebuilt docker_image for RunPod tasks (GPU mode uses Dockerfile directly)
         if self.mode == "gpu-runpod" and task_id:
-            # SSH-wrapped image (runpod/pytorch:1.0.2-... + openssh-server +
-            # runpod start.sh entrypoint). Required so harbor's
-            # _wait_for_ssh_ready doesn't hang — the stock runpod/pytorch
-            # tags we tested don't ship with SSH.
-            image = "ghcr.io/josancamon19/posttrainbench-gpu-runpod:ssh-latest"
+            image = "runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404"
             content = content.replace(
                 "[environment]",
                 f'[environment]\ndocker_image = "{image}"',
