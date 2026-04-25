@@ -25,6 +25,10 @@ timeout_sec = 3600.0
 
 [verifier.env]
 HF_TOKEN = "${HF_TOKEN}"
+# Write-scoped token — verifier-only, used by tests/hooks/hf_upload.py to
+# create+push the final_model repo. Kept out of [environment.env] so the
+# agent can't see it.
+HF_TOKEN_WRITE = "${HF_TOKEN_WRITE}"
 # Judge auth — verifier-only. DO NOT move to [environment.env].
 AWS_BEARER_TOKEN_BEDROCK = "${AWS_BEARER_TOKEN_BEDROCK}"
 
@@ -34,3 +38,20 @@ timeout_sec = 36000.0
 [[artifacts]]
 source = "/app"
 destination = "workspace"
+# NOTE: harbor's tar --exclude staging silently times out on multi-GB
+# workspaces (120s cap), falling back to an unfiltered download. The
+# authoritative prune happens in tests/test.sh before harbor pulls /app.
+# These patterns are a best-effort second line of defense.
+exclude = [
+    "checkpoints",
+    "checkpoint-*",
+    "training_data",
+    "datasets_cache",
+    "wandb",
+    "__pycache__",
+    ".cache",
+    ".venv",
+    "venv",
+    "node_modules",
+    "*.tmp",
+]

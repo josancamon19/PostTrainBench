@@ -9,6 +9,15 @@ orchestrator:
   n_concurrent_trials: 4
   quiet: false
 
+# Retry transient RunPod pod-creation failures with exponential backoff.
+# Harbor's default exclude_exceptions skips AgentTimeoutError / VerifierTimeoutError
+# / reward-file errors, so a real 10h agent timeout won't be retried.
+retry:
+  max_retries: 3
+  min_wait_sec: 30
+  max_wait_sec: 300
+  wait_multiplier: 2.0
+
 environment:
   type: runpod
   delete: true
@@ -27,7 +36,7 @@ datasets:
   - path: datasets/posttrainbench/gpu-runpod
     task_names:
       # Same 10 tasks the first tinker job ran (jobs/2026-04-03__22-22-40).
-      - arenahardwriting-llama3.2-1b
+      # - arenahardwriting-llama3.2-1b  # passed previous run
       - gpqamain-llama3.2-1b
       - gsm8k-llama3.2-1b
       - healthbench-llama3.2-1b

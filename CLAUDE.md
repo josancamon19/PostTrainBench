@@ -20,9 +20,9 @@ ruff check --fix .         # Auto-fix
 # Generate Harbor tasks
 python src/adapter.py mode=all all=true include_target=false      # All modes (gpu + tinker + runpod)
 python src/adapter.py mode=gpu all=true include_target=false      # All GPU tasks
-python src/adapter.py mode=runpod all=true include_target=false   # All RunPod tasks (no Dockerfile)
+python src/adapter.py mode=gpu-runpod all=true include_target=false   # All RunPod tasks (no Dockerfile)
 python src/adapter.py mode=gpu benchmark=gsm8k model=llama3.1-8b  # Single task
-# Output goes to datasets/posttrainbench/{gpu,tinker,runpod}/{task_id}/
+# Output goes to datasets/posttrainbench/{gpu,tinker,gpu-runpod}/{task_id}/
 
 # Build Docker images (base + per-task, pushes to GHCR)
 bash src/build.sh

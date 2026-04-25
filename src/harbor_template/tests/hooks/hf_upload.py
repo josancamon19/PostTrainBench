@@ -33,9 +33,9 @@ def _write_status(line: str) -> None:
 
 
 def main() -> int:
-    token = os.environ.get("HF_TOKEN")
+    token = os.environ.get("HF_TOKEN_WRITE") or os.environ.get("HF_TOKEN")
     if not token:
-        _write_status("skipped: HF_TOKEN not set")
+        _write_status("skipped: no HF token set (HF_TOKEN_WRITE / HF_TOKEN)")
         return 0
     if not WORKSPACE_MODEL.exists():
         _write_status("skipped: /app/final_model missing")

@@ -92,7 +92,10 @@ def _auth_available() -> bool:
 
 
 def _sdk_env() -> dict[str, str]:
-    sdk_env: dict[str, str] = {}
+    # RunPod containers run as root; the bundled `claude` CLI refuses
+    # `--dangerously-skip-permissions` (which the SDK uses for bypassPermissions)
+    # under root unless IS_SANDBOX=1 is set.
+    sdk_env: dict[str, str] = {"IS_SANDBOX": "1"}
     if os.environ.get("AWS_BEARER_TOKEN_BEDROCK"):
         sdk_env["CLAUDE_CODE_USE_BEDROCK"] = "1"
         for k in ("AWS_BEARER_TOKEN_BEDROCK", "AWS_REGION", "AWS_DEFAULT_REGION"):

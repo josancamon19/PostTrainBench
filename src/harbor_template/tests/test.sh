@@ -134,6 +134,9 @@ fi
 if [ "$MISSING_FINAL_MODEL" = "0" ] && [ -f "$LOGS_DIR/metrics.json" ] && [ -f "$TESTS_DIR/regression/suite.py" ]; then
     echo ""
     echo "=== Running regression suite ==="
+    # inspect-evals/ifeval needs NLTK punkt/punkt_tab corpora. Cheap (~10MB)
+    # one-shot at verifier time so we don't rebuild the base image.
+    python3 -m nltk.downloader -q -d /usr/share/nltk_data punkt punkt_tab >/dev/null 2>&1 || true
     kill_gpu_processes
     set +e
     python3 "$TESTS_DIR/regression/suite.py" \
@@ -170,6 +173,28 @@ if [ "$MISSING_FINAL_MODEL" = "0" ]; then
     python3 "$TESTS_DIR/hooks/hf_upload.py" 2>&1 | tee -a "$LOGS_DIR/hf_upload.log"
     set -e
 fi
+
+# ============================================================
+# Prune /app for artifact pull. Harbor's tar --exclude staging is
+# unreliable on multi-GB workspaces (silent timeout → unfiltered fallback),
+# so we delete heavy training byproducts in-pod before harbor pulls.
+# Always preserves /app/final_model (the canonical artifact).
+# ============================================================
+echo ""
+echo "=== Pruning /app before artifact pull ==="
+set +e
+BEFORE_KB=$(du -sk "$WORKSPACE" 2>/dev/null | awk '{print $1}')
+# File-only prune. Directory structure (including agent's named variants
+# like final_model_v3_best/, model_epoch1/, checkpoints/) is preserved so
+# you can see what the agent did; the heavyweight files inside are dropped.
+# Always keeps /app/final_model/ contents intact (canonical artifact).
+find "$WORKSPACE" -type f \( \
+    -name '*.safetensors' -o -name '*.bin' -o -name '*.pt' -o \
+    -name '*.pth' -o -name '*.gguf' -o -name '*.ckpt' \
+    \) ! -path "$WORKSPACE/final_model/*" -delete 2>/dev/null
+AFTER_KB=$(du -sk "$WORKSPACE" 2>/dev/null | awk '{print $1}')
+echo "Pruned /app: ${BEFORE_KB}KB -> ${AFTER_KB}KB"
+set -e
 
 echo "=== Verification complete ==="
 ls -la "$LOGS_DIR/"
