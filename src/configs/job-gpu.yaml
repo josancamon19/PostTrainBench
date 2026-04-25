@@ -6,7 +6,7 @@ description: |
 
 orchestrator:
   type: local
-  n_concurrent_trials: 1
+  n_concurrent_trials: 4
   quiet: false
 
 environment:
@@ -28,15 +28,16 @@ datasets:
     task_names:
       # Same 10 tasks the first tinker job ran (jobs/2026-04-03__22-22-40).
       - arenahardwriting-llama3.2-1b
-      - arenahardwriting-llama3.2-3b
       - gpqamain-llama3.2-1b
-      - gpqamain-llama3.2-3b
       - gsm8k-llama3.2-1b
-      - gsm8k-llama3.2-3b
       - healthbench-llama3.2-1b
-      - healthbench-llama3.2-3b
       - humaneval-llama3.2-1b
-      - humaneval-llama3.2-3b
+
+      # - arenahardwriting-llama3.2-3b
+      # - gpqamain-llama3.2-3b
+      # - gsm8k-llama3.2-3b
+      # - healthbench-llama3.2-3b
+      # - humaneval-llama3.2-3b
 
 artifacts:
   - source: /app

@@ -213,12 +213,9 @@ fi
         env_dir.mkdir(parents=True, exist_ok=True)
 
         if self.mode == "gpu-runpod":
-            # No Dockerfile — use setup.sh to install packages at runtime
+            # No Dockerfile — setup.sh installs packages and inlines the GPU
+            # sampler into /usr/local/bin (hidden from the agent's /app cwd).
             shutil.copy(TEMPLATE_DIR / "environment" / "setup.sh", env_dir / "setup.sh")
-            # Background GPU sampler, started from setup.sh
-            sampler_src = TEMPLATE_DIR / "environment" / "gpu_sampler.sh"
-            if sampler_src.exists():
-                shutil.copy(sampler_src, env_dir / "gpu_sampler.sh")
         else:
             dockerfile_name = "tinker.Dockerfile" if self.mode == "tinker" else "gpu.Dockerfile"
             shutil.copy(TEMPLATE_DIR / "environment" / dockerfile_name, env_dir / "Dockerfile")
