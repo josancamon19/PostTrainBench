@@ -37,14 +37,14 @@ datasets:
     task_names:
       # Same 10 tasks the first tinker job ran (jobs/2026-04-03__22-22-40).
       # - arenahardwriting-llama3.2-1b  # passed previous run
-      - gpqamain-llama3.2-1b
-      - gsm8k-llama3.2-1b
-      - healthbench-llama3.2-1b
-      - humaneval-llama3.2-1b
-
+      # - gpqamain-llama3.2-1b
+      # - gsm8k-llama3.2-1b
+      # - humaneval-llama3.2-1b
+      # - healthbench-llama3.2-1b
+      # - gsm8k-llama3.2-3b
       # - arenahardwriting-llama3.2-3b
       # - gpqamain-llama3.2-3b
-      # - gsm8k-llama3.2-3b
+      # ---
       # - healthbench-llama3.2-3b
       # - humaneval-llama3.2-3b
 

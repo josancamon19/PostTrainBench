@@ -109,7 +109,7 @@ def build_options(prompt_text: str, cwd: Path, add_dirs: list[Path]) -> ClaudeAg
     return ClaudeAgentOptions(
         model=_pick_model(),
         system_prompt=prompt_text,
-        max_turns=50,
+        max_turns=None,
         permission_mode="bypassPermissions",
         allowed_tools=["Read", "Glob", "Grep"],
         disallowed_tools=["Bash", "Edit", "Write", "WebFetch", "WebSearch", "Task", "NotebookEdit"],

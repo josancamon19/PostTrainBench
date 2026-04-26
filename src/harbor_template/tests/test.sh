@@ -178,20 +178,32 @@ fi
 # Prune /app for artifact pull. Harbor's tar --exclude staging is
 # unreliable on multi-GB workspaces (silent timeout → unfiltered fallback),
 # so we delete heavy training byproducts in-pod before harbor pulls.
-# Always preserves /app/final_model (the canonical artifact).
+#
+# When HF upload succeeded, also delete /app/final_model (HF is the
+# durable home; URL is in verifier/final_model_hf.txt). When it failed,
+# preserve /app/final_model as a local fallback.
 # ============================================================
 echo ""
 echo "=== Pruning /app before artifact pull ==="
 set +e
 BEFORE_KB=$(du -sk "$WORKSPACE" 2>/dev/null | awk '{print $1}')
-# File-only prune. Directory structure (including agent's named variants
-# like final_model_v3_best/, model_epoch1/, checkpoints/) is preserved so
-# you can see what the agent did; the heavyweight files inside are dropped.
-# Always keeps /app/final_model/ contents intact (canonical artifact).
+# Always: file-only prune of weight extensions outside /app/final_model.
+# Preserves agent's variant dir structure (final_model_v3_best/, checkpoints/)
+# so you can see what the agent did; the weight files inside are dropped.
 find "$WORKSPACE" -type f \( \
     -name '*.safetensors' -o -name '*.bin' -o -name '*.pt' -o \
     -name '*.pth' -o -name '*.gguf' -o -name '*.ckpt' \
     \) ! -path "$WORKSPACE/final_model/*" -delete 2>/dev/null
+
+# Conditionally drop /app/final_model when HF upload succeeded — saves
+# ~6GB (3B) or ~2.4GB (1B) per trial. hf_upload.py writes the status to
+# this file with "ok: <url>" on success or "failed: ..." otherwise.
+HF_LOG="$LOGS_DIR/final_model_hf.txt"
+if [ -d "$WORKSPACE/final_model" ] && [ -f "$HF_LOG" ] && head -1 "$HF_LOG" | grep -q '^ok:'; then
+    HF_URL=$(head -1 "$HF_LOG" | sed 's/^ok: //')
+    echo "HF upload OK ($HF_URL) — dropping local /app/final_model to save artifact bytes"
+    rm -rf "$WORKSPACE/final_model"
+fi
 AFTER_KB=$(du -sk "$WORKSPACE" 2>/dev/null | awk '{print $1}')
 echo "Pruned /app: ${BEFORE_KB}KB -> ${AFTER_KB}KB"
 set -e
