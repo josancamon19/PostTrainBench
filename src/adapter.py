@@ -137,9 +137,10 @@ class PostTrainBenchAdapter:
     def generate_instruction(
         self, task_dir: Path, model_info: ModelInfo, benchmark_info: BenchmarkInfo, benchmark_id: str = ""
     ) -> None:
+        benchmark_display = "IFEval" if benchmark_id == "ifeval" else benchmark_info.benchmark_name
         content = self._template("instruction.md").read_text()
         content = content.replace("{model}", model_info.model_id)
-        content = content.replace("{benchmark}", benchmark_info.benchmark_name)
+        content = content.replace("{benchmark}", benchmark_display)
         timeout_sec = self._read_agent_timeout_sec()
         content = content.replace("{num_hours}", str(timeout_sec / 3600))
         content = content.replace("{setup_other}", benchmark_info.setup_note)
@@ -151,8 +152,18 @@ class PostTrainBenchAdapter:
         else:
             content = content.replace("{openai_restriction}", "")
 
-        # Add target score inline if available and enabled
+        # Add target score inline if available and enabled.
         target = INSTRUCT_BASELINES.get((model_info.model_id, benchmark_id))
+        base = BASE_SCORES.get((model_info.model_id, benchmark_id))
+        if target is not None:
+            metric_suffix = " binary_strict" if benchmark_id == "ifeval" else ""
+            content = content.replace("{target_goal}", f"at least **{target * 100:.1f}%{metric_suffix}**")
+        else:
+            content = content.replace("{target_goal}", "as highly as possible")
+        if base is not None:
+            content = content.replace("{base_note}", f", the pretrained base you are given scores around {base * 100:.1f}%")
+        else:
+            content = content.replace("{base_note}", "")
         if self.include_target and target is not None:
             target_pct = f"{target * 100:.1f}%"
             content = content.replace(
