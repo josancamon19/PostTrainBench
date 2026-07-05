@@ -145,25 +145,16 @@ def model_type(args) -> str:
         return "qwen"
     if "llama" in args.model_path.lower():
         return "llama"
-    if "gemma" in args.model_path.lower():
-        return "gemma"
-    if "smollm" in args.model_path.lower():
-        return "smollm"
-
     # Try to read from config.json
     config_path = os.path.join(args.model_path, "config.json")
     if os.path.exists(config_path):
         with open(config_path) as f:
             config = json.load(f)
         architecture = config.get("architectures", [""])[0].lower()
-        if "gemma" in architecture:
-            return "gemma"
         if "llama" in architecture:
             return "llama"
         if "qwen" in architecture:
             return "qwen"
-        if "smollm" in architecture:
-            return "smollm"
 
     raise ValueError(architecture)
 
@@ -175,10 +166,6 @@ def template_args(args) -> list:
         template = "qwen3.jinja"
     elif model_type_str == "llama":
         template = "llama3.jinja"
-    elif model_type_str == "gemma":
-        template = "gemma3.jinja"
-    elif model_type_str == "smollm":
-        template = "smollm.jinja"
     else:
         raise ValueError(model_type_str)
 

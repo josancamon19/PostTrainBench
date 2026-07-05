@@ -39,10 +39,11 @@ Sources: Meta official model cards. Arena-Hard: v0.1 style-controlled winrate (L
 
 | Key | Model ID |
 |-----|----------|
-| qwen3-1.7b | Qwen/Qwen3-1.7B-Base |
-| qwen3-4b | Qwen/Qwen3-4B-Base |
-| smollm3-3b | HuggingFaceTB/SmolLM3-3B-Base |
-| gemma3-4b | google/gemma-3-4b-pt |
+| llama3.1-8b | meta-llama/Llama-3.1-8B |
+| llama3.2-3b | meta-llama/Llama-3.2-3B |
+| llama3.2-1b | meta-llama/Llama-3.2-1B |
+| qwen3-8b | Qwen/Qwen3-8B-Base |
+| qwen3-30b-a3b | Qwen/Qwen3-30B-A3B-Base |
 
 ## API Key Requirements
 

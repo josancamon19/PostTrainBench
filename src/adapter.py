@@ -40,6 +40,15 @@ def _has_tinker_eval(reg_id: str) -> bool:
     return _regression_eval_source(reg_id, "tinker") is not None
 
 
+def _chat_template_filename(model_info: ModelInfo) -> str:
+    model_key = f"{model_info.model_id} {model_info.short_name}".lower()
+    if "qwen" in model_key:
+        return "qwen3.jinja"
+    if "llama" in model_key:
+        return "llama3.jinja"
+    raise ValueError(f"No chat template mapping for model: {model_info.model_id}")
+
+
 class PostTrainBenchAdapter:
     """Adapter to generate Harbor tasks from PostTrainBench configuration."""
 
@@ -53,7 +62,7 @@ class PostTrainBenchAdapter:
     ):
         self.output_dir = Path(output_dir)
         self.num_hours = num_hours
-        self.mode = mode  # "gpu", "tinker", or "gpu-runpod"
+        self.mode = mode  # "gpu" or "tinker"
         self.include_target = include_target
         # When true, export even (benchmark, model) pairs without measured
         # SCORES. Useful for bootstrapping a new benchmark: export → run oracle
@@ -72,7 +81,6 @@ class PostTrainBenchAdapter:
         """Resolve a template path, using .tinker variant when in tinker mode.
 
         E.g. ("task.toml") -> "task.tinker.toml", ("instruction.md") -> "instruction.tinker.md".
-        gpu-runpod shares GPU templates (no variant suffix).
         """
         if self._template_mode == "tinker":
             filename = parts[-1]
@@ -92,8 +100,8 @@ class PostTrainBenchAdapter:
 
     @property
     def _template_mode(self) -> str:
-        """The template mode to use — gpu-runpod shares GPU templates."""
-        return "gpu" if self.mode == "gpu-runpod" else self.mode
+        """The template mode to use."""
+        return self.mode
 
     def generate_task_toml(self, task_dir: Path, benchmark_id: str = "", task_id: str = "") -> None:
         import re
@@ -122,14 +130,6 @@ class PostTrainBenchAdapter:
             content = content.replace(
                 "[verifier.env]",
                 '[verifier.env]\nOPENAI_API_KEY = "${OPENAI_API_KEY}"',
-                1,
-            )
-        # Add prebuilt docker_image for RunPod tasks (GPU mode uses Dockerfile directly)
-        if self.mode == "gpu-runpod" and task_id:
-            image = "runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404"
-            content = content.replace(
-                "[environment]",
-                f'[environment]\ndocker_image = "{image}"',
                 1,
             )
         (task_dir / "task.toml").write_text(content)
@@ -161,7 +161,9 @@ class PostTrainBenchAdapter:
         else:
             content = content.replace("{target_goal}", "as highly as possible")
         if base is not None:
-            content = content.replace("{base_note}", f", the pretrained base you are given scores around {base * 100:.1f}%")
+            content = content.replace(
+                "{base_note}", f", the pretrained base you are given scores around {base * 100:.1f}%"
+            )
         else:
             content = content.replace("{base_note}", "")
         if self.include_target and target is not None:
@@ -184,35 +186,8 @@ class PostTrainBenchAdapter:
 
     def generate_timer_sh(self, env_dir: Path) -> None:
         timeout_sec = self._read_agent_timeout_sec()
-        timer_script = f"""#!/bin/bash
-
-TIMEOUT_SEC={timeout_sec}
-
-# Container age from pid 1's elapsed time. /proc/uptime is NOT namespaced
-# in RunPod/Docker, so it reports host uptime (days/weeks) and would
-# immediately fire "Timer expired!".
-ELAPSED=$(ps -o etimes= -p 1 2>/dev/null | tr -d ' ')
-if ! [[ "$ELAPSED" =~ ^[0-9]+$ ]]; then
-    # Fallback: first-call timestamp
-    START_FILE="$(dirname "$0")/.timer_start"
-    if [ ! -f "$START_FILE" ]; then
-        date +%s > "$START_FILE"
-    fi
-    START_DATE=$(cat "$START_FILE")
-    NOW=$(date +%s)
-    ELAPSED=$((NOW - START_DATE))
-fi
-REMAINING=$((TIMEOUT_SEC - ELAPSED))
-
-if [ $REMAINING -le 0 ]; then
-    echo "Timer expired!"
-else
-    echo "Remaining time (hours:minutes)":
-    HOURS=$((REMAINING / 3600))
-    MINUTES=$(((REMAINING % 3600) / 60))
-    printf "%d:%02d\\n" $HOURS $MINUTES
-fi
-"""
+        timer_src = TEMPLATE_DIR / "environment" / "timer.sh"
+        timer_script = timer_src.read_text().replace("{timeout_sec}", str(timeout_sec))
         timer_path = env_dir / "timer.sh"
         timer_path.write_text(timer_script)
         timer_path.chmod(0o755)
@@ -223,16 +198,11 @@ fi
         env_dir = task_dir / "environment"
         env_dir.mkdir(parents=True, exist_ok=True)
 
-        if self.mode == "gpu-runpod":
-            # No Dockerfile — setup.sh installs packages and inlines the GPU
-            # sampler into /usr/local/bin (hidden from the agent's /app cwd).
-            shutil.copy(TEMPLATE_DIR / "environment" / "setup.sh", env_dir / "setup.sh")
-        else:
-            dockerfile_name = "tinker.Dockerfile" if self.mode == "tinker" else "gpu.Dockerfile"
-            shutil.copy(TEMPLATE_DIR / "environment" / dockerfile_name, env_dir / "Dockerfile")
-            dockerignore_src = TEMPLATE_DIR / "environment" / ".dockerignore"
-            if dockerignore_src.exists():
-                shutil.copy(dockerignore_src, env_dir / ".dockerignore")
+        dockerfile_name = "tinker.Dockerfile" if self.mode == "tinker" else "gpu.Dockerfile"
+        shutil.copy(TEMPLATE_DIR / "environment" / dockerfile_name, env_dir / "Dockerfile")
+        dockerignore_src = TEMPLATE_DIR / "environment" / ".dockerignore"
+        if dockerignore_src.exists():
+            shutil.copy(dockerignore_src, env_dir / ".dockerignore")
 
         if self.mode == "tinker":
             eval_src = SRC_DIR / "tasks" / benchmark_id / "evaluate_tinker.py"
@@ -255,11 +225,7 @@ fi
             else:
                 raise FileNotFoundError(f"evaluate.py not found: {eval_src}")
 
-            templates_src = TEMPLATE_DIR / "environment" / "templates"
-            if templates_src.exists():
-                shutil.copytree(templates_src, env_dir / "templates", dirs_exist_ok=True)
-            else:
-                raise FileNotFoundError(f"templates directory not found: {templates_src}")
+            self._copy_chat_template(env_dir / "templates", model_info)
 
         eval_code_src = SRC_DIR / "tasks" / benchmark_id / "evaluation_code"
         if eval_code_src.is_dir():
@@ -316,9 +282,7 @@ fi
                 (tests_dir / "tinker_util.py").write_text(content)
 
         if self.mode != "tinker":
-            templates_src = TEMPLATE_DIR / "environment" / "templates"
-            if templates_src.exists():
-                shutil.copytree(templates_src, tests_dir / "templates", dirs_exist_ok=True)
+            self._copy_chat_template(tests_dir / "templates", model_info)
 
         # Regression suite evaluators — mode-aware (evaluate.py for GPU,
         # evaluate_tinker.py for tinker). Both land as tests/regression/<id>/
@@ -415,6 +379,16 @@ fi
 
         (tests_dir / "metadata.json").write_text(json.dumps(metadata, indent=2))
 
+    def _copy_chat_template(self, templates_dir: Path, model_info: ModelInfo) -> None:
+        template_name = _chat_template_filename(model_info)
+        template_src = TEMPLATE_DIR / "environment" / "templates" / template_name
+        if not template_src.exists():
+            raise FileNotFoundError(f"chat template not found for {model_info.model_id}: {template_src}")
+        if templates_dir.exists():
+            shutil.rmtree(templates_dir)
+        templates_dir.mkdir(parents=True, exist_ok=True)
+        shutil.copy(template_src, templates_dir / template_name)
+
     def generate_task(self, benchmark_id: str, model_key: str) -> Path:
         models = self._models
         if benchmark_id not in BENCHMARKS:
@@ -453,9 +427,6 @@ fi
             content = solution_src.read_text()
             content = content.replace("{model_id}", model_info.model_id)
             content = content.replace("{instruct_id}", model_info.instruct_id or "")
-            # Tinker oracle: only pass instruct_id when Tinker actually serves it.
-            instruct_oracle = model_info.instruct_id if model_info.tinker_instruct else ""
-            content = content.replace("{instruct_oracle_id}", instruct_oracle)
             dst.write_text(content)
             dst.chmod(0o755)
 
@@ -516,15 +487,15 @@ def generate(
 
     Args:
         benchmark: Benchmark to generate (e.g. gsm8k, humaneval, aime2025).
-        model: Base model to generate (e.g. qwen3-1.7b, smollm3-3b).
+        model: Base model to generate (e.g. llama3.2-1b, qwen3-8b).
         output: Output directory for generated tasks.
         num_hours: Number of hours for the training task. Defaults to 10 for gpu mode, 1 for tinker mode.
         all: Generate tasks for all benchmark + model combinations.
         list: List available benchmarks and models.
-        mode: Export mode: "gpu", "tinker", "gpu-runpod", or "all" (default, exports gpu+tinker+gpu-runpod).
+        mode: Export mode: "gpu", "tinker", or "all" (default, exports gpu+tinker).
         include_target: Include instruct baseline target score in the instruction (tinker mode only).
     """
-    all_modes = ["tinker", "gpu", "gpu-runpod"]
+    all_modes = ["tinker", "gpu"]
     modes = all_modes if mode == "all" else [mode]
 
     if list:

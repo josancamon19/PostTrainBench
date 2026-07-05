@@ -48,12 +48,12 @@ def parse_args() -> argparse.Namespace:
 
 def _model_type(path: str) -> str:
     low = path.lower()
-    for fam in ("qwen", "llama", "gemma", "smollm"):
+    for fam in ("qwen", "llama"):
         if fam in low:
             return fam
     with open(os.path.join(path, "config.json")) as f:
         arch = json.load(f)["architectures"][0].lower()
-    for fam in ("gemma", "llama", "qwen", "smollm"):
+    for fam in ("llama", "qwen"):
         if fam in arch:
             return fam
     raise ValueError(arch)
@@ -61,7 +61,7 @@ def _model_type(path: str) -> str:
 
 def _chat_template(templates_dir: str, path: str) -> str:
     fam = _model_type(path)
-    tpl = {"qwen": "qwen3.jinja", "llama": "llama3.jinja", "gemma": "gemma3.jinja", "smollm": "smollm.jinja"}[fam]
+    tpl = {"qwen": "qwen3.jinja", "llama": "llama3.jinja"}[fam]
     return (Path(templates_dir) / tpl).read_text()
 
 

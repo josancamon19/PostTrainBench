@@ -86,7 +86,7 @@ def run_one(
     """Run a single regression eval. Never raises — captures errors into the result.
 
     mode/model_id drive the CLI shape:
-      - gpu / gpu-runpod: evaluate.py --model-path <path> --templates-dir ...
+      - gpu: evaluate.py --model-path <path> --templates-dir ...
       - tinker:          evaluate.py --checkpoint <URI> --base-model <model_id>
     """
     eval_dir = tests_dir / "regression" / reg_id

@@ -30,11 +30,6 @@ path.write_text(json.dumps(metrics, indent=2))
 PY
 }
 
-RENDERER_NAME=""
-if [ -f "$WORKSPACE/renderer_name.txt" ]; then
-    RENDERER_NAME=$(tr -d '[:space:]' < "$WORKSPACE/renderer_name.txt")
-fi
-
 # ============================================================
 # Validate best_checkpoint.txt
 # ============================================================
@@ -49,7 +44,7 @@ fi
 
 CHECKPOINT=""
 if [ "$MISSING_CHECKPOINT" = "0" ]; then
-    CHECKPOINT=$(cat "$WORKSPACE/best_checkpoint.txt" | tr -d '[:space:]')
+    CHECKPOINT=$(sed -n '/^[[:space:]]*#/d; /^[[:space:]]*$/d; p; q' "$WORKSPACE/best_checkpoint.txt" | tr -d '[:space:]')
     if [ -z "$CHECKPOINT" ]; then
         echo "WARN: best_checkpoint.txt is empty"
         echo '{"error": "empty checkpoint path", "accuracy": 0}' > "$LOGS_DIR/metrics.json"
@@ -76,15 +71,10 @@ cd "$TESTS_DIR"
 
 run_evaluation() {
     local attempt="$1"
-    local renderer_args=()
-    if [ -n "$RENDERER_NAME" ]; then
-        renderer_args=(--renderer-name "$RENDERER_NAME")
-    fi
     set +e
     python3 "$TESTS_DIR/evaluate.py" \
         --checkpoint "$CHECKPOINT" \
         --base-model "$MODEL_ID" \
-        "${renderer_args[@]}" \
         --json-output-file "$LOGS_DIR/metrics.json" \
         --limit -1 \
         2>&1 | tee "$LOGS_DIR/final_eval_${attempt}.txt"
@@ -140,17 +130,12 @@ fi
 if [ "$MISSING_CHECKPOINT" = "0" ] && [ -f "$LOGS_DIR/metrics.json" ] && [ -f "$TESTS_DIR/regression/suite.py" ]; then
     echo ""
     echo "=== Running regression suite ==="
-    regression_args=()
-    if [ -n "$RENDERER_NAME" ]; then
-        regression_args=(--renderer-name "$RENDERER_NAME")
-    fi
     set +e
     python3 "$TESTS_DIR/regression/suite.py" \
         --model-path "$CHECKPOINT" \
         --tests-dir "$TESTS_DIR" \
         --logs-dir "$LOGS_DIR" \
         --metadata "$TESTS_DIR/metadata.json" \
-        "${regression_args[@]}" \
         2>&1 | tee "$LOGS_DIR/regression_suite.log"
     set -e
 fi
