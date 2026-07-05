@@ -173,7 +173,7 @@ SCORES: dict[str, dict] = {
             "arenahardwriting":(0.0,    0.200), # ✅
             "healthbench":     (0.054,  0.139), # ✅
             "mmlu":            (0.199,  0.350), # base Tinker, target Modal (vllm)
-            "ifeval":          (0.152,  0.444), # base Tinker, target Modal (vllm)
+            "ifeval":          (0.152,  0.4177449168207024), # base Tinker, target Modal (vllm)
             "mmmlu":           (0.174,  0.301),
         },
     },

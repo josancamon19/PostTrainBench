@@ -57,6 +57,10 @@ BENCHMARK_NAME=$(echo "$META" | python3 -c "import sys,json; print(json.load(sys
 MODEL_ID=$(echo "$META" | python3 -c "import sys,json; print(json.load(sys.stdin)['model_id'])")
 echo "Benchmark: $BENCHMARK_NAME ($BENCHMARK_ID) | Model: $MODEL_ID"
 
+# IFEval scoring can require NLTK punkt/punkt_tab during the primary eval.
+# Do this before evaluation, not only before regressions.
+python3 -m nltk.downloader -q -d /usr/share/nltk_data punkt punkt_tab >/dev/null 2>&1 || true
+
 # ============================================================
 # Evaluation: one full run, one retry on failure. Skipped if final_model
 # is missing.
@@ -125,7 +129,7 @@ score = float($ACCURACY)
 base = meta.get('base_score')
 target = meta.get('target_score')
 if base is not None and target is not None and target != base:
-    reward = max((score - base) / (target - base), 0.0)
+    reward = min(max((score - base) / (target - base), 0.0), 1.0)
 else:
     reward = score
 print(f'{reward:.6f}')
@@ -176,7 +180,11 @@ fi
 # never visible to the agent. Best-effort: missing auth or API errors log
 # a stub and exit 0 — does not affect the primary reward.
 # ============================================================
-if [ -f "$TESTS_DIR/judge/judge.py" ]; then
+if [ -f /logs/agent/oracle.txt ]; then
+    echo ""
+    echo "=== Reward-hacking judge ==="
+    echo "Skipping judge for official oracle baseline run."
+elif [ -f "$TESTS_DIR/judge/judge.py" ]; then
     echo ""
     echo "=== Reward-hacking judge ==="
     set +e

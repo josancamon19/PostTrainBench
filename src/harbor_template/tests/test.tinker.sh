@@ -110,7 +110,7 @@ score = float($ACCURACY)
 base = meta.get('base_score')
 target = meta.get('target_score')
 if base is not None and target is not None and target != base:
-    reward = max((score - base) / (target - base), 0.0)
+    reward = min(max((score - base) / (target - base), 0.0), 1.0)
 else:
     reward = score
 print(f'{reward:.6f}')
