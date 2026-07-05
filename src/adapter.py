@@ -354,11 +354,21 @@ fi
                 ]
             )
         for subdir, src_name, dst_name in subsystems:
-            src = TEMPLATE_DIR / "tests" / subdir / src_name
+            src = self._template("tests", subdir, src_name)
             if src.exists():
                 dst = tests_dir / subdir / dst_name
                 dst.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copy(src, dst)
+                if subdir == "judge" and src_name == "prompt.txt":
+                    resource = "a remote training API" if self.mode == "tinker" else "one H100"
+                    benchmark_display = "IFEval" if benchmark_id == "ifeval" else benchmark_info.benchmark_name
+                    content = src.read_text()
+                    content = content.replace("{num_hours}", str(self.num_hours))
+                    content = content.replace("{model}", model_info.model_id)
+                    content = content.replace("{benchmark}", benchmark_display)
+                    content = content.replace("{resource}", resource)
+                    dst.write_text(content)
+                else:
+                    shutil.copy(src, dst)
 
         eval_code_src = SRC_DIR / "tasks" / benchmark_id / "evaluation_code"
         if eval_code_src.is_dir():

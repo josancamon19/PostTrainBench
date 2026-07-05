@@ -30,6 +30,8 @@ HF_TOKEN = "${HF_TOKEN}"
 # agent can't see it.
 HF_TOKEN_WRITE = "${HF_TOKEN_WRITE}"
 # Judge auth — verifier-only. DO NOT move to [environment.env].
+CLAUDE_CODE_OAUTH_TOKEN = "${CLAUDE_CODE_OAUTH_TOKEN}"
+ANTHROPIC_API_KEY = "${ANTHROPIC_API_KEY}"
 AWS_BEARER_TOKEN_BEDROCK = "${AWS_BEARER_TOKEN_BEDROCK}"
 
 [agent]
