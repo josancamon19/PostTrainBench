@@ -22,6 +22,7 @@ def parse_args(description: str = "Evaluate a Tinker checkpoint.") -> argparse.N
     parser = argparse.ArgumentParser(description=description)
     parser.add_argument("--checkpoint", type=str, default=None)
     parser.add_argument("--base-model", type=str, default=BASE_MODEL)
+    parser.add_argument("--renderer-name", type=str, default=None)
     parser.add_argument("--json-output-file", type=str, default=None)
     parser.add_argument("--limit", type=int, default=None)
     return parser.parse_args()
@@ -44,7 +45,7 @@ def setup_tinker(args: argparse.Namespace) -> TinkerEvalContext:
     model_name = resolve_model_name(args.checkpoint, args.base_model)
     print(f"Model: {model_name}")
 
-    renderer_name = get_recommended_renderer_name(model_name)
+    renderer_name = getattr(args, "renderer_name", None) or get_recommended_renderer_name(model_name)
     model_attrs = get_model_attributes(model_name)
     print(f"Renderer: {renderer_name} | Model: {model_attrs.organization}/{model_attrs.size_str}")
 

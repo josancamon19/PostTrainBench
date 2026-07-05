@@ -81,6 +81,7 @@ def run_one(
     logs_dir: Path,
     mode: str,
     model_id: str,
+    renderer_name: str | None,
 ) -> dict:
     """Run a single regression eval. Never raises — captures errors into the result.
 
@@ -112,6 +113,8 @@ def run_one(
             "--json-output-file",
             str(out_json),
         ]
+        if renderer_name:
+            cmd.extend(["--renderer-name", renderer_name])
     else:
         cmd = [
             sys.executable,
@@ -156,6 +159,7 @@ def main() -> int:
     parser.add_argument("--tests-dir", required=True)
     parser.add_argument("--logs-dir", required=True)
     parser.add_argument("--metadata", required=True)
+    parser.add_argument("--renderer-name", default=None)
     args = parser.parse_args()
 
     metadata = json.loads(Path(args.metadata).read_text())
@@ -174,7 +178,7 @@ def main() -> int:
     results: dict[str, dict] = {}
     for reg_id in reg_ids:
         print(f"  -> {reg_id}", flush=True)
-        res = run_one(reg_id, model_path, tests_dir, logs_dir, mode, model_id)
+        res = run_one(reg_id, model_path, tests_dir, logs_dir, mode, model_id, args.renderer_name)
         baseline = baselines.get(reg_id)
         res["baseline"] = baseline
         res["delta"] = res["score"] - baseline if (res["score"] is not None and baseline is not None) else None

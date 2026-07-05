@@ -401,6 +401,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Run Arena-Hard evaluation with Tinker.")
     parser.add_argument("--checkpoint", type=str, default=None)
     parser.add_argument("--base-model", type=str, default=None)
+    parser.add_argument("--renderer-name", type=str, default=None)
     parser.add_argument("--json-output-file", type=str, default=None)
     parser.add_argument("--limit", type=int, default=-1, help="Sample cap for dev iteration. -1 = full set (default).")
     parser.add_argument("--judge-workers", type=int, default=DEFAULT_JUDGE_WORKERS)
