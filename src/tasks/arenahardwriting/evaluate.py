@@ -35,10 +35,10 @@ VLLM_GENERATION_RETRY = 3
 MAX_REPETITIONS = 5  # Maximum allowed repetitions of any pattern
 
 BENCHMARK = "arena-hard-v2.0"
-JUDGE_MODEL = "gpt-5-mini"
+JUDGE_MODEL = "gpt-4.1"
 REASONING_EFFORT = "medium"
 JUDGE_CONFIG = "evaluation_code/config/arena-hard-v2.0.yaml"
-JUDGE_MAX_COMPLETION = 49152
+JUDGE_MAX_COMPLETION = 32000
 DATA_PATH = Path("evaluation_code/data/" + BENCHMARK)
 
 
@@ -646,7 +646,7 @@ def _judgments_to_battles(judgments: list[dict | None], weight: int = 3):
             }
         )
 
-    battles = pd.DataFrame(battles_data)
+    battles = pd.DataFrame(battles_data, columns=["uid", "category", "model", "baseline", "scores"])
     battles = battles.explode("scores").reset_index(drop=True)
     return battles
 

@@ -138,13 +138,13 @@ SCORES: dict[str, dict] = {
         "benchmarks": {
             #                    base    target
             "gsm8k":           (0.033,  0.845),
-            "humaneval":       (0.213,  0.659),
+            "humaneval":       (0.213,  0.6341463414634146), # oracle vLLM
             # target = 1/30, real instruct score is 0.0, kinda an impossible task.
             "aime2025":        (0.0,    0.033),
-            "gpqamain":        (0.181,  0.304),
-            "arenahardwriting":(0.017,  0.467),
+            "gpqamain":        (0.181,  0.25223214285714285), # oracle vLLM
+            "arenahardwriting":(0.017,  0.4208167330677291), # oracle vLLM
             "healthbench":     (0.214,  0.234),
-            "mmlu":            (0.106,  0.650), # full Tinker eval (14k samples)
+            "mmlu":            (0.106,  0.4899906723111143), # oracle vLLM
             "ifeval":          (0.161,  0.739), # full Tinker eval (541 prompts)
             "mmmlu":           (0.161,  0.443),
         },
@@ -155,26 +155,26 @@ SCORES: dict[str, dict] = {
             "gsm8k":           (0.061,  0.777), # ✅
             "humaneval":       (0.006,  0.524), # ✅
             # "aime2025":        (0.0,    0.0),
-            "gpqamain":        (0.252,  0.328), # ✅
-            "arenahardwriting":(0.005,  0.433), # ✅
+            "gpqamain":        (0.252,  0.2544642857142857), # oracle vLLM
+            "arenahardwriting":(0.005,  0.2891089108910891), # oracle vLLM
             "healthbench":     (0.134,  0.256), # ✅
-            "mmlu":            (0.217,  0.580), # base Tinker, target Modal (vllm)
-            "ifeval":          (0.161,  0.677), # base Tinker, target Modal (vllm)
+            "mmlu":            (0.217,  0.4690392480447729), # oracle vLLM
+            "ifeval":          (0.161,  0.6561922365988909), # oracle vLLM
             "mmmlu":           (0.141,  0.380),
         },
     },
     "meta-llama/Llama-3.2-1B": {
         "instruct_id": "meta-llama/Llama-3.2-1B-Instruct",
         "benchmarks": {
-            "gsm8k":           (0.036,  0.466), # ✅
-            "humaneval":       (0.0,    0.354), # ✅
+            "gsm8k":           (0.036,  0.4336618650492798), # oracle vLLM
+            "humaneval":       (0.0,    0.2926829268292683), # oracle vLLM
             # "aime2025":        (0.0,    0.0),
             "gpqamain":        (0.132,  0.225), # ✅
             "arenahardwriting":(0.0,    0.200), # ✅
             "healthbench":     (0.054,  0.139), # ✅
             "mmlu":            (0.199,  0.350), # base Tinker, target Modal (vllm)
             "ifeval":          (0.152,  0.4177449168207024), # base Tinker, target Modal (vllm)
-            "mmmlu":           (0.174,  0.301),
+            "mmmlu":           (0.174,  0.2899007060451299), # oracle vLLM
         },
     },
     "Qwen/Qwen3-8B-Base": {
@@ -182,7 +182,7 @@ SCORES: dict[str, dict] = {
         "benchmarks": {
             # "gsm8k":           (0.913,  0.875),  # base > target (instruct /no_think)
             "humaneval":       (0.024,  0.457),
-            "aime2025":        (0.167,  0.400),
+            "aime2025":        (0.167,  0.16666666666666666), # oracle vLLM
             "gpqamain":        (0.388,  0.534),
             "arenahardwriting":(0.341,  0.820),
             "healthbench":     (0.287,  0.542),
@@ -194,7 +194,7 @@ SCORES: dict[str, dict] = {
         "benchmarks": {
             # "gsm8k":           (0.908,  0.895),  # base > target (instruct /no_think)
             "humaneval":       (0.006,  0.720),
-            "aime2025":        (0.100,  0.500),
+            "aime2025":        (0.100,  0.300), # oracle vLLM
             "gpqamain":        (0.462,  0.580),
             "arenahardwriting":(0.475,  0.860),
             "healthbench":     (0.301,  0.580),

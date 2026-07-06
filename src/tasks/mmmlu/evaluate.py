@@ -41,6 +41,7 @@ def parse_args() -> argparse.Namespace:
     )
     p.add_argument("--json-output-file", type=str, default=None)
     p.add_argument("--templates-dir", type=str, default="templates/")
+    p.add_argument("--max-connections", type=int, default=64)  # accepted for verifier harness compatibility
     p.add_argument("--max-tokens", type=int, default=32)
     p.add_argument("--gpu-memory-utilization", type=float, default=0.9)
     return p.parse_args()

@@ -158,7 +158,7 @@ def grade_criterion(
     conversation: list[dict],
     model_response: str,
     criterion: "RubricCriterion",
-    grader_model: str = "gpt-5-mini",
+    grader_model: str = "gpt-4.1",
     client: OpenAI | None = None,
     max_retries: int = API_MAX_RETRY,
 ) -> GradingResult:
@@ -257,7 +257,7 @@ def grade_example(
     conversation: list[dict],
     model_response: str,
     rubric_criteria: list["RubricCriterion"],
-    grader_model: str = "gpt-5-mini",
+    grader_model: str = "gpt-4.1",
     client: OpenAI | None = None,
     max_workers: int = 1,
 ) -> ExampleResult:
@@ -342,7 +342,7 @@ def _grade_example_with_index(
 def grade_examples_parallel(
     examples: list["HealthBenchExample"],
     responses: list[str],
-    grader_model: str = "gpt-5-mini",
+    grader_model: str = "gpt-4.1",
     example_workers: int = 4,
     criteria_workers: int = 8,
     max_concurrent_requests: int = 50,

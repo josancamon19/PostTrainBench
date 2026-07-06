@@ -43,10 +43,10 @@ DEFAULT_JUDGE_WORKERS = 64
 MAX_REPETITIONS = 5
 
 BENCHMARK = "arena-hard-v2.0"
-JUDGE_MODEL = "gpt-5-mini"
+JUDGE_MODEL = "gpt-4.1"
 REASONING_EFFORT = "medium"
 JUDGE_CONFIG = "evaluation_code/config/arena-hard-v2.0.yaml"
-JUDGE_MAX_COMPLETION = 49152
+JUDGE_MAX_COMPLETION = 32000
 DATA_PATH = Path("evaluation_code/data/" + BENCHMARK)
 MAX_TOKENS = 16384
 
@@ -361,7 +361,7 @@ def _judgments_to_battles(judgments, weight=3):
             }
         )
 
-    battles = pd.DataFrame(battles_data)
+    battles = pd.DataFrame(battles_data, columns=["uid", "category", "model", "baseline", "scores"])
     if battles.empty:
         return battles
     return battles.explode("scores").reset_index(drop=True)

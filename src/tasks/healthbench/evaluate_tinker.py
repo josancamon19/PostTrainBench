@@ -91,7 +91,7 @@ def main() -> None:
     results = grade_examples_parallel(
         examples=examples,
         responses=responses,
-        grader_model="gpt-5-mini",
+        grader_model="gpt-4.1",
         example_workers=4,
         criteria_workers=8,
         max_concurrent_requests=64,
