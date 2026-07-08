@@ -130,8 +130,7 @@ The `solve.sh` script reads the token from the file, exports it as `CLAUDE_CODE_
 | `src/eval/` | Evaluation tasks |
 | `results/` | Evaluation results (baseline runs prefixed with `baseline_`) |
 
-Each evaluation folder in `src/eval/tasks/` contains:
-- `benchmark.txt`: Official benchmark name
+Each evaluation folder in `src/tasks/` contains:
 - `evaluate.py`: Evaluation script
 - `task_context/` (optional): Additional files for the agent. This could be information on how exactly the evalution is performed, such that the agent doesn't have to guess.
 
@@ -143,9 +142,10 @@ We are especially interested in new evaluation tasks.
 
 ### Adding Tasks
 
-Add your code to `src/eval/tasks/<task_name>/` with:
+Add your code to `src/tasks/<task_name>/` with:
 1. `evaluate.py` - Evaluation script (see existing tasks for examples)
-2. `benchmark.txt` - Official benchmark name
+
+Register the official benchmark name in `src/constants.py`.
 
 Requirements for new tasks:
 - The task should be achievable by instruction-tuned versions of our test models ([Qwen3-1.7B](https://huggingface.co/Qwen/Qwen3-1.7B), [Qwen3-4B](https://huggingface.co/Qwen/Qwen3-4B), [SmolLM3-3B](https://huggingface.co/HuggingFaceTB/SmolLM3-3B), [Gemma-3-4B](https://huggingface.co/google/gemma-3-4b-it)) - significantly above random chance

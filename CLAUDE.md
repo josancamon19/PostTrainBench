@@ -56,7 +56,7 @@ python scripts/run_baselines.py
    - `tests/verifier.py` — Validation helpers (model existence, metadata)
    - `judge/contamination_judge.py` — AI judge detecting data tampering and model substitution
 
-4. **`src/tasks/`** — Each subdirectory is a benchmark containing `benchmark.txt`, `evaluate.py` (GPU/Inspect AI), and optionally `evaluate_tinker.py`, `task_context/`, `evaluation_code/`.
+4. **`src/tasks/`** — Each subdirectory is a benchmark containing `evaluate.py` (GPU/Inspect AI), and optionally `evaluate_tinker.py`, `task_context/`, `evaluation_code/`. Benchmark metadata lives in `src/constants.py`.
 
 5. **`src/harbor_patch.py`** — Monkeypatches Harbor's Modal environment to resolve task env vars.
 
@@ -80,8 +80,8 @@ YAML files in `src/configs/` define agent, environment type, orchestrator, and d
 
 ## Adding a New Benchmark
 
-1. Create `src/tasks/{task_name}/` with `benchmark.txt` and `evaluate.py` (use Inspect AI; see existing tasks)
-2. Register in `src/constants.py`: add to `BENCHMARKS` dict, add baseline scores to `BASE_SCORES` and `INSTRUCT_BASELINES`
+1. Create `src/tasks/{task_name}/` with `evaluate.py` (use Inspect AI; see existing tasks)
+2. Register in `src/constants.py`: add to `BENCHMARKS` dict with the official benchmark name, add baseline scores to `BASE_SCORES` and `INSTRUCT_BASELINES`
 3. Run `python scripts/run_baselines.py` to compute baselines
 4. Push to trigger CI image rebuild
 

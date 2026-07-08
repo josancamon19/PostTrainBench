@@ -1,6 +1,5 @@
 """Generate Harbor-compatible tasks for running PostTrainBench evaluations."""
 
-import contextlib
 import json
 import shutil
 from pathlib import Path
@@ -68,14 +67,6 @@ class PostTrainBenchAdapter:
         # SCORES. Useful for bootstrapping a new benchmark: export → run oracle
         # → harvest the target score from the verifier's metrics.json.
         self.force = force
-
-    def _read_benchmark_name(self, benchmark_id: str) -> str:
-        bench_file = SRC_DIR / "tasks" / benchmark_id / "benchmark.txt"
-        if bench_file.is_file():
-            return bench_file.read_text(encoding="utf-8").strip()
-        if benchmark_id in BENCHMARKS:
-            return BENCHMARKS[benchmark_id].benchmark_name
-        raise FileNotFoundError(f"Benchmark file not found: {bench_file}")
 
     def _template(self, *parts: str) -> Path:
         """Resolve a template path, using .tinker variant when in tinker mode.
@@ -398,13 +389,6 @@ class PostTrainBenchAdapter:
 
         benchmark_info = BENCHMARKS[benchmark_id]
         model_info = models[model_key]
-
-        with contextlib.suppress(FileNotFoundError):
-            benchmark_info = BenchmarkInfo(
-                task_id=benchmark_info.task_id,
-                benchmark_name=self._read_benchmark_name(benchmark_id),
-                setup_note=benchmark_info.setup_note,
-            )
 
         task_id = f"{benchmark_id}-{model_info.short_name}"
         if self.mode == "tinker":
